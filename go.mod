@@ -1,6 +1,6 @@
 module github.com/sudo-jin/memory
 
-go 1.26
+go 1.22.2
 
 require (
 	github.com/nrednav/cuid2 v1.1.0
