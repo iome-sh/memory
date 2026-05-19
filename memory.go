@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -334,6 +335,21 @@ func CalculateRelevanceScore(entry MemoryEntry) float64 {
 		total = 1.0
 	}
 	return total
+}
+
+// MultiFactorScore implements full H-Mem s + t + r scoring with optional query vector for semantic component
+// s = semantic cosine if queryVec provided, else uses ScoreImpact
+func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
+	var semantic float64
+	if len(queryVec) > 0 {
+		entryVec := GenerateSimpleEmbedding(entry.Content.Summary+" "+entry.Content.Full, len(queryVec))
+		semantic = CosineSimilarity(entryVec, queryVec)
+	} else {
+		semantic = entry.Metrics.ScoreImpact
+	}
+	temporal := CalculateTemporalDecay(entry)
+	robust := 1.0 + 0.05*float64(entry.Metrics.UsageCount)
+	return semantic * 0.4 + temporal*0.3 + robust*0.3
 }
 
 // listEntriesInTier sorts by relevance score (new)
