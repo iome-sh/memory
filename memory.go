@@ -81,15 +81,43 @@ type MemoryStats struct {
 	LastCompaction  time.Time
 }
 
+// PalaceConfig for configurable PalaceStore creation (Phase 4.3)
+type PalaceConfig struct {
+	BaseDir           string
+	MaxWorkingEntries int
+	MaxWorkingAgeHours int
+	CompactionConfig  CompactionConfig
+}
+
 // PalaceStore provides file-backed hierarchical memory storage.
 type PalaceStore struct {
 	BaseDir string
+	Config  PalaceConfig
 }
 
-func NewPalaceStore(baseDir string) *PalaceStore {
-	ps := &PalaceStore{BaseDir: baseDir}
-	_ = ps.ensureDirs() // best effort
+// NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3)
+func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
+	if cfg.BaseDir == "" {
+		cfg.BaseDir = ".ossa/kb/palace"
+	}
+	if cfg.MaxWorkingEntries == 0 {
+		cfg.MaxWorkingEntries = 50
+	}
+	if cfg.MaxWorkingAgeHours == 0 {
+		cfg.MaxWorkingAgeHours = 48
+	}
+	ps := &PalaceStore{
+		BaseDir: cfg.BaseDir,
+		Config:  cfg,
+	}
+	_ = ps.ensureDirs()
 	return ps
+}
+
+// NewPalaceStore is legacy convenience (uses defaults)
+func NewPalaceStore(baseDir string) *PalaceStore {
+	cfg := PalaceConfig{BaseDir: baseDir}
+	return NewPalaceStoreWithConfig(cfg)
 }
 
 func (ps *PalaceStore) ensureDirs() error {
@@ -121,7 +149,7 @@ func (ps *PalaceStore) getTierDir(tier MemoryTier) string {
 	return filepath.Join(ps.BaseDir, "tier-2-contextual")
 }
 
-// Write persists a MemoryEntry (atomic write) + versioning + error wrapping
+// Write persists a MemoryEntry (atomic write) + versioning + error wrapping + lifecycle
 func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
