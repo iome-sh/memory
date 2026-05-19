@@ -25,7 +25,7 @@ type CompactionConfig struct {
 	AvgScoreAfter      float64            `json:"avg_score_after"`
 	Improvement        float64            `json:"improvement"`
 	// H-Mem inspired
-	TemporalWindowSize int     `json:"temporal_window_size"` // beta-like (e.g. cycles or months)
+	TemporalWindowSize  int     `json:"temporal_window_size"` // beta-like (e.g. cycles or months)
 	SimilarityThreshold float64 `json:"similarity_threshold"` // alpha
 }
 
@@ -36,9 +36,17 @@ var DefaultCompactionConfig = CompactionConfig{
 	SimilarityThreshold: 0.75,
 }
 
-// performCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints
-// Note: LLM generation is injected via callback for standalone use
-func (ps *PalaceStore) PerformCompaction(targetTier MemoryTier, cfg CompactionConfig, generateFn func(prompt string) string) {
+// VectorStoreCallback allows optional vector integration (e.g. Qdrant)
+type VectorStoreCallback func(id string, vec []float32, payload map[string]interface{}) error
+
+// PerformCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints
+// generateFn and vectorCallback are injected for standalone flexibility
+func (ps *PalaceStore) PerformCompaction(
+	targetTier MemoryTier,
+	cfg CompactionConfig,
+	generateFn func(prompt string) string,
+	vectorCallback VectorStoreCallback,
+) {
 	entries := ps.listEntriesInTier(targetTier)
 	if len(entries) == 0 {
 		return
@@ -71,13 +79,13 @@ func (ps *PalaceStore) PerformCompaction(targetTier MemoryTier, cfg CompactionCo
 	for _, act := range actions {
 		switch act.Action {
 		case "SUMMARIZE":
-			ps.handleSummarize(act.TargetIDs, targetTier, cfg)
+			ps.handleSummarize(act.TargetIDs, targetTier, cfg, vectorCallback)
 		case "CREATE_CORE_PRINCIPLE":
-			ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg)
+			ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg, vectorCallback)
 		case "ARCHIVE":
 			ps.handleArchive(act.TargetIDs, targetTier)
 		case "MERGE":
-			ps.handleMerge(act.TargetIDs, targetTier, cfg)
+			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
 		}
 	}
 }
@@ -160,7 +168,7 @@ func parseCompactionActions(output string) []CompactionAction {
 	return actions
 }
 
-func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg CompactionConfig) {
+func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) {
 	if len(ids) == 0 {
 		return
 	}
@@ -178,8 +186,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		return
 	}
 	combined := strings.Join(contents, "\n\n---\n\n")
-	// In real use, call external generateFn. Here we just create placeholder.
-	condensed := truncate(combined, 500) // placeholder
+	condensed := truncate(combined, 500) // placeholder - replace with generateFn in real usage
 
 	now := time.Now()
 	newID := generateMemoryID()
@@ -206,6 +213,16 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	}
 	ps.Write(newEntry)
 
+	// Optional vector integration
+	if vectorCb != nil {
+		vec := generateSimpleEmbedding(condensed, 768)
+		payload := map[string]interface{}{
+			"type": "summary",
+			"compacted": true,
+		}
+		_ = vectorCb(newID, vec, payload)
+	}
+
 	// Archive originals
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
@@ -215,8 +232,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	}
 }
 
-func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, cfg CompactionConfig) {
-	// Similar to summarize but targets Archival tier + higher score boost
+func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) {
 	if len(ids) == 0 {
 		return
 	}
@@ -255,6 +271,15 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	}
 	ps.Write(newEntry)
 
+	if vectorCb != nil {
+		vec := generateSimpleEmbedding(principle, 768)
+		payload := map[string]interface{}{
+			"type": "core_principle",
+			"compacted": true,
+		}
+		_ = vectorCb(newID, vec, payload)
+	}
+
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
@@ -272,7 +297,7 @@ func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier) {
 	}
 }
 
-func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg CompactionConfig) {
+func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) {
 	if len(ids) < 2 {
 		return
 	}
@@ -306,6 +331,11 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		Metrics: MemoryMetrics{ScoreImpact: totalScore / float64(len(parents)), UsageCount: 1},
 	}
 	ps.Write(newEntry)
+
+	if vectorCb != nil {
+		vec := generateSimpleEmbedding(merged, 768)
+		_ = vectorCb(newID, vec, map[string]interface{}{"type": "merged"})
+	}
 
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
