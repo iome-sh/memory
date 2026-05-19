@@ -20,13 +20,19 @@ type VectorStore struct {
 	Enabled    bool
 }
 
-// NewVectorStore initializes the official Qdrant client
+// NewVectorStore initializes the official Qdrant client (gRPC on port 6334 by default)
+// The url parameter is used as Host for simplicity. Use "localhost" for local Podman dev.
 func NewVectorStore(url, collection string) *VectorStore {
 	if url == "" {
 		return &VectorStore{Enabled: false}
 	}
+	host := url
+	if host == "" {
+		host = "localhost"
+	}
 	client, err := qdrant.NewClient(&qdrant.Config{
-		URL: url,
+		Host: host,
+		Port: 6334,
 	})
 	if err != nil {
 		return &VectorStore{Enabled: false}
@@ -43,11 +49,12 @@ func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]
 	if !vs.Enabled {
 		return nil
 	}
-	_, err := vs.Client.Upsert(context.Background(), vs.Collection, &qdrant.PointStructs{
+	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
+		CollectionName: vs.Collection,
 		Points: []*qdrant.PointStruct{
 			{
-				ID:      qdrant.NewID(id),
-				Vector:  qdrant.NewVectorsFloat32(vec),
+				Id:      qdrant.NewID(id),
+				Vectors: qdrant.NewVectorsFloat32(vec),
 				Payload: qdrant.NewPayloadFromMap(payload),
 			},
 		},
@@ -56,7 +63,6 @@ func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]
 }
 
 // StoreSparseVector upserts a sparse vector (H-Mem style exploration)
-// Sparse vectors are useful for high-dimensional sparse embeddings (e.g., BM25-style or keyword vectors)
 func (vs *VectorStore) StoreSparseVector(id string, indices []uint32, values []float32, payload map[string]interface{}) error {
 	if !vs.Enabled {
 		return nil
@@ -65,11 +71,12 @@ func (vs *VectorStore) StoreSparseVector(id string, indices []uint32, values []f
 		Indices: indices,
 		Values:  values,
 	}
-	_, err := vs.Client.Upsert(context.Background(), vs.Collection, &qdrant.PointStructs{
+	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
+		CollectionName: vs.Collection,
 		Points: []*qdrant.PointStruct{
 			{
-				ID:      qdrant.NewID(id),
-				Vector:  qdrant.NewVectorsSparse(sparseVec),
+				Id:      qdrant.NewID(id),
+				Vectors: qdrant.NewVectorsSparse(sparseVec),
 				Payload: qdrant.NewPayloadFromMap(payload),
 			},
 		},
@@ -82,7 +89,8 @@ func (vs *VectorStore) BatchUpsert(points []*qdrant.PointStruct) error {
 	if !vs.Enabled {
 		return nil
 	}
-	_, err := vs.Client.Upsert(context.Background(), vs.Collection, &qdrant.PointStructs{
+	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
+		CollectionName: vs.Collection,
 		Points: points,
 	})
 	return err
@@ -117,7 +125,7 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 	var searchResults []SearchResult
 	for _, r := range results {
 		searchResults = append(searchResults, SearchResult{
-			ID:      r.ID.String(),
+			ID:      r.Id.String(),
 			Score:   r.Score,
 			Payload: r.Payload,
 		})
@@ -151,7 +159,7 @@ func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32
 	var searchResults []SearchResult
 	for _, r := range results {
 		searchResults = append(searchResults, SearchResult{
-			ID:      r.ID.String(),
+			ID:      r.Id.String(),
 			Score:   r.Score,
 			Payload: r.Payload,
 		})
@@ -439,7 +447,7 @@ func (vs *VectorStore) createBatchSparseCollectionsWithResults(ctx context.Conte
 		results = append(results, res)
 		if res.Error != nil {
 			failures = append(failures, res)
-	}
+		}
 	}
 
 	var finalErr error
@@ -449,29 +457,4 @@ func (vs *VectorStore) createBatchSparseCollectionsWithResults(ctx context.Conte
 		finalErr = ctx.Err()
 	}
 	return results, finalErr
-}
-
-// GenerateSimpleEmbedding provides a deterministic pseudo-embedding (for demo / fallback use).
-// In production, replace with a real embedding model (e.g. via external service or ONNX).
-func GenerateSimpleEmbedding(text string, dim int) []float32 {
-	if dim <= 0 {
-		dim = 768
-	}
-	h := sha256.Sum256([]byte(text))
-	vec := make([]float32, dim)
-	for i := 0; i < dim; i++ {
-		vec[i] = float32(h[i%32]) / 255.0
-	}
-	// L2 normalize
-	var norm float32
-	for _, v := range vec {
-		norm += v * v
-	}
-	if norm > 0 {
-		norm = float32(math.Sqrt(float64(norm)))
-		for i := range vec {
-			vec[i] /= norm
-		}
-	}
-	return vec
 }
