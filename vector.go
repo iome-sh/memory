@@ -54,7 +54,7 @@ type SearchResult struct {
 }
 
 // SearchSimilar performs vector similarity search.
-// Returns IDs, scores, and optional payloads.
+// Returns structured results with optional payloads.
 func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled || vs.URL == "" {
 		return nil, nil
@@ -111,7 +111,7 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 // SearchByText is a convenience method that generates a simple embedding and searches.
 // For production use, replace with semantic embedding generation.
 func (vs *VectorStore) SearchByText(text string, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
-	vec := generateSimpleEmbedding(text, 768)
+	vec := GenerateSimpleEmbedding(text, 768)
 	return vs.SearchSimilar(vec, limit, filter, withPayload)
 }
 
@@ -137,4 +137,14 @@ func (vs *VectorStore) CreateCollection(dim int) error {
 	}
 	defer resp.Body.Close()
 	return nil
+}
+
+// QdrantClientInitExample shows recommended initialization
+// Example:
+// vs := memory.NewVectorStore("http://localhost:6333", "my_collection")
+// _ = vs.CreateCollection(768)
+// store.Vector = vs
+func QdrantClientInitExample() {
+	// This is documentation only
+	// Full Qdrant client initialization is handled via NewVectorStore + CreateCollection
 }
