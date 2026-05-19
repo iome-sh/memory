@@ -156,12 +156,12 @@ func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 	return entry, true
 }
 
-// generateMemoryID uses cuid2
+// GenerateMemoryID uses cuid2
 func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
-// generateSimpleEmbedding (deterministic, to be replaced by semantic later)
+// GenerateSimpleEmbedding (deterministic, to be replaced by semantic later)
 func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = 768
@@ -189,7 +189,7 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	return vec
 }
 
-// populateTemporalTags (cycle-aware)
+// PopulateTemporalTags (cycle-aware)
 func PopulateTemporalTags(cycle int) []string {
 	now := time.Now()
 	weekday := now.Weekday().String()
@@ -210,7 +210,7 @@ func PopulateTemporalTags(cycle int) []string {
 	}
 }
 
-// cosineSimilarity helper
+// CosineSimilarity helper
 func CosineSimilarity(a, b []float32) float64 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0
@@ -227,38 +227,8 @@ func CosineSimilarity(a, b []float32) float64 {
 	return dot / (math.Sqrt(na) * math.Sqrt(nb))
 }
 
-// CalculateTemporalDecay implements H-Mem style forgetting curve
-// Exponential decay based on time since last access (hours)
-func CalculateTemporalDecay(entry MemoryEntry) float64 {
-	if entry.LastAccessed.IsZero() {
-		return 1.0
-	}
-	hoursSince := time.Since(entry.LastAccessed).Hours()
-	return math.Exp(-hoursSince / 168) // decay over ~1 week
-}
-
-// CalculateRelevanceScore combines recency, temporal decay, score impact and usage (H-Mem inspired s + t + r)
-// Returns score in [0,1] range for ranking/compaction
-func CalculateRelevanceScore(entry MemoryEntry) float64 {
-	if entry.Metrics.ScoreImpact == 0 {
-		return 0
-	}
-
-	recency := calculateRecencyBoost(time.Since(entry.LastAccessed).Hours())
-	decay := CalculateTemporalDecay(entry)
-	usageBoost := 1.0 + 0.1*float64(entry.Metrics.UsageCount)
-
-	total := entry.Metrics.ScoreImpact * recency * decay * usageBoost
-
-	// Normalize to [0,1] (assuming reasonable score ranges)
-	if total > 1.0 {
-		total = 1.0
-	}
-	return total
-}
-
-// calculateRecencyBoost (kept internal for now)
-func calculateRecencyBoost(deltaHours float64) float64 {
+// CalculateRecencyBoost returns recency boost factor
+func CalculateRecencyBoost(deltaHours float64) float64 {
 	switch {
 	case deltaHours < 1:
 		return 1.0
@@ -275,4 +245,52 @@ func calculateRecencyBoost(deltaHours float64) float64 {
 	}
 }
 
-// ... rest of file unchanged (ensureDirs, getTierDir, Write, Load, etc.)
+// CalculateTemporalDecay implements H-Mem style forgetting curve
+// Exponential decay based on time since last access (hours)
+func CalculateTemporalDecay(entry MemoryEntry) float64 {
+	if entry.LastAccessed.IsZero() {
+		return 1.0
+	}
+	hoursSince := time.Since(entry.LastAccessed).Hours()
+	return math.Exp(-hoursSince / 168) // decay over ~1 week
+}
+
+// CalculateRelevanceScore combines score impact, recency, temporal decay, usage (H-Mem s + t + r)
+func CalculateRelevanceScore(entry MemoryEntry) float64 {
+	if entry.Metrics.ScoreImpact <= 0 {
+		return 0.0
+	}
+	recency := CalculateRecencyBoost(time.Since(entry.LastAccessed).Hours())
+	decay := CalculateTemporalDecay(entry)
+	usageBoost := 1.0 + 0.1*float64(entry.Metrics.UsageCount+entry.AccessCount)
+	total := entry.Metrics.ScoreImpact * recency * decay * usageBoost
+	if total > 1.0 {
+		total = 1.0
+	}
+	return total
+}
+
+// listEntriesInTier sorts by relevance score (new)
+func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
+	dir := ps.getTierDir(tier)
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var entries []MemoryEntry
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".json") {
+			id := strings.TrimSuffix(f.Name(), ".json")
+			if entry, ok := ps.Load(id, tier); ok {
+				entries = append(entries, entry)
+			}
+		}
+	}
+
+	// Sort by relevance score descending (highest first)
+	sort.Slice(entries, func(i, j int) bool {
+		return CalculateRelevanceScore(entries[i]) > CalculateRelevanceScore(entries[j])
+	})
+
+	return entries
+}
