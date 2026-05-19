@@ -157,12 +157,12 @@ func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 }
 
 // generateMemoryID uses cuid2
-func generateMemoryID() string {
+func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
 // generateSimpleEmbedding (deterministic, to be replaced by semantic later)
-func generateSimpleEmbedding(text string, dim int) []float32 {
+func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = 768
 	}
@@ -190,7 +190,7 @@ func generateSimpleEmbedding(text string, dim int) []float32 {
 }
 
 // populateTemporalTags (cycle-aware)
-func populateTemporalTags(cycle int) []string {
+func PopulateTemporalTags(cycle int) []string {
 	now := time.Now()
 	weekday := now.Weekday().String()
 	hour := now.Hour()
@@ -211,7 +211,7 @@ func populateTemporalTags(cycle int) []string {
 }
 
 // cosineSimilarity helper
-func cosineSimilarity(a, b []float32) float64 {
+func CosineSimilarity(a, b []float32) float64 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0
 	}
@@ -226,3 +226,53 @@ func cosineSimilarity(a, b []float32) float64 {
 	}
 	return dot / (math.Sqrt(na) * math.Sqrt(nb))
 }
+
+// CalculateTemporalDecay implements H-Mem style forgetting curve
+// Exponential decay based on time since last access (hours)
+func CalculateTemporalDecay(entry MemoryEntry) float64 {
+	if entry.LastAccessed.IsZero() {
+		return 1.0
+	}
+	hoursSince := time.Since(entry.LastAccessed).Hours()
+	return math.Exp(-hoursSince / 168) // decay over ~1 week
+}
+
+// CalculateRelevanceScore combines recency, temporal decay, score impact and usage (H-Mem inspired s + t + r)
+// Returns score in [0,1] range for ranking/compaction
+func CalculateRelevanceScore(entry MemoryEntry) float64 {
+	if entry.Metrics.ScoreImpact == 0 {
+		return 0
+	}
+
+	recency := calculateRecencyBoost(time.Since(entry.LastAccessed).Hours())
+	decay := CalculateTemporalDecay(entry)
+	usageBoost := 1.0 + 0.1*float64(entry.Metrics.UsageCount)
+
+	total := entry.Metrics.ScoreImpact * recency * decay * usageBoost
+
+	// Normalize to [0,1] (assuming reasonable score ranges)
+	if total > 1.0 {
+		total = 1.0
+	}
+	return total
+}
+
+// calculateRecencyBoost (kept internal for now)
+func calculateRecencyBoost(deltaHours float64) float64 {
+	switch {
+	case deltaHours < 1:
+		return 1.0
+	case deltaHours < 6:
+		return 0.9
+	case deltaHours < 24:
+		return 0.75
+	case deltaHours < 72:
+		return 0.55
+	case deltaHours < 168:
+		return 0.4
+	default:
+		return 0.2
+	}
+}
+
+// ... rest of file unchanged (ensureDirs, getTierDir, Write, Load, etc.)
