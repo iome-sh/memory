@@ -202,7 +202,8 @@ func parseCompactionActions(output string) []CompactionAction {
 
 	// Fallback to legacy text parsing
 	var actions []CompactionAction
-	lines := strings.Split(output, "\n")	var current *CompactionAction
+	lines := strings.Split(output, "\n")
+	var current *CompactionAction
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
