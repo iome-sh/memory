@@ -1,8 +1,7 @@
 package memory
 
 import (
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -41,7 +40,7 @@ func TestPalaceStore_WriteLoad(t *testing.T) {
 }
 
 func TestGenerateSimpleEmbedding(t *testing.T) {
-	vec := generateSimpleEmbedding("test text", 4)
+	vec := GenerateSimpleEmbedding("test text", 4)
 	if len(vec) != 4 {
 		t.Errorf("expected dim 4, got %d", len(vec))
 	}
@@ -56,7 +55,7 @@ func TestGenerateSimpleEmbedding(t *testing.T) {
 }
 
 func TestPopulateTemporalTags(t *testing.T) {
-	tags := populateTemporalTags(42)
+	tags := PopulateTemporalTags(42)
 	if len(tags) != 4 {
 		t.Errorf("expected 4 tags, got %d", len(tags))
 	}
@@ -68,12 +67,12 @@ func TestPopulateTemporalTags(t *testing.T) {
 func TestCosineSimilarity(t *testing.T) {
 	a := []float32{1, 0, 0}
 	b := []float32{1, 0, 0}
-	if s := cosineSimilarity(a, b); s != 1.0 {
+	if s := CosineSimilarity(a, b); s != 1.0 {
 		t.Errorf("expected 1.0, got %f", s)
 	}
 
 	c := []float32{0, 1, 0}
-	if s := cosineSimilarity(a, c); s != 0 {
+	if s := CosineSimilarity(a, c); s != 0 {
 		t.Errorf("expected 0, got %f", s)
 	}
 }
