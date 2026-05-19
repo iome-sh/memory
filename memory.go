@@ -87,7 +87,11 @@ type PalaceConfig struct {
 	MaxWorkingEntries int
 	MaxWorkingAgeHours int
 	CompactionConfig  CompactionConfig
+	EmbeddingFunc     EmbeddingFunc `json:"-"` // pluggable (Phase 5.1)
 }
+
+// EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
+type EmbeddingFunc func(text string, dim int) []float32
 
 // PalaceStore provides file-backed hierarchical memory storage.
 type PalaceStore struct {
@@ -105,6 +109,9 @@ func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 	}
 	if cfg.MaxWorkingAgeHours == 0 {
 		cfg.MaxWorkingAgeHours = 48
+	}
+	if cfg.EmbeddingFunc == nil {
+		cfg.EmbeddingFunc = GenerateSimpleEmbedding
 	}
 	ps := &PalaceStore{
 		BaseDir: cfg.BaseDir,
