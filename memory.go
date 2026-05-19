@@ -161,6 +161,12 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 		os.Remove(tmpName)
 		return fmt.Errorf("rename failed: %w", err)
 	}
+
+	// Working tier lifecycle: promote on high score/access
+	if entry.Tier == TierWorking && CalculateRelevanceScore(entry) > 0.8 {
+		entry.Tier = TierContextual
+		ps.Write(entry) // re-write to new tier
+	}
 	return nil
 }
 
@@ -265,6 +271,37 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	}
 
 	return results
+}
+
+// EvictWorkingTier performs age/size-based eviction from Working tier (Phase 4.2)
+func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
+	working := ps.listEntriesInTier(TierWorking)
+	if len(working) <= maxCount {
+		return
+	}
+
+	// Sort by age (oldest first)
+	sort.Slice(working, func(i, j int) bool {
+		return working[i].CreatedAt.Before(working[j].CreatedAt)
+	})
+
+	for i := 0; i < len(working)-maxCount; i++ {
+		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
+			working[i].Tier = TierContextual
+			ps.Write(working[i])
+		}
+	}
+}
+
+// PromoteToContextual promotes high-relevance Working entries (Phase 4.2)
+func (ps *PalaceStore) PromoteToContextual(threshold float64) {
+	working := ps.listEntriesInTier(TierWorking)
+	for _, e := range working {
+		if CalculateRelevanceScore(e) > threshold {
+			e.Tier = TierContextual
+			ps.Write(e)
+		}
+	}
 }
 
 // GenerateMemoryID uses cuid2
