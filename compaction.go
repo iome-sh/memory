@@ -1,0 +1,323 @@
+package memory
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+)
+
+// CompactionStrategy types (from ossa, kept for compatibility)
+type CompactionStrategy string
+
+const (
+	StrategySimpleSummary     CompactionStrategy = "simple_summary"
+	StrategyPatternExtraction CompactionStrategy = "pattern_extraction"
+	StrategyCorePrinciple     CompactionStrategy = "core_principle"
+)
+
+// CompactionConfig (extended with H-Mem ideas)
+type CompactionConfig struct {
+	Tier2Strategy      CompactionStrategy `json:"tier2_strategy"`
+	Tier3Strategy      CompactionStrategy `json:"tier3_strategy"`
+	LastEvaluatedCycle int                `json:"last_evaluated_cycle"`
+	AvgScoreBefore     float64            `json:"avg_score_before"`
+	AvgScoreAfter      float64            `json:"avg_score_after"`
+	Improvement        float64            `json:"improvement"`
+	// H-Mem inspired
+	TemporalWindowSize int     `json:"temporal_window_size"` // beta-like (e.g. cycles or months)
+	SimilarityThreshold float64 `json:"similarity_threshold"` // alpha
+}
+
+var DefaultCompactionConfig = CompactionConfig{
+	Tier2Strategy:       StrategyPatternExtraction,
+	Tier3Strategy:       StrategyCorePrinciple,
+	TemporalWindowSize:  12,  // default beta (cycles)
+	SimilarityThreshold: 0.75,
+}
+
+// performCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints
+// Note: LLM generation is injected via callback for standalone use
+func (ps *PalaceStore) PerformCompaction(targetTier MemoryTier, cfg CompactionConfig, generateFn func(prompt string) string) {
+	entries := ps.listEntriesInTier(targetTier)
+	if len(entries) == 0 {
+		return
+	}
+
+	// H-Mem style: filter to recent temporal window (beta)
+	windowed := filterByTemporalWindow(entries, cfg.TemporalWindowSize)
+
+	sort.Slice(windowed, func(i, j int) bool {
+		if windowed[i].Metrics.ScoreImpact != windowed[j].Metrics.ScoreImpact {
+			return windowed[i].Metrics.ScoreImpact > windowed[j].Metrics.ScoreImpact
+		}
+		return windowed[i].UpdatedAt.After(windowed[j].UpdatedAt)
+	})
+
+	if len(windowed) > 10 {
+		windowed = windowed[:10]
+	}
+
+	var memList strings.Builder
+	for _, e := range windowed {
+		memList.WriteString(fmt.Sprintf("ID:%s Type:%s Summary:%s Score:%.1f\n", e.ID, e.Type, truncate(e.Content.Summary, 200), e.Metrics.ScoreImpact))
+	}
+
+	prompt := fmt.Sprintf("Compact tier %s within temporal window. Candidates:\n%s\nOutput ACTION blocks...", getTierName(targetTier), memList.String())
+
+	raw := generateFn(prompt)
+	actions := parseCompactionActions(raw)
+
+	for _, act := range actions {
+		switch act.Action {
+		case "SUMMARIZE":
+			ps.handleSummarize(act.TargetIDs, targetTier, cfg)
+		case "CREATE_CORE_PRINCIPLE":
+			ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg)
+		case "ARCHIVE":
+			ps.handleArchive(act.TargetIDs, targetTier)
+		case "MERGE":
+			ps.handleMerge(act.TargetIDs, targetTier, cfg)
+		}
+	}
+}
+
+func filterByTemporalWindow(entries []MemoryEntry, windowSize int) []MemoryEntry {
+	if windowSize <= 0 {
+		return entries
+	}
+	// Simple cycle-based window (can be extended to month tags)
+	if len(entries) == 0 {
+		return entries
+	}
+	maxCycle := 0
+	for _, e := range entries {
+		if e.Cycle > maxCycle {
+			maxCycle = e.Cycle
+		}
+	}
+	cutoff := maxCycle - windowSize
+	var result []MemoryEntry
+	for _, e := range entries {
+		if e.Cycle >= cutoff {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
+func getTierName(tier MemoryTier) string {
+	switch tier {
+	case TierWorking:
+		return "working"
+	case TierContextual:
+		return "contextual"
+	case TierArchival:
+		return "archival"
+	}
+	return "contextual"
+}
+
+type CompactionAction struct {
+	Action    string
+	TargetIDs []string
+	Reason    string
+}
+
+func parseCompactionActions(output string) []CompactionAction {
+	var actions []CompactionAction
+	lines := strings.Split(output, "\n")
+	var current *CompactionAction
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		upper := strings.ToUpper(line)
+		if strings.HasPrefix(upper, "ACTION:") {
+			if current != nil {
+				actions = append(actions, *current)
+			}
+			current = &CompactionAction{}
+			act := strings.TrimSpace(line[7:])
+			current.Action = strings.ToUpper(strings.TrimSpace(act))
+		} else if current != nil && strings.HasPrefix(upper, "TARGET:") {
+			tgts := strings.TrimSpace(line[7:])
+			ids := strings.Split(tgts, ",")
+			for _, id := range ids {
+				id = strings.TrimSpace(id)
+				if id != "" {
+					current.TargetIDs = append(current.TargetIDs, id)
+				}
+			}
+		} else if current != nil && strings.HasPrefix(upper, "REASON:") {
+			current.Reason = strings.TrimSpace(line[7:])
+		}
+	}
+	if current != nil {
+		actions = append(actions, *current)
+	}
+	return actions
+}
+
+func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg CompactionConfig) {
+	if len(ids) == 0 {
+		return
+	}
+	var contents []string
+	var parents []string
+	var totalScore float64
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			contents = append(contents, entry.Content.Full)
+			parents = append(parents, id)
+			totalScore += entry.Metrics.ScoreImpact
+		}
+	}
+	if len(contents) == 0 {
+		return
+	}
+	combined := strings.Join(contents, "\n\n---\n\n")
+	// In real use, call external generateFn. Here we just create placeholder.
+	condensed := truncate(combined, 500) // placeholder
+
+	now := time.Now()
+	newID := generateMemoryID()
+	newEntry := MemoryEntry{
+		ID:        newID,
+		Type:      "summary",
+		Tier:      TierContextual,
+		Version:   1,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Content: MemoryContent{
+			Summary: truncate(condensed, 140),
+			Full:    condensed,
+			Tags:    []string{"compacted", "summary"},
+		},
+		Provenance: MemoryProvenance{
+			SourceStep: "compaction",
+			ParentIDs:  parents,
+		},
+		Metrics: MemoryMetrics{
+			ScoreImpact: totalScore / float64(len(parents)),
+			UsageCount:  1,
+		},
+	}
+	ps.Write(newEntry)
+
+	// Archive originals
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			entry.Tier = TierArchival
+			ps.Write(entry)
+		}
+	}
+}
+
+func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, cfg CompactionConfig) {
+	// Similar to summarize but targets Archival tier + higher score boost
+	if len(ids) == 0 {
+		return
+	}
+	var contents []string
+	var parents []string
+	var totalScore float64
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			contents = append(contents, entry.Content.Full)
+			parents = append(parents, id)
+			totalScore += entry.Metrics.ScoreImpact
+		}
+	}
+	if len(contents) == 0 {
+		return
+	}
+	combined := strings.Join(contents, "\n\n")
+	principle := truncate(combined, 400)
+
+	now := time.Now()
+	newID := generateMemoryID()
+	newEntry := MemoryEntry{
+		ID:        newID,
+		Type:      "core_principle",
+		Tier:      TierArchival,
+		Version:   1,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Content: MemoryContent{
+			Summary: truncate(principle, 140),
+			Full:    principle,
+			Tags:    []string{"core", "compacted"},
+		},
+		Provenance: MemoryProvenance{SourceStep: "compaction", ParentIDs: parents},
+		Metrics:    MemoryMetrics{ScoreImpact: totalScore/float64(len(parents)) + 1.0, UsageCount: 1},
+	}
+	ps.Write(newEntry)
+
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			entry.Tier = TierArchival
+			ps.Write(entry)
+		}
+	}
+}
+
+func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier) {
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			entry.Tier = TierArchival
+			ps.Write(entry)
+		}
+	}
+}
+
+func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg CompactionConfig) {
+	if len(ids) < 2 {
+		return
+	}
+	var contents []string
+	var parents []string
+	var totalScore float64
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			contents = append(contents, entry.Content.Full)
+			parents = append(parents, id)
+			totalScore += entry.Metrics.ScoreImpact
+		}
+	}
+	if len(contents) == 0 {
+		return
+	}
+	combined := strings.Join(contents, "\n\n---\n\n")
+	merged := truncate(combined, 500)
+
+	now := time.Now()
+	newID := generateMemoryID()
+	newEntry := MemoryEntry{
+		ID:        newID,
+		Type:      "merged",
+		Tier:      TierContextual,
+		Version:   1,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Content: MemoryContent{Summary: truncate(merged, 140), Full: merged, Tags: []string{"merged", "compacted"}},
+		Provenance: MemoryProvenance{SourceStep: "compaction", ParentIDs: parents},
+		Metrics: MemoryMetrics{ScoreImpact: totalScore / float64(len(parents)), UsageCount: 1},
+	}
+	ps.Write(newEntry)
+
+	for _, id := range ids {
+		if entry, ok := ps.Load(id, tier); ok {
+			entry.Tier = TierArchival
+			ps.Write(entry)
+		}
+	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}
