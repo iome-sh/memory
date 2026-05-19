@@ -339,6 +339,41 @@ func (ps *PalaceStore) PromoteToContextual(threshold float64) {
 	}
 }
 
+// EntityGraph for H-Mem KG integration (richer relational graph)
+type EntityGraph struct {
+	Entities map[string][]string `json:"entities"`
+}
+
+// AddEntityRelationship adds normalized entity links (H-Mem style)
+func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
+	graphPath := filepath.Join(ps.BaseDir, "relations", "entity-graph.json")
+	graph := make(map[string][]string)
+	if data, err := os.ReadFile(graphPath); err == nil {
+		json.Unmarshal(data, &graph)
+	}
+	if graph[entity] == nil {
+		graph[entity] = []string{}
+	}
+	for _, r := range graph[entity] {
+		if r == related {
+			return
+		}
+	}
+	graph[entity] = append(graph[entity], related)
+	data, _ := json.MarshalIndent(graph, "", "  ")
+	os.WriteFile(graphPath, data, 0644)
+}
+
+// GetRelatedEntities returns related entities for graph traversal
+func (ps *PalaceStore) GetRelatedEntities(entity string) []string {
+	graphPath := filepath.Join(ps.BaseDir, "relations", "entity-graph.json")
+	graph := make(map[string][]string)
+	if data, err := os.ReadFile(graphPath); err == nil {
+		json.Unmarshal(data, &graph)
+	}
+	return graph[entity]
+}
+
 // GenerateMemoryID uses cuid2
 func GenerateMemoryID() string {
 	return cuid2.Generate()
