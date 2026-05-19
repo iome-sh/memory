@@ -71,6 +71,15 @@ type MemoryRelations struct {
 	Backlinks       []string `json:"backlinks,omitempty"`
 }
 
+// MemoryStats provides observability metrics
+type MemoryStats struct {
+	WorkingCount    int
+	ContextualCount int
+	ArchivalCount   int
+	TotalEntries    int
+	LastCompaction  time.Time
+}
+
 // PalaceStore provides file-backed hierarchical memory storage.
 type PalaceStore struct {
 	BaseDir string
@@ -93,7 +102,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
-			return err
+			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
 		}
 	}
 	return nil
@@ -111,10 +120,10 @@ func (ps *PalaceStore) getTierDir(tier MemoryTier) string {
 	return filepath.Join(ps.BaseDir, "tier-2-contextual")
 }
 
-// Write persists a MemoryEntry (atomic write) + activates versioning
+// Write persists a MemoryEntry (atomic write) + versioning + error wrapping
 func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
-		return err
+		return fmt.Errorf("ensure dirs failed: %w", err)
 	}
 
 	// Activate versioning: archive current version before write
@@ -122,7 +131,7 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 		entry.Version = 1
 	}
 	if err := ps.archiveToVersions(entry); err != nil {
-		return err
+		fmt.Printf("[memory] versioning warning: %v\n", err)
 	}
 
 	dir := ps.getTierDir(entry.Tier)
@@ -131,52 +140,86 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal failed: %w", err)
 	}
 	tmpFile, err := os.CreateTemp(dir, ".tmp-"+entry.ID+"-*.json")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp failed: %w", err)
 	}
 	tmpName := tmpFile.Name()
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpName)
-		return err
+		return fmt.Errorf("write temp failed: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
 		os.Remove(tmpName)
-		return err
+		return fmt.Errorf("close temp failed: %w", err)
 	}
-	return os.Rename(tmpName, path)
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("rename failed: %w", err)
+	}
+	return nil
 }
 
 // archiveToVersions archives the entry as a versioned snapshot
 func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 	versionsDir := filepath.Join(ps.BaseDir, "versions", "memory-entries", entry.ID)
 	if err := os.MkdirAll(versionsDir, 0755); err != nil {
-		return err
+		return fmt.Errorf("mkdir versions failed: %w", err)
 	}
 	versionPath := filepath.Join(versionsDir, fmt.Sprintf("v%d.json", entry.Version))
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal version failed: %w", err)
 	}
-	return os.WriteFile(versionPath, data, 0644)
+	if err := os.WriteFile(versionPath, data, 0644); err != nil {
+		return fmt.Errorf("write version failed: %w", err)
+	}
+	return nil
 }
 
-// Load retrieves by ID and tier
+// Load retrieves by ID and tier with better error logging
 func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 	dir := ps.getTierDir(tier)
 	path := filepath.Join(dir, id+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
+		fmt.Printf("[memory] load read failed for %s: %v\n", path, err)
 		return MemoryEntry{}, false
 	}
 	var entry MemoryEntry
-	if json.Unmarshal(data, &entry) != nil {
+	if err := json.Unmarshal(data, &entry); err != nil {
+		fmt.Printf("[memory] load unmarshal failed for %s: %v\n", path, err)
 		return MemoryEntry{}, false
 	}
 	return entry, true
+}
+
+// GetStats returns observability metrics (Phase 1.2)
+func (ps *PalaceStore) GetStats() MemoryStats {
+	stats := MemoryStats{}
+
+	for _, tier := range []MemoryTier{TierWorking, TierContextual, TierArchival} {
+		dir := ps.getTierDir(tier)
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		count := len(files)
+		switch tier {
+		case TierWorking:
+			stats.WorkingCount = count
+		case TierContextual:
+			stats.ContextualCount = count
+		case TierArchival:
+			stats.ArchivalCount = count
+		}
+		stats.TotalEntries += count
+	}
+
+	return stats
 }
 
 // GenerateMemoryID uses cuid2
