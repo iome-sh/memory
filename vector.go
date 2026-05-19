@@ -46,50 +46,76 @@ func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]
 	return nil
 }
 
-// SearchSimilar performs vector search (optional)
-func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[string]interface{}) ([]string, []float64, error) {
+// SearchResult represents a single similarity search result
+type SearchResult struct {
+	ID      string
+	Score   float64
+	Payload map[string]interface{}
+}
+
+// SearchSimilar performs vector similarity search.
+// Returns IDs, scores, and optional payloads.
+func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled || vs.URL == "" {
-		return nil, nil, nil
+		return nil, nil
 	}
+
 	searchURL := fmt.Sprintf("%s/collections/%s/points/search", vs.URL, vs.Collection)
+
 	reqBody := map[string]interface{}{
 		"vector":       queryVec,
 		"limit":        limit,
-		"with_payload": false,
+		"with_payload": withPayload,
+		"params": map[string]interface{}{
+			"hnsw_ef": 64,
+		},
 	}
 	if filter != nil {
 		reqBody["filter"] = filter
 	}
+
 	body, _ := json.Marshal(reqBody)
 	req, _ := http.NewRequest("POST", searchURL, strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	var result struct {
 		Result []struct {
-			ID    string  `json:"id"`
-			Score float64 `json:"score"`
+			ID      string                 `json:"id"`
+			Score   float64                `json:"score"`
+			Payload map[string]interface{} `json:"payload"`
 		} `json:"result"`
 	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	ids := make([]string, len(result.Result))
-	scores := make([]float64, len(result.Result))
+	results := make([]SearchResult, len(result.Result))
 	for i, r := range result.Result {
-		ids[i] = fmt.Sprintf("%v", r.ID)
-		scores[i] = r.Score
+		results[i] = SearchResult{
+			ID:      fmt.Sprintf("%v", r.ID),
+			Score:   r.Score,
+			Payload: r.Payload,
+		}
 	}
-	return ids, scores, nil
+	return results, nil
 }
 
-// CreateCollection (helper for Qdrant)
+// SearchByText is a convenience method that generates a simple embedding and searches.
+// For production use, replace with semantic embedding generation.
+func (vs *VectorStore) SearchByText(text string, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
+	vec := generateSimpleEmbedding(text, 768)
+	return vs.SearchSimilar(vec, limit, filter, withPayload)
+}
+
+// CreateCollection helper for Qdrant
 func (vs *VectorStore) CreateCollection(dim int) error {
 	if !vs.Enabled {
 		return nil
