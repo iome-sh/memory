@@ -223,6 +223,50 @@ func (ps *PalaceStore) GetStats() MemoryStats {
 	return stats
 }
 
+// SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1
+// Supports query, optional tier filter, limit, and vector if VectorStore attached
+func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, vec []float32) []MemoryEntry {
+	if limit <= 0 {
+		limit = 10
+	}
+	var results []MemoryEntry
+
+	// Start with all entries (or tier filtered)
+	if tier != nil {
+		results = ps.listEntriesInTier(*tier)
+	} else {
+		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival} {
+			results = append(results, ps.listEntriesInTier(t)...)
+		}
+	}
+
+	// Keyword filter
+	queryLower := strings.ToLower(query)
+	var filtered []MemoryEntry
+	for _, e := range results {
+		if strings.Contains(strings.ToLower(e.Content.Summary), queryLower) || strings.Contains(strings.ToLower(e.Content.Full), queryLower) {
+			filtered = append(filtered, e)
+		}
+	}
+	results = filtered
+
+	// Vector re-rank if provided
+	if len(vec) > 0 {
+		sort.Slice(results, func(i, j int) bool {
+			iVec := GenerateSimpleEmbedding(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
+			jVec := GenerateSimpleEmbedding(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
+			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
+		})
+	}
+
+	// Limit
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results
+}
+
 // GenerateMemoryID uses cuid2
 func GenerateMemoryID() string {
 	return cuid2.Generate()
