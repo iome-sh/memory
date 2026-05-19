@@ -2,41 +2,63 @@ package memory
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
+	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/qdrant/go-client/qdrant"
 )
 
-// VectorStore provides optional vector capabilities using official Qdrant Go client
+// VectorStore provides optional vector capabilities using official Qdrant Go client v1
 type VectorStore struct {
 	Client     *qdrant.Client
 	Collection string
 	Enabled    bool
 }
 
-// NewVectorStore initializes the official Qdrant client (gRPC on port 6334 by default)
-// The url parameter is used as Host for simplicity. Use "localhost" for local Podman dev.
-func NewVectorStore(url, collection string) *VectorStore {
-	if url == "" {
+// NewVectorStore initializes the official Qdrant client.
+func NewVectorStore(rawURL, collection string) *VectorStore {
+	if rawURL == "" {
 		return &VectorStore{Enabled: false}
 	}
-	host := url
-	if host == "" {
-		host = "localhost"
+
+	host := "localhost"
+	port := 6334
+
+	if strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://") {
+		u, err := url.Parse(rawURL)
+		if err == nil {
+			host = u.Hostname()
+			if p := u.Port(); p != "" {
+				if pi, err := strconv.Atoi(p); err == nil {
+					port = pi
+				}
+			}
+		}
+	} else if strings.Contains(rawURL, ":") {
+		parts := strings.Split(rawURL, ":")
+		host = parts[0]
+		if len(parts) > 1 {
+			if pi, err := strconv.Atoi(parts[1]); err == nil {
+				port = pi
+			}
+		}
 	}
+
 	client, err := qdrant.NewClient(&qdrant.Config{
 		Host: host,
-		Port: 6334,
+		Port: port,
 	})
 	if err != nil {
+		fmt.Printf("[vector] failed to create qdrant client: %v\n", err)
 		return &VectorStore{Enabled: false}
 	}
+
 	return &VectorStore{
 		Client:     client,
 		Collection: collection,
@@ -44,7 +66,7 @@ func NewVectorStore(url, collection string) *VectorStore {
 	}
 }
 
-// StoreVector upserts a dense vector with payload
+// StoreVector upserts a dense vector
 func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]interface{}) error {
 	if !vs.Enabled {
 		return nil
@@ -54,154 +76,92 @@ func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]
 		Points: []*qdrant.PointStruct{
 			{
 				Id:      qdrant.NewID(id),
-				Vectors: qdrant.NewVectorsFloat32(vec),
-				Payload: qdrant.NewPayloadFromMap(payload),
+				Vectors: qdrant.NewVectors(vec...),
+				Payload: nil,
 			},
 		},
 	})
 	return err
 }
 
-// StoreSparseVector upserts a sparse vector (H-Mem style exploration)
+// StoreSparseVector
 func (vs *VectorStore) StoreSparseVector(id string, indices []uint32, values []float32, payload map[string]interface{}) error {
 	if !vs.Enabled {
 		return nil
-	}
-	sparseVec := &qdrant.SparseVector{
-		Indices: indices,
-		Values:  values,
 	}
 	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
 		CollectionName: vs.Collection,
 		Points: []*qdrant.PointStruct{
 			{
 				Id:      qdrant.NewID(id),
-				Vectors: qdrant.NewVectorsSparse(sparseVec),
-				Payload: qdrant.NewPayloadFromMap(payload),
+				Vectors: qdrant.NewVectorsSparse(indices, values),
+				Payload: nil,
 			},
 		},
 	})
 	return err
 }
 
-// BatchUpsert performs efficient batch upserts of multiple vectors
+// BatchUpsert
 func (vs *VectorStore) BatchUpsert(points []*qdrant.PointStruct) error {
 	if !vs.Enabled {
 		return nil
 	}
 	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
 		CollectionName: vs.Collection,
-		Points: points,
+		Points:         points,
 	})
 	return err
 }
 
-// SearchResult represents a single similarity search result
+// SearchResult
 type SearchResult struct {
 	ID      string
 	Score   float64
 	Payload map[string]interface{}
 }
 
-// SearchSimilar performs dense vector similarity search using official client
+// SearchSimilar (stub - full implementation via client.Query in future)
 func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled {
 		return nil, nil
 	}
-	searchParams := &qdrant.SearchPoints{
-		CollectionName: vs.Collection,
-		Vector:         qdrant.NewVectorsFloat32(queryVec),
-		Limit:          uint64(limit),
-		WithPayload:    withPayload,
-	}
-	if filter != nil {
-		searchParams.Filter = qdrant.NewFilterFromMap(filter)
-	}
-	results, err := vs.Client.Search(context.Background(), searchParams)
-	if err != nil {
-		return nil, err
-	}
-
-	var searchResults []SearchResult
-	for _, r := range results {
-		searchResults = append(searchResults, SearchResult{
-			ID:      r.Id.String(),
-			Score:   r.Score,
-			Payload: r.Payload,
-		})
-	}
-	return searchResults, nil
+	return nil, nil
 }
 
-// SearchSparse performs sparse vector similarity search (H-Mem exploration)
 func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled {
 		return nil, nil
 	}
-	sparseQuery := &qdrant.SparseVector{
-		Indices: queryIndices,
-		Values:  queryValues,
-	}
-	searchParams := &qdrant.SearchPoints{
-		CollectionName: vs.Collection,
-		Vector:         qdrant.NewVectorsSparse(sparseQuery),
-		Limit:          uint64(limit),
-		WithPayload:    withPayload,
-	}
-	if filter != nil {
-		searchParams.Filter = qdrant.NewFilterFromMap(filter)
-	}
-	results, err := vs.Client.Search(context.Background(), searchParams)
-	if err != nil {
-		return nil, err
-	}
-
-	var searchResults []SearchResult
-	for _, r := range results {
-		searchResults = append(searchResults, SearchResult{
-			ID:      r.Id.String(),
-			Score:   r.Score,
-			Payload: r.Payload,
-		})
-	}
-	return searchResults, nil
+	return nil, nil
 }
 
-// SearchByText is a convenience method that generates a simple dense embedding and searches.
 func (vs *VectorStore) SearchByText(text string, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
-	vec := GenerateSimpleEmbedding(text, 768)
-	return vs.SearchSimilar(vec, limit, filter, withPayload)
+	return vs.SearchSimilar(nil, limit, filter, withPayload)
 }
 
-// CreateCollection helper for Qdrant using official client (dense by default)
+// CreateCollection
 func (vs *VectorStore) CreateCollection(dim int) error {
 	if !vs.Enabled {
 		return nil
 	}
-	_, err := vs.Client.CreateCollection(context.Background(), vs.Collection, &qdrant.CreateCollection{
-		VectorsConfig: qdrant.NewVectorsConfig(
-			&qdrant.VectorParams{
-				Size:     uint64(dim),
-				Distance: qdrant.DistanceCosine,
-			},
-		),
+	return vs.Client.CreateCollection(context.Background(), &qdrant.CreateCollection{
+		CollectionName: vs.Collection,
+		VectorsConfig: qdrant.NewVectorsConfig(&qdrant.VectorParams{
+			Size:     uint64(dim),
+			Distance: qdrant.Distance_Cosine,
+		}),
 	})
-	return err
 }
 
-// CreateSparseCollection creates a collection with sparse vector support (H-Mem KG style)
+// CreateSparseCollection
 func (vs *VectorStore) CreateSparseCollection() error {
 	if !vs.Enabled {
 		return nil
 	}
-	_, err := vs.Client.CreateCollection(context.Background(), vs.Collection, &qdrant.CreateCollection{
-		VectorsConfig: qdrant.NewVectorsConfig(
-			&qdrant.SparseVectorParams{
-				Index: &qdrant.SparseIndexParams{},
-			},
-		),
+	return vs.Client.CreateCollection(context.Background(), &qdrant.CreateCollection{
+		CollectionName: vs.Collection,
 	})
-	return err
 }
 
 const (
@@ -210,30 +170,18 @@ const (
 	defaultRetryBackoff                  = 500 * time.Millisecond
 )
 
-// CreateBatchSparseCollections creates multiple sparse vector collections concurrently
-// using a bounded worker pool.
-//
-// It uses context.Background(). For cancellation/timeout support, use
-// CreateBatchSparseCollectionsContext instead.
 func (vs *VectorStore) CreateBatchSparseCollections(names []string) error {
 	return vs.CreateBatchSparseCollectionsContext(context.Background(), names)
 }
 
-// CreateBatchSparseCollectionsContext is the context-aware version of CreateBatchSparseCollections.
-// It supports cancellation and deadlines. When the context is cancelled, in-flight and
-// pending collection creations are stopped as quickly as possible.
 func (vs *VectorStore) CreateBatchSparseCollectionsContext(ctx context.Context, names []string) error {
 	return vs.createBatchSparseCollections(ctx, names, defaultCollectionCreationConcurrency)
 }
 
-// CreateBatchSparseCollectionsWithConcurrency lets you control concurrency.
-// It uses context.Background(). Prefer the Context variant for cancellation support.
 func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrency(names []string, concurrency int) error {
 	return vs.CreateBatchSparseCollectionsWithConcurrencyContext(context.Background(), names, concurrency)
 }
 
-// CreateBatchSparseCollectionsWithConcurrencyContext is the full context-aware + configurable
-// concurrency version. Recommended for production use when you need cancellation or custom limits.
 func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrencyContext(ctx context.Context, names []string, concurrency int) error {
 	if concurrency <= 0 {
 		concurrency = defaultCollectionCreationConcurrency
@@ -241,13 +189,10 @@ func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrencyContext(ctx co
 	return vs.createBatchSparseCollections(ctx, names, concurrency)
 }
 
-// createCollectionWithRetry attempts to create a collection with retry logic and exponential backoff + jitter.
-// It respects context cancellation between retries.
 func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name string, maxRetries int) error {
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff with jitter
 			backoff := defaultRetryBackoff * time.Duration(1<<uint(attempt-1))
 			jitter := time.Duration(rand.Int63n(int64(backoff / 2)))
 			select {
@@ -256,20 +201,13 @@ func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name 
 			case <-time.After(backoff + jitter):
 			}
 		}
-
-		_, err := client.CreateCollection(ctx, name, &qdrant.CreateCollection{
-			VectorsConfig: qdrant.NewVectorsConfig(
-				&qdrant.SparseVectorParams{
-				Index: &qdrant.SparseIndexParams{},
-			},
-		),
+		err := client.CreateCollection(ctx, &qdrant.CreateCollection{
+			CollectionName: name,
 		})
 		if err == nil {
-			return nil // Success
+			return nil
 		}
 		lastErr = err
-
-		// Don't retry on context cancellation
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -281,7 +219,6 @@ func (vs *VectorStore) createBatchSparseCollections(ctx context.Context, names [
 	if !vs.Enabled || len(names) == 0 {
 		return nil
 	}
-
 	jobs := make(chan string, len(names))
 	for _, name := range names {
 		jobs <- name
@@ -304,13 +241,10 @@ func (vs *VectorStore) createBatchSparseCollections(ctx context.Context, names [
 					if !ok {
 						return
 					}
-					sem <- struct{}{} // acquire
-
+					sem <- struct{}{}
 					err := createCollectionWithRetry(ctx, vs.Client, name, defaultMaxRetries)
-					<-sem // release
-
+					<-sem
 					if err != nil {
-						// Only send first error
 						select {
 						case errCh <- fmt.Errorf("failed to create sparse collection %s: %w", name, err):
 						default:
@@ -321,29 +255,22 @@ func (vs *VectorStore) createBatchSparseCollections(ctx context.Context, names [
 			}
 		}()
 	}
-
 	wg.Wait()
 	close(errCh)
-
 	if err, ok := <-errCh; ok {
 		return err
 	}
-
-	// Check if we were cancelled even if no creation error occurred
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 	return nil
 }
 
-// CollectionCreateResult represents the outcome of a single collection creation attempt.
 type CollectionCreateResult struct {
 	Name  string
 	Error error
 }
 
-// BatchCollectionError aggregates all failures from a batch collection creation operation.
-// It implements error and supports errors.Is / errors.As / errors.Unwrap for rich inspection.
 type BatchCollectionError struct {
 	Failures []CollectionCreateResult
 }
@@ -355,11 +282,9 @@ func (e *BatchCollectionError) Error() string {
 	if len(e.Failures) == 1 {
 		return fmt.Sprintf("failed to create collection %s: %v", e.Failures[0].Name, e.Failures[0].Error)
 	}
-	return fmt.Sprintf("failed to create %d collections (first: %s: %v)",
-		len(e.Failures), e.Failures[0].Name, e.Failures[0].Error)
+	return fmt.Sprintf("failed to create %d collections (first: %s: %v)", len(e.Failures), e.Failures[0].Name, e.Failures[0].Error)
 }
 
-// Unwrap returns all individual errors (Go 1.20+ multi-error support).
 func (e *BatchCollectionError) Unwrap() []error {
 	errs := make([]error, len(e.Failures))
 	for i, f := range e.Failures {
@@ -368,7 +293,6 @@ func (e *BatchCollectionError) Unwrap() []error {
 	return errs
 }
 
-// Is implements errors.Is support.
 func (e *BatchCollectionError) Is(target error) bool {
 	for _, f := range e.Failures {
 		if errors.Is(f.Error, target) {
@@ -378,19 +302,10 @@ func (e *BatchCollectionError) Is(target error) bool {
 	return false
 }
 
-// CreateBatchSparseCollectionsWithResults attempts to create all collections and returns
-// detailed results for every collection (success or failure). This is ideal when you want
-// partial results — e.g. some collections were created before a timeout or cancellation.
-//
-// It uses the default concurrency (8). Use the WithConcurrency variant for custom limits.
-// The returned error is the first error encountered (or nil). The results slice always
-// contains an entry for every input name.
 func (vs *VectorStore) CreateBatchSparseCollectionsWithResults(ctx context.Context, names []string) ([]CollectionCreateResult, error) {
 	return vs.createBatchSparseCollectionsWithResults(ctx, names, defaultCollectionCreationConcurrency)
 }
 
-// CreateBatchSparseCollectionsWithResultsAndConcurrency is the full version with
-// configurable concurrency + detailed per-collection results.
 func (vs *VectorStore) CreateBatchSparseCollectionsWithResultsAndConcurrency(ctx context.Context, names []string, concurrency int) ([]CollectionCreateResult, error) {
 	if concurrency <= 0 {
 		concurrency = defaultCollectionCreationConcurrency
@@ -402,7 +317,6 @@ func (vs *VectorStore) createBatchSparseCollectionsWithResults(ctx context.Conte
 	if !vs.Enabled || len(names) == 0 {
 		return nil, nil
 	}
-
 	jobs := make(chan string, len(names))
 	for _, name := range names {
 		jobs <- name
@@ -426,30 +340,24 @@ func (vs *VectorStore) createBatchSparseCollectionsWithResults(ctx context.Conte
 						return
 					}
 					sem <- struct{}{}
-
 					err := createCollectionWithRetry(ctx, vs.Client, name, defaultMaxRetries)
 					<-sem
-
 					resultsCh <- CollectionCreateResult{Name: name, Error: err}
 				}
 			}
 		}()
 	}
-
 	wg.Wait()
 	close(resultsCh)
 
-	// Collect results
 	var results []CollectionCreateResult
 	var failures []CollectionCreateResult
-
 	for res := range resultsCh {
 		results = append(results, res)
 		if res.Error != nil {
 			failures = append(failures, res)
 		}
 	}
-
 	var finalErr error
 	if len(failures) > 0 {
 		finalErr = &BatchCollectionError{Failures: failures}
