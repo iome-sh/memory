@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -55,6 +56,20 @@ func (ps *PalaceStore) PerformCompaction(
 	// H-Mem style: filter to recent temporal window (beta)
 	windowed := filterByTemporalWindow(entries, cfg.TemporalWindowSize)
 
+	// Alpha constraint: filter by similarity to average
+	if len(windowed) > 0 && cfg.SimilarityThreshold > 0 {
+		avgVec := averageEmbedding(windowed)
+		var filtered []MemoryEntry
+		for _, e := range windowed {
+			entryVec := GenerateSimpleEmbedding(e.Content.Summary+" "+e.Content.Full, len(avgVec))
+			sim := CosineSimilarity(entryVec, avgVec)
+			if sim >= cfg.SimilarityThreshold {
+				filtered = append(filtered, e)
+			}
+		}
+		windowed = filtered
+	}
+
 	sort.Slice(windowed, func(i, j int) bool {
 		if windowed[i].Metrics.ScoreImpact != windowed[j].Metrics.ScoreImpact {
 			return windowed[i].Metrics.ScoreImpact > windowed[j].Metrics.ScoreImpact
@@ -71,12 +86,16 @@ func (ps *PalaceStore) PerformCompaction(
 		memList.WriteString(fmt.Sprintf("ID:%s Type:%s Summary:%s Score:%.1f\n", e.ID, e.Type, truncate(e.Content.Summary, 200), e.Metrics.ScoreImpact))
 	}
 
-	prompt := fmt.Sprintf("Compact tier %s within temporal window. Candidates:\n%s\nOutput ACTION blocks...", getTierName(targetTier), memList.String())
+	prompt := fmt.Sprintf("Compact tier %s within temporal window. Candidates:\n%s\nOutput JSON array of actions or ACTION blocks...", getTierName(targetTier), memList.String())
 
 	raw := generateFn(prompt)
 	actions := parseCompactionActions(raw)
 
+	// Verification step
 	for _, act := range actions {
+		if !ps.verifyAction(act) {
+			continue // skip invalid
+		}
 		switch act.Action {
 		case "SUMMARIZE":
 			ps.handleSummarize(act.TargetIDs, targetTier, cfg, vectorCallback)
@@ -88,6 +107,35 @@ func (ps *PalaceStore) PerformCompaction(
 			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
 		}
 	}
+}
+
+// averageEmbedding for alpha check
+func averageEmbedding(entries []MemoryEntry) []float32 {
+	if len(entries) == 0 {
+		return []float32{0}
+	}
+	dim := 768
+	avg := make([]float32, dim)
+	count := 0
+	for _, e := range entries {
+		vec := GenerateSimpleEmbedding(e.Content.Summary+" "+e.Content.Full, dim)
+		for i := range vec {
+			avg[i] += vec[i]
+		}
+		count++
+	}
+	for i := range avg {
+		avg[i] /= float32(count)
+	}
+	return avg
+}
+
+// verifyAction adds basic sanity check for structured output
+func (ps *PalaceStore) verifyAction(act CompactionAction) bool {
+	if act.Action == "" || len(act.TargetIDs) == 0 {
+		return false
+	}
+	return true
 }
 
 func filterByTemporalWindow(entries []MemoryEntry, windowSize int) []MemoryEntry {
@@ -132,7 +180,27 @@ type CompactionAction struct {
 	Reason    string
 }
 
+// parseCompactionActions now supports JSON fallback for structured output
 func parseCompactionActions(output string) []CompactionAction {
+	// Try JSON first (structured mode)
+	var jsonActions []struct {
+		Action string `json:"action"`
+		Target []string `json:"target"`
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(output), &jsonActions); err == nil {
+		var actions []CompactionAction
+		for _, ja := range jsonActions {
+			actions = append(actions, CompactionAction{
+				Action:    ja.Action,
+				TargetIDs: ja.Target,
+				Reason:    ja.Reason,
+			})
+		}
+		return actions
+	}
+
+	// Fallback to legacy text parsing
 	var actions []CompactionAction
 	lines := strings.Split(output, "\n")
 	var current *CompactionAction
@@ -215,7 +283,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 
 	// Optional vector integration
 	if vectorCb != nil {
-		vec := generateSimpleEmbedding(condensed, 768)
+		vec := GenerateSimpleEmbedding(condensed, 768)
 		payload := map[string]interface{}{
 			"type": "summary",
 			"compacted": true,
@@ -272,7 +340,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	ps.Write(newEntry)
 
 	if vectorCb != nil {
-		vec := generateSimpleEmbedding(principle, 768)
+		vec := GenerateSimpleEmbedding(principle, 768)
 		payload := map[string]interface{}{
 			"type": "core_principle",
 			"compacted": true,
@@ -333,7 +401,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 	ps.Write(newEntry)
 
 	if vectorCb != nil {
-		vec := generateSimpleEmbedding(merged, 768)
+		vec := GenerateSimpleEmbedding(merged, 768)
 		_ = vectorCb(newID, vec, map[string]interface{}{"type": "merged"})
 	}
 
