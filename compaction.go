@@ -158,7 +158,7 @@ func filterByTemporalWindow(entries []MemoryEntry, windowSize int) []MemoryEntry
 		if e.Cycle >= cutoff {
 			result = append(result, e)
 		}
-	}
+		}
 	return result
 }
 
@@ -202,8 +202,7 @@ func parseCompactionActions(output string) []CompactionAction {
 
 	// Fallback to legacy text parsing
 	var actions []CompactionAction
-	lines := strings.Split(output, "\n")
-	var current *CompactionAction
+	lines := strings.Split(output, "\n")	var current *CompactionAction
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -257,7 +256,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	condensed := truncate(combined, 500) // placeholder - replace with generateFn in real usage
 
 	now := time.Now()
-	newID := generateMemoryID()
+	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
 		ID:        newID,
 		Type:      "summary",
@@ -321,7 +320,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	principle := truncate(combined, 400)
 
 	now := time.Now()
-	newID := generateMemoryID()
+	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
 		ID:        newID,
 		Type:      "core_principle",
@@ -386,7 +385,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 	merged := truncate(combined, 500)
 
 	now := time.Now()
-	newID := generateMemoryID()
+	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
 		ID:        newID,
 		Type:      "merged",
