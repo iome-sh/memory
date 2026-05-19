@@ -111,11 +111,20 @@ func (ps *PalaceStore) getTierDir(tier MemoryTier) string {
 	return filepath.Join(ps.BaseDir, "tier-2-contextual")
 }
 
-// Write persists a MemoryEntry (atomic write)
+// Write persists a MemoryEntry (atomic write) + activates versioning
 func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return err
 	}
+
+	// Activate versioning: archive current version before write
+	if entry.Version == 0 {
+		entry.Version = 1
+	}
+	if err := ps.archiveToVersions(entry); err != nil {
+		return err
+	}
+
 	dir := ps.getTierDir(entry.Tier)
 	filename := fmt.Sprintf("%s.json", entry.ID)
 	path := filepath.Join(dir, filename)
@@ -139,6 +148,20 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 		return err
 	}
 	return os.Rename(tmpName, path)
+}
+
+// archiveToVersions archives the entry as a versioned snapshot
+func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
+	versionsDir := filepath.Join(ps.BaseDir, "versions", "memory-entries", entry.ID)
+	if err := os.MkdirAll(versionsDir, 0755); err != nil {
+		return err
+	}
+	versionPath := filepath.Join(versionsDir, fmt.Sprintf("v%d.json", entry.Version))
+	data, err := json.MarshalIndent(entry, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(versionPath, data, 0644)
 }
 
 // Load retrieves by ID and tier
