@@ -1,10 +1,20 @@
 # memory
 
+## v1.0.0 Release (May 20, 2026)
+
+**Stable release** of the hierarchical agent memory package (Palace).
+
+- Production vector search (dense + sparse via Qdrant Query API)
+- Full PalaceStore with atomic writes, versioning, temporal decay, multi-factor scoring
+- Compaction with temporal windows and alpha constraints
+- Hybrid SearchMemory + pluggable embeddings
+- All core features complete, tested, and hardened
+
+**Module**: `github.com/sudo-jin/memory@v1.0.0`
+
 Standalone, portable Go package for hierarchical agent memory (Palace).
 
 Extracted and refactored from `github.com/sudo-jin/ossa/internal/self`.
-
-**Module**: `github.com/sudo-jin/memory`
 
 ## Goals
 
@@ -17,7 +27,7 @@ Extracted and refactored from `github.com/sudo-jin/ossa/internal/self`.
 
 ## Current Status
 
-Core memory models, PalaceStore, compaction, versioning, temporal decay, multi-factor scoring, pluggable embeddings, Working tier lifecycle, PalaceConfig, hybrid SearchMemory, and full Qdrant vector integration (dense + sparse) are complete and tested.
+**v1.0.0 released and stable.** Core memory models, PalaceStore, compaction, versioning, temporal decay, multi-factor scoring, pluggable embeddings, Working tier lifecycle, PalaceConfig, hybrid SearchMemory, and full Qdrant vector integration (dense + sparse) are complete, tested, and production-ready.
 
 ## Planned Structure
 
