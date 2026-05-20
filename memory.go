@@ -139,7 +139,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-		}
+	}
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 		entry.Version = 1
 	}
 	if err := ps.archiveToVersions(entry); err != nil {
-		fmt.Printf("[memory] versioning warning: %v\n", err)
+		// Non-fatal in production; continue (versioning is best-effort)
 	}
 
 	dir := ps.getTierDir(entry.Tier)
@@ -200,7 +200,10 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	// Working tier lifecycle: promote on high score/access
 	if entry.Tier == TierWorking && CalculateRelevanceScore(entry) > 0.8 {
 		entry.Tier = TierContextual
-		ps.Write(entry) // re-write to new tier
+		if err := ps.Write(entry); err != nil {
+			return fmt.Errorf("promote to contextual failed: %w", err)
+		}
+		return nil
 	}
 	return nil
 }
@@ -222,18 +225,16 @@ func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 	return nil
 }
 
-// Load retrieves by ID and tier with better error logging
+// Load retrieves by ID and tier. Production: no side-effect prints, clean bool return.
 func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 	dir := ps.getTierDir(tier)
 	path := filepath.Join(dir, id+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Printf("[memory] load read failed for %s: %v\n", path, err)
 		return MemoryEntry{}, false
 	}
 	var entry MemoryEntry
 	if err := json.Unmarshal(data, &entry); err != nil {
-		fmt.Printf("[memory] load unmarshal failed for %s: %v\n", path, err)
 		return MemoryEntry{}, false
 	}
 	return entry, true
@@ -402,7 +403,7 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 		norm = math.Sqrt(norm)
 		for i := range vec {
 			vec[i] /= float32(norm)
-		}
+	}
 	}
 	return vec
 }
@@ -517,7 +518,6 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
 			}
-		}
 	}
 
 	// Sort by relevance score descending (highest first)
