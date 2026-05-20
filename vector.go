@@ -135,22 +135,23 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 		limit = 10
 	}
 
+	limit64 := uint64(limit)
 	queryPoints := &qdrant.QueryPoints{
 		CollectionName: vs.Collection,
-		Query:          qdrant.NewQueryDense(queryVec...),
-		Limit:          qdrant.NewUInt64(uint64(limit)),
+		Query:          qdrant.NewQueryDense(queryVec),
+		Limit:          &limit64,
 		WithPayload:    qdrant.NewWithPayload(withPayload),
 	}
 
 	// Advanced filter (map to qdrant.Filter) can be added in future for production filter support.
 
-	res, err := vs.Client.Query(context.Background(), queryPoints)
+	points, err := vs.Client.Query(context.Background(), queryPoints)
 	if err != nil {
 		return nil, fmt.Errorf("qdrant dense query failed: %w", err)
 	}
 
-	results := make([]SearchResult, 0, len(res.GetResult()))
-	for _, p := range res.GetResult() {
+	results := make([]SearchResult, 0, len(points))
+	for _, p := range points {
 		idStr := ""
 		if p.GetId() != nil {
 			if uuid := p.GetId().GetUuid(); uuid != "" {
@@ -200,20 +201,21 @@ func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32
 		limit = 10
 	}
 
+	limit64 := uint64(limit)
 	queryPoints := &qdrant.QueryPoints{
 		CollectionName: vs.Collection,
 		Query:          qdrant.NewQuerySparse(queryIndices, queryValues),
-		Limit:          qdrant.NewUInt64(uint64(limit)),
+		Limit:          &limit64,
 		WithPayload:    qdrant.NewWithPayload(withPayload),
 	}
 
-	res, err := vs.Client.Query(context.Background(), queryPoints)
+	points, err := vs.Client.Query(context.Background(), queryPoints)
 	if err != nil {
 		return nil, fmt.Errorf("qdrant sparse query failed: %w", err)
 	}
 
-	results := make([]SearchResult, 0, len(res.GetResult()))
-	for _, p := range res.GetResult() {
+	results := make([]SearchResult, 0, len(points))
+	for _, p := range points {
 		idStr := ""
 		if p.GetId() != nil {
 			if uuid := p.GetId().GetUuid(); uuid != "" {
@@ -330,7 +332,7 @@ func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name 
 		lastErr = err
 		if ctx.Err() != nil {
 			return ctx.Err()
-		}
+	}
 	}
 	return lastErr
 }
