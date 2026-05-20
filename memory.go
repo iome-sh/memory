@@ -83,11 +83,11 @@ type MemoryStats struct {
 
 // PalaceConfig for configurable PalaceStore creation (Phase 4.3)
 type PalaceConfig struct {
-	BaseDir           string
-	MaxWorkingEntries int
+	BaseDir            string
+	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
-	CompactionConfig  CompactionConfig
-	EmbeddingFunc     EmbeddingFunc `json:"-"` // pluggable (Phase 5.1)
+	CompactionConfig   CompactionConfig
+	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1)
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -139,7 +139,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-	}
+		}
 	}
 	return nil
 }
@@ -403,7 +403,7 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 		norm = math.Sqrt(norm)
 		for i := range vec {
 			vec[i] /= float32(norm)
-	}
+		}
 	}
 	return vec
 }
@@ -501,7 +501,7 @@ func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
 	}
 	temporal := CalculateTemporalDecay(entry)
 	robust := 1.0 + 0.05*float64(entry.Metrics.UsageCount)
-	return semantic * 0.4 + temporal*0.3 + robust*0.3
+	return semantic*0.4 + temporal*0.3 + robust*0.3
 }
 
 // listEntriesInTier sorts by relevance score (new)
@@ -518,6 +518,7 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
 			}
+		}
 	}
 
 	// Sort by relevance score descending (highest first)
