@@ -107,8 +107,9 @@ func TestPalaceStore_WriteLatent(t *testing.T) {
 	}
 
 	// Verify it exists in subconscious tier (via stats or direct load if exposed)
-	// For now, just ensure no error and file exists conceptually
-	loaded, ok := store.Load("latent-test", TierWorking) // fallback check
+	// For now, just ensure no error and file exists conceptually.
+	// Use _ for loaded since we only check the ok flag in this placeholder test.
+	_, ok := store.Load("latent-test", TierWorking) // fallback check (note: may return false as it's in tier-0-subconscious)
 	if ok {
 		t.Log("latent entry loaded via fallback")
 	}
