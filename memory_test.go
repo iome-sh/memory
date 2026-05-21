@@ -160,3 +160,32 @@ func TestClusterBySimilarity(t *testing.T) {
 		t.Error("expected cluster to contain the recurrent identical items")
 	}
 }
+
+// Phase 3 SemanticRefine tests
+func TestSemanticRefine(t *testing.T) {
+	tempDir := t.TempDir()
+	store := NewPalaceStore(tempDir)
+
+	entry := MemoryEntry{
+		ID:      "cluster-entry-1",
+		Type:    "event",
+		Tier:    TierContextual,
+		Content: MemoryContent{
+			Summary: "Meeting with John Doe on 2025-11-17 about project Phoenix.",
+			Full:    "Important meeting with John Doe on 2025-11-17. He mentioned the deadline is strict.",
+		},
+	}
+
+	cluster := []MemoryEntry{entry}
+
+	err := store.SemanticRefine(cluster)
+	if err != nil {
+		t.Fatalf("SemanticRefine failed: %v", err)
+	}
+
+	// Check that semantic facts were created
+	stats := store.GetStats()
+	if stats.SemanticCount == 0 {
+		t.Error("expected at least one semantic fact to be created")
+	}
+}
