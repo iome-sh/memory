@@ -148,8 +148,8 @@ func TestVectorStore_WithTemporaryQdrant(t *testing.T) {
 		t.Fatalf("CreateCollection failed against temporary Qdrant: %v", err)
 	}
 
-	// Use a valid UUID-style ID (GenerateMemoryID produces cuid which works with Qdrant)
-	id := GenerateMemoryID()
+	// Use a valid UUID because the Qdrant client (NewID) expects UUID-formatted strings for point IDs
+	id := "550e8400-e29b-41d4-a716-446655440000"
 	vec := []float32{0.1, 0.2, 0.3}
 	if err := vs.StoreVector(id, vec, map[string]interface{}{"type": "test"}); err != nil {
 		t.Fatalf("StoreVector failed: %v", err)
