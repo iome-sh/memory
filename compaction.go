@@ -53,7 +53,7 @@ func (ps *PalaceStore) PerformCompaction(
 	generateFn func(prompt string) string,
 	vectorCallback VectorStoreCallback,
 ) {
-	entries := ps.listEntriesInTier(targetTier)
+	entries := ps.ListEntriesInTier(targetTier)
 	if len(entries) == 0 {
 		return
 	}
@@ -196,7 +196,7 @@ func parseCompactionActions(output string) []CompactionAction {
 	if err := json.Unmarshal([]byte(output), &jsonActions); err == nil {
 		var actions []CompactionAction
 		for _, ja := range jsonActions {
-			actions = append(actions, CompactionAction{
+						actions = append(actions, CompactionAction{
 			Action:    ja.Action,
 			TargetIDs: ja.Target,
 			Reason:    ja.Reason,
@@ -407,7 +407,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(merged, 768)
-		_ = vectorCb(newID, vec, map[string]interface{}{"type": "merged"})
+		_ = vectorCb(newID, map[string]interface{}{"type": "merged"})
 	}
 
 	for _, id := range ids {
