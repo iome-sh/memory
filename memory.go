@@ -144,7 +144,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-		}
+	}
 	}
 	return nil
 }
@@ -178,7 +178,6 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			fullPath := filepath.Join(dir, id+".json")
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
-			}
 		}
 	}
 	return entries
@@ -361,10 +360,10 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 
 	// Start with all entries (or tier filtered)
 	if tier != nil {
-		results = ps.listEntriesInTier(*tier)
+		results = ps.ListEntriesInTier(*tier)
 	} else {
 		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
-			results = append(results, ps.listEntriesInTier(t)...)
+			results = append(results, ps.ListEntriesInTier(t)...)
 		}
 	}
 
@@ -385,7 +384,6 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			if strings.Contains(contentLower, w) {
 				match = true
 				break
-			}
 		}
 		if match {
 			filtered = append(filtered, e)
@@ -412,7 +410,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 
 // EvictWorkingTier performs age/size-based eviction from Working tier (Phase 4.2)
 func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
-	working := ps.listEntriesInTier(TierWorking)
+	working := ps.ListEntriesInTier(TierWorking)
 	if len(working) <= maxCount {
 		return
 	}
@@ -432,7 +430,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 
 // PromoteToContextual promotes high-relevance Working entries (Phase 4.2)
 func (ps *PalaceStore) PromoteToContextual(threshold float64) {
-	working := ps.listEntriesInTier(TierWorking)
+	working := ps.ListEntriesInTier(TierWorking)
 	for _, e := range working {
 		if CalculateRelevanceScore(e) > threshold {
 			e.Tier = TierContextual
@@ -607,8 +605,9 @@ func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
 	return semantic*0.4 + temporal*0.3 + robust*0.3
 }
 
-// listEntriesInTier sorts by relevance score (new)
-func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
+// ListEntriesInTier returns all entries in the given tier, sorted by relevance score (descending).
+// Exported for benchmark harness hybrid retrieval (keyword + recent).
+func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 	dir := ps.getTierDir(tier)
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -620,7 +619,6 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 			id := strings.TrimSuffix(f.Name(), ".json")
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
-			}
 		}
 	}
 
@@ -683,16 +681,16 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-				},
-				Provenance: MemoryProvenance{
-					SourceStep: "semantic_refine",
-					ParentIDs:  []string{entry.ID},
-				},
-				Metrics: MemoryMetrics{
-					ScoreImpact: 0.95, // High importance for protected facts
-					UsageCount:  1,
-				},
-			}
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "semantic_refine",
+				ParentIDs:  []string{entry.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.95, // High importance for protected facts
+				UsageCount:  1,
+			},
+		}
 
 			if err := ps.Write(factEntry); err != nil {
 				return fmt.Errorf("failed to write semantic fact: %w", err)
