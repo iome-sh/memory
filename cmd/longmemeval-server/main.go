@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/sudo-jin/memory"
 )
@@ -69,7 +71,9 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, t := range req.Turns {
-		// 1. Store raw conversation turn
+		now := time.Now()
+
+		// 1. Store raw conversation turn (Working tier for recency)
 		rawEntry := memory.MemoryEntry{
 			ID:   memory.GenerateMemoryID(),
 			Type: "conversation_turn",
@@ -78,41 +82,66 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				Full:    t.Content,
 				Summary: truncate(t.Content, 280),
 			},
-			Cycle: t.Cycle,
+			Cycle:     t.Cycle,
+			CreatedAt: now,
+			UpdatedAt: now,
 		}
 		if err := globalStore.Write(rawEntry); err != nil {
 			log.Printf("write error for conv %s: %v", req.ConvID, err)
 		}
 
-		// 2. Extract atomic facts and store them in TierSemantic (high-signal index)
+		// 2. Extract atomic facts -> TierSemantic (high-signal)
 		facts := memory.ExtractAtomicFacts(rawEntry)
-		if len(facts) > 0 {
-			for _, factText := range facts {
-				factID := memory.GenerateMemoryID()
-				atomicFact := memory.MemoryEntry{
-					ID:        factID,
-					Type:      "atomic_fact",
-					Tier:      memory.TierSemantic,
-					Version:   1,
-					CreatedAt: rawEntry.CreatedAt,
-					UpdatedAt: rawEntry.CreatedAt,
-					Content: memory.MemoryContent{
-						Summary: truncate(factText, 180),
-						Full:    factText,
-						Tags:    []string{"extracted", "personal_fact"},
-					},
-					Provenance: memory.MemoryProvenance{
-						SourceStep: "longmemeval_ingest",
-						ParentIDs:  []string{rawEntry.ID},
-					},
-					Metrics: memory.MemoryMetrics{
-						ScoreImpact: 0.95,
-						UsageCount:  1,
-					},
-				}
-				_ = globalStore.Write(atomicFact)
+		for _, factText := range facts {
+			factID := memory.GenerateMemoryID()
+			atomicFact := memory.MemoryEntry{
+				ID:        factID,
+				Type:      "atomic_fact",
+				Tier:      memory.TierSemantic,
+				Version:   1,
+				CreatedAt: now,
+				UpdatedAt: now,
+				Content: memory.MemoryContent{
+					Summary: truncate(factText, 180),
+					Full:    factText,
+					Tags:    []string{"extracted", "personal_fact"},
+				},
+				Provenance: memory.MemoryProvenance{
+					SourceStep: "longmemeval_ingest",
+					ParentIDs:  []string{rawEntry.ID},
+				},
+				Metrics: memory.MemoryMetrics{
+					ScoreImpact: 0.95,
+					UsageCount:  1,
+				},
 			}
+			_ = globalStore.Write(atomicFact)
 		}
+
+		// 3. ALWAYS add at least one high-ScoreImpact semantic entry per turn
+		// This guarantees every conversation contributes to TierSemantic for recall
+		turnSemantic := memory.MemoryEntry{
+			ID:        memory.GenerateMemoryID(),
+			Type:      "turn_semantic",
+			Tier:      memory.TierSemantic,
+			Version:   1,
+			CreatedAt: now,
+			UpdatedAt: now,
+			Content: memory.MemoryContent{
+				Summary: truncate(t.Content, 220),
+				Full:    t.Content,
+				Tags:    []string{"raw_turn", "guaranteed_semantic"},
+			},
+			Provenance: memory.MemoryProvenance{
+				SourceStep: "longmemeval_ingest_always",
+				ParentIDs:  []string{rawEntry.ID},
+			},
+			Metrics: memory.MemoryMetrics{
+				ScoreImpact: 0.88, // High but slightly below pure atomic facts
+				UsageCount:  1,
+			},
+		}
+		_ = globalStore.Write(turnSemantic)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -129,30 +158,29 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Limit <= 0 {
-		req.Limit = 24
+		req.Limit = 40 // Raised for better recall on LongMemEval
 	}
 
-	// Generate query embedding for re-ranking
 	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
 
-	// Deep dive refactor for LongMemEval:
-	// Aggressively prioritize TierSemantic facts (high-signal extracted facts)
+	// Deep refactor: aggressive high-recall for LongMemEval
+	// 1. All TierSemantic facts (highest priority for atomic + guaranteed entries)
 	semanticFacts := globalStore.ListEntriesInTier(memory.TierSemantic)
 
-	// Keyword + vector search with generous pool
-	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*5, queryVec)
+	// 2. Broad keyword search (larger pool)
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*8, queryVec)
 
-	// Recent Working tier (recency bias)
+	// 3. Recent Working tier (recency bias)
 	recent := globalStore.ListEntriesInTier(memory.TierWorking)
-	if len(recent) > 60 {
-		recent = recent[:60]
+	if len(recent) > 100 {
+		recent = recent[:100]
 	}
 
-	// Merge: semantic first, then keyword, then recent
+	// Merge with semantic first, then others (dedup)
 	seen := make(map[string]bool)
 	combined := make([]memory.MemoryEntry, 0, len(semanticFacts)+len(keywordResults)+len(recent))
 
-	// 1. Always include ALL semantic facts (this is the key refactor for recall)
+	// Prepend all semantic (core of high-recall strategy)
 	for _, e := range semanticFacts {
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -160,7 +188,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 2. Keyword results
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -168,7 +195,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. Recent entries
 	for _, e := range recent {
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -176,18 +202,45 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Re-rank the combined set
+	// Re-rank with composite score: heavy boost for TierSemantic + relevance + overlap
 	if len(queryVec) > 0 && len(combined) > 1 {
 		sort.SliceStable(combined, func(i, j int) bool {
-			iText := combined[i].Content.Summary + " " + combined[i].Content.Full
-			jText := combined[j].Content.Summary + " " + combined[j].Content.Full
+			iEntry := combined[i]
+			jEntry := combined[j]
+
+			// TierSemantic gets strong priority
+			iBoost := 0.0
+			if iEntry.Tier == memory.TierSemantic {
+				iBoost = 0.45
+			}
+			jBoost := 0.0
+			if jEntry.Tier == memory.TierSemantic {
+				jBoost = 0.45
+			}
+
+			iText := iEntry.Content.Summary + " " + iEntry.Content.Full
+			jText := jEntry.Content.Summary + " " + jEntry.Content.Full
+
 			iVec := memory.GenerateSimpleEmbedding(iText, len(queryVec))
-			jVec := GenerateSimpleEmbedding(jText, len(queryVec))
-			return memory.CosineSimilarity(iVec, queryVec) > memory.CosineSimilarity(jVec, queryVec)
+			jVec := memory.GenerateSimpleEmbedding(jText, len(queryVec))
+
+			iSim := memory.CosineSimilarity(iVec, queryVec)
+			jSim := memory.CosineSimilarity(jVec, queryVec)
+
+			iRel := memory.CalculateRelevanceScore(iEntry)
+			jRel := memory.CalculateRelevanceScore(jEntry)
+
+			// Simple token overlap bonus
+			iOverlap := tokenOverlapScore(req.Query, iText)
+			jOverlap := tokenOverlapScore(req.Query, jText)
+
+			iScore := iBoost + iSim*0.25 + iRel*0.2 + iOverlap*0.1
+			jScore := jBoost + jSim*0.25 + jRel*0.2 + jOverlap*0.1
+
+			return iScore > jScore
 		})
 	}
 
-	// Take top Limit
 	if len(combined) > req.Limit {
 		combined = combined[:req.Limit]
 	}
@@ -204,6 +257,25 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	resp := RetrieveResponse{Memories: hits}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// tokenOverlapScore gives bonus for query words appearing in content (loose match)
+func tokenOverlapScore(query, content string) float64 {
+	qLower := strings.ToLower(query)
+	cLower := strings.ToLower(content)
+	qWords := strings.FieldsFunc(qLower, func(r rune) bool {
+		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+	}
+	if len(qWords) == 0 {
+		return 0
+	}
+	matches := 0
+	for _, w := range qWords {
+		if len(w) >= 2 && strings.Contains(cLower, w) {
+			matches++
+		}
+	}
+	return float64(matches) / float64(len(qWords))
 }
 
 func handleCompact(w http.ResponseWriter, r *http.Request) {
