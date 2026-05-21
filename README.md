@@ -37,6 +37,7 @@ memory/
 ├── compaction.go      # LLM-driven compaction (agent-managed) with VectorStoreCallback
 ├── vector.go          # Official Qdrant Go client (dense + sparse vectors, batch upsert, worker-pool batch creation, retries, context, partial results)
 ├── memory_test.go     # Unit tests for PalaceStore, embeddings, compaction, vector
+├── vector_test.go     # VectorStore tests + temporary Qdrant via Podman helper
 ├── README.md
 ├── go.mod
 └── docs/
@@ -96,7 +97,9 @@ _ = vs.CreateCollection(768) // or CreateSparseCollection()
 ### Prerequisites
 
 - Go 1.22 or later
-- Podman (or Docker) for local Qdrant
+- **Podman** (or Docker) — required for full Qdrant integration testing
+  - The test suite includes `startTemporaryQdrant()` which automatically starts a temporary Qdrant container via Podman when available.
+  - Unit tests run without Podman/Qdrant (they test the disabled graceful path).
 - Git
 
 ### Setup
@@ -110,7 +113,7 @@ go mod download
 ### Running Tests
 
 ```bash
-# Run all tests with verbose output
+# Run all tests (unit + optional Qdrant integration if Podman is present)
 go test -v ./...
 
 # Run with race detector
@@ -118,6 +121,9 @@ go test -race ./...
 
 # Specific package
 go test -v ./... -run TestPalaceStore
+
+# Force skip Podman-based Qdrant tests
+PODMAN_QDRANT_SKIP=1 go test -v ./... -run TestVectorStore_WithTemporaryQdrant
 ```
 
 ### Local Qdrant Development
