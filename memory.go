@@ -144,7 +144,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-	}
+		}
 	}
 	return nil
 }
@@ -178,6 +178,7 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			fullPath := filepath.Join(dir, id+".json")
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
+			}
 		}
 	}
 	return entries
@@ -364,7 +365,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	} else {
 		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
 			results = append(results, ps.listEntriesInTier(t)...)
-	}
+		}
 	}
 
 	// Improved keyword filter: token-based (any word overlap)
@@ -425,7 +426,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
 			working[i].Tier = TierContextual
 			ps.Write(working[i])
-	}
+		}
 	}
 }
 
@@ -436,7 +437,7 @@ func (ps *PalaceStore) PromoteToContextual(threshold float64) {
 		if CalculateRelevanceScore(e) > threshold {
 			e.Tier = TierContextual
 			ps.Write(e)
-	}
+		}
 	}
 }
 
@@ -505,7 +506,7 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 		norm = math.Sqrt(norm)
 		for i := range vec {
 			vec[i] /= float32(norm)
-	}
+		}
 	}
 	return vec
 }
@@ -619,7 +620,8 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 			id := strings.TrimSuffix(f.Name(), ".json")
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
-	}
+			}
+		}
 	}
 
 	// Sort by relevance score descending (highest first)
@@ -681,16 +683,16 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-			},
-			Provenance: MemoryProvenance{
-				SourceStep: "semantic_refine",
-				ParentIDs:  []string{entry.ID},
-			},
-			Metrics: MemoryMetrics{
-				ScoreImpact: 0.95, // High importance for protected facts
-				UsageCount:  1,
-			},
-		}
+				},
+				Provenance: MemoryProvenance{
+					SourceStep: "semantic_refine",
+					ParentIDs:  []string{entry.ID},
+				},
+				Metrics: MemoryMetrics{
+					ScoreImpact: 0.95, // High importance for protected facts
+					UsageCount:  1,
+				},
+			}
 
 			if err := ps.Write(factEntry); err != nil {
 				return fmt.Errorf("failed to write semantic fact: %w", err)
