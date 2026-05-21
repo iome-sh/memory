@@ -140,7 +140,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-		}
+	}
 	}
 	return nil
 }
@@ -509,8 +509,7 @@ func CalculateRecencyBoost(deltaHours float64) float64 {
 }
 
 // CalculateTemporalDecay implements H-Mem style forgetting curve
-// Exponential decay based on time since last access (hours
-)
+// Exponential decay based on time since last access (hours).
 func CalculateTemporalDecay(entry MemoryEntry) float64 {
 	if entry.LastAccessed.IsZero() {
 		return 1.0
