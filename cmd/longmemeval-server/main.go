@@ -15,7 +15,6 @@ import (
 // Run with: go run cmd/longmemeval-server/main.go
 
 // MemoryHit is a lightweight DTO for the benchmark.
-// We avoid returning the full MemoryEntry to prevent JSON marshaling surprises.
 type MemoryHit struct {
 	ID      string  `json:"id"`
 	Summary string  `json:"summary"`
@@ -101,15 +100,18 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		req.Limit = 8
 	}
 
-	results := globalStore.SearchMemory(req.Query, nil, req.Limit, nil)
+	// Generate query embedding for semantic re-ranking
+	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
 
-	 hits := make([]MemoryHit, 0, len(results))
+	// Use improved SearchMemory (token-based keyword + vector re-rank)
+	results := globalStore.SearchMemory(req.Query, nil, req.Limit, queryVec)
+
+	hits := make([]MemoryHit, 0, len(results))
 	for _, e := range results {
 		hits = append(hits, MemoryHit{
 			ID:      e.ID,
 			Summary: e.Content.Summary,
 			Full:    e.Content.Full,
-			// Score can be extended later using MultiFactorScore if needed
 		})
 	}
 
