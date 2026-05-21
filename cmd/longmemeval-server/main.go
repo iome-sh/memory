@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/sudo-jin/memory"
 )
@@ -97,17 +98,55 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Limit <= 0 {
-		req.Limit = 16
+		req.Limit = 20
 	}
 
 	// Generate query embedding for re-ranking
 	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
 
-	// Keyword + vector search with generous internal limit for better recall
-	results := globalStore.SearchMemory(req.Query, nil, req.Limit*3, queryVec)
+	// 1. Keyword + vector search (generous internal limit)
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*4, queryVec)
 
-	hits := make([]MemoryHit, 0, len(results))
-	for _, e := range results {
+	// 2. Recent Working tier entries (strong recency bias for personal memory questions)
+	recent := globalStore.ListEntriesInTier(memory.TierWorking)
+	if len(recent) > 50 {
+		recent = recent[:50]
+	}
+
+	// 3. Merge + dedup by ID
+	seen := make(map[string]bool)
+	combined := make([]memory.MemoryEntry, 0, len(keywordResults)+len(recent))
+	for _, e := range keywordResults {
+		if !seen[e.ID] {
+			seen[e.ID] = true
+			combined = append(combined, e)
+		}
+	}
+	for _, e := range recent {
+		if !seen[e.ID] {
+			seen[e.ID] = true
+			combined = append(combined, e)
+		}
+	}
+
+	// 4. Re-rank combined set by vector similarity (best effort)
+	if len(queryVec) > 0 && len(combined) > 1 {
+		sort.SliceStable(combined, func(i, j int) bool {
+			iText := combined[i].Content.Summary + " " + combined[i].Content.Full
+			jText := combined[j].Content.Summary + " " + combined[j].Content.Full
+			iVec := memory.GenerateSimpleEmbedding(iText, len(queryVec))
+			jVec := memory.GenerateSimpleEmbedding(jText, len(queryVec))
+			return memory.CosineSimilarity(iVec, queryVec) > memory.CosineSimilarity(jVec, queryVec)
+		})
+	}
+
+	// 5. Return top Limit
+	if len(combined) > req.Limit {
+		combined = combined[:req.Limit]
+	}
+
+	hits := make([]MemoryHit, 0, len(combined))
+	for _, e := range combined {
 		hits = append(hits, MemoryHit{
 			ID:      e.ID,
 			Summary: e.Content.Summary,
