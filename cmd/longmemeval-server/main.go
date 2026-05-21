@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/sudo-jin/memory"
 )
@@ -35,7 +34,6 @@ type RetrieveResponse struct {
 	Memories []memory.MemoryEntry `json:"memories"`
 	Scores   []float64            `json:"scores,omitempty"`
 }
-
 
 var globalStore *memory.PalaceStore
 
@@ -65,9 +63,9 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 
 	for _, t := range req.Turns {
 		entry := memory.MemoryEntry{
-			ID:      memory.GenerateMemoryID(),
-			Type:    "conversation_turn",
-			Tier:    memory.TierWorking,
+			ID:   memory.GenerateMemoryID(),
+			Type: "conversation_turn",
+			Tier: memory.TierWorking,
 			Content: memory.MemoryContent{
 				Full:    t.Content,
 				Summary: truncate(t.Content, 280),
