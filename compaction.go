@@ -477,7 +477,8 @@ func (ps *PalaceStore) AutoRecMemCompaction(generateFn func(prompt string) strin
 	for _, cluster := range clusters {
 		if shouldTriggerPhaseTransition(cluster, cfg) {
 			ps.PerformCompaction(TierContextual, cfg, generateFn, vectorCb)
-			// TODO Phase 3: ps.SemanticRefine(cluster)
+			// Phase 3: Protect atomic facts
+			_ = ps.SemanticRefine(cluster)
 		}
 	}
 }
