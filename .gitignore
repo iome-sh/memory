@@ -254,4 +254,4 @@ __marimo__/
 
 /LongMemEval
 /data
-/hypotheses.jsonl
+/hypotheses.json*
