@@ -145,7 +145,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-	}
+		}
 	}
 	return nil
 }
@@ -179,6 +179,7 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			fullPath := filepath.Join(dir, id+".json")
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
+			}
 		}
 	}
 	return entries
@@ -376,6 +377,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			if strings.Contains(contentLower, w) {
 				match = true
 				break
+			}
 		}
 		if match {
 			filtered = append(filtered, e)
@@ -552,7 +554,7 @@ func CalculateRecencyBoost(deltaHours float64) float64 {
 		return 0.55
 	case deltaHours < 168:
 		return 0.4
-	default:=
+	default:
 		return 0.2
 	}
 }
@@ -611,6 +613,7 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 			id := strings.TrimSuffix(f.Name(), ".json")
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
+			}
 		}
 	}
 
