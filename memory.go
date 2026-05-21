@@ -23,6 +23,8 @@ const (
 	TierWorking    MemoryTier = 1
 	TierContextual MemoryTier = 2
 	TierArchival   MemoryTier = 3
+	// TierSemantic is used for high-fidelity atomic facts protected by RecMem Phase 3
+	TierSemantic   MemoryTier = 4
 )
 
 // MemoryEntry is the core unit stored in the Palace.
@@ -77,6 +79,7 @@ type MemoryStats struct {
 	WorkingCount    int
 	ContextualCount int
 	ArchivalCount   int
+	SemanticCount   int // Phase 3
 	TotalEntries    int
 	LastCompaction  time.Time
 }
@@ -134,6 +137,7 @@ func (ps *PalaceStore) ensureDirs() error {
 		filepath.Join(ps.BaseDir, "tier-1-working"),
 		filepath.Join(ps.BaseDir, "tier-2-contextual"),
 		filepath.Join(ps.BaseDir, "tier-3-archival"),
+		filepath.Join(ps.BaseDir, "tier-4-semantic"), // RecMem Phase 3 - high fidelity atomic facts
 		filepath.Join(ps.BaseDir, "versions", "memory-entries"),
 		filepath.Join(ps.BaseDir, "relations"),
 	}
@@ -153,6 +157,8 @@ func (ps *PalaceStore) getTierDir(tier MemoryTier) string {
 		return filepath.Join(ps.BaseDir, "tier-2-contextual")
 	case TierArchival:
 		return filepath.Join(ps.BaseDir, "tier-3-archival")
+	case TierSemantic:
+		return filepath.Join(ps.BaseDir, "tier-4-semantic")
 	}
 	return filepath.Join(ps.BaseDir, "tier-2-contextual")
 }
@@ -322,7 +328,7 @@ func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 func (ps *PalaceStore) GetStats() MemoryStats {
 	stats := MemoryStats{}
 
-	for _, tier := range []MemoryTier{TierWorking, TierContextual, TierArchival} {
+	for _, tier := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
 		dir := ps.getTierDir(tier)
 		files, err := os.ReadDir(dir)
 		if err != nil {
@@ -336,6 +342,8 @@ func (ps *PalaceStore) GetStats() MemoryStats {
 			stats.ContextualCount = count
 		case TierArchival:
 			stats.ArchivalCount = count
+		case TierSemantic:
+			stats.SemanticCount = count
 		}
 		stats.TotalEntries += count
 	}
@@ -355,9 +363,9 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	if tier != nil {
 		results = ps.listEntriesInTier(*tier)
 	} else {
-		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival} {
+		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
 			results = append(results, ps.listEntriesInTier(t)...)
-		}
+	}
 	}
 
 	// Keyword filter
@@ -366,7 +374,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	for _, e := range results {
 		if strings.Contains(strings.ToLower(e.Content.Summary), queryLower) || strings.Contains(strings.ToLower(e.Content.Full), queryLower) {
 			filtered = append(filtered, e)
-		}
+	}
 	}
 	results = filtered
 
@@ -376,7 +384,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			iVec := GenerateSimpleEmbedding(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
 			jVec := GenerateSimpleEmbedding(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
 			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
-		})
+	}
 	}
 
 	// Limit
@@ -403,7 +411,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
 			working[i].Tier = TierContextual
 			ps.Write(working[i])
-		}
+	}
 	}
 }
 
@@ -414,7 +422,7 @@ func (ps *PalaceStore) PromoteToContextual(threshold float64) {
 		if CalculateRelevanceScore(e) > threshold {
 			e.Tier = TierContextual
 			ps.Write(e)
-		}
+	}
 	}
 }
 
@@ -436,7 +444,7 @@ func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
 	for _, r := range graph[entity] {
 		if r == related {
 			return
-		}
+	}
 	}
 	graph[entity] = append(graph[entity], related)
 	data, _ := json.MarshalIndent(graph, "", "  ")
@@ -483,7 +491,7 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 		norm = math.Sqrt(norm)
 		for i := range vec {
 			vec[i] /= float32(norm)
-		}
+	}
 	}
 	return vec
 }
@@ -597,8 +605,7 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 			id := strings.TrimSuffix(f.Name(), ".json")
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
-			}
-		}
+	}
 	}
 
 	// Sort by relevance score descending (highest first)
@@ -607,4 +614,74 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 	})
 
 	return entries
+}
+
+// extractAtomicFacts is a simple heuristic-based extractor for Phase 3.
+// In production this can be replaced/enhanced with LLM-based fact extraction.
+func extractAtomicFacts(entry MemoryEntry) []string {
+	text := entry.Content.Full
+	if text == "" {
+		text = entry.Content.Summary
+	}
+	if text == "" {
+		return nil
+	}
+
+	var facts []string
+	// Simple heuristic: sentences containing capitalized words or dates
+	sentences := strings.Split(text, ". ")
+	for _, s := range sentences {
+		s := strings.TrimSpace(s)
+		if len(s) < 10 {
+			continue
+		}
+		// Look for proper names or important facts (capitalized words)
+		if strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") && len(strings.Fields(s)) > 3 {
+			facts = append(facts, s)
+		}
+	}
+	return facts
+}
+
+// SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
+// It creates high-fidelity entries and stores them in the semantic tier.
+func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
+	if len(cluster) == 0 {
+		return nil
+	}
+
+	for _, entry := range cluster {
+		facts := extractAtomicFacts(entry)
+		for _, factText := range facts {
+			now := time.Now()
+			factID := GenerateMemoryID()
+
+			factEntry := MemoryEntry{
+				ID:        factID,
+				Type:      "atomic_fact",
+				Tier:      TierSemantic,
+				Version:   1,
+				CreatedAt: now,
+				UpdatedAt: now,
+				Content: MemoryContent{
+					Summary: truncate(factText, 200),
+					Full:    factText,
+					Tags:    []string{"semantic", "protected", "atomic_fact"},
+				},
+				Provenance: MemoryProvenance{
+					SourceStep: "semantic_refine",
+					ParentIDs:  []string{entry.ID},
+				},
+				Metrics: MemoryMetrics{
+					ScoreImpact: 0.95, // High importance for protected facts
+					UsageCount:  1,
+				},
+			}
+
+			if err := ps.Write(factEntry); err != nil {
+				return fmt.Errorf("failed to write semantic fact: %w", err)
+			}
+		}
+	}
+	return nil
 }
