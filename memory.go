@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -144,7 +145,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-		}
+	}
 	}
 	return nil
 }
@@ -178,7 +179,6 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			fullPath := filepath.Join(dir, id+".json")
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
-			}
 		}
 	}
 	return entries
@@ -385,7 +385,6 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			if strings.Contains(contentLower, w) {
 				match = true
 				break
-			}
 		}
 		if match {
 			filtered = append(filtered, e)
@@ -621,7 +620,6 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 			id := strings.TrimSuffix(f.Name(), ".json")
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
-			}
 		}
 	}
 
@@ -633,8 +631,9 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 	return entries
 }
 
-// extractAtomicFacts is a simple heuristic-based extractor for Phase 3.
-// In production this can be replaced/enhanced with LLM-based fact extraction.
+// extractAtomicFacts extracts high-value personal facts from a memory entry.
+// Focused on LongMemEval-style questions (education, identity, locations, quantities, preferences, events).
+// This is a strong heuristic starting point; can be replaced by LLM-based extraction later.
 func extractAtomicFacts(entry MemoryEntry) []string {
 	text := entry.Content.Full
 	if text == "" {
@@ -645,19 +644,57 @@ func extractAtomicFacts(entry MemoryEntry) []string {
 	}
 
 	var facts []string
-	// Simple heuristic: sentences containing capitalized words or dates
 	sentences := strings.Split(text, ". ")
+
+	// Patterns for personal facts
+	factPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)(graduated|degree|studied|university|college|bachelor|master|phd|major in)`),
+		regexp.MustCompile(`(?i)(my name (is|was)|last name|changed my name|used to be called)`),
+		regexp.MustCompile(`(?i)(live in|moved to|from .*? (city|town|state|country)|grew up in)`),
+		regexp.MustCompile(`(?i)(favorite|love|hate|prefer|always .*? (eat|drink|listen|watch|read|wear))`),
+		regexp.MustCompile(`(?i)(bought|got a new|own|just purchased|added to my collection)`),
+		regexp.MustCompile(`(?i)(spent .*? (on|for)|paid .*? dollars|cost me)`),
+		regexp.MustCompile(`(?i)(\d+\s*(hours?|days?|weeks?|months?|years?|dollars?|bucks?|items?|shirts?|bikes?|plants?))`),
+		regexp.MustCompile(`(?i)(on .*? (birthday|anniversary|trip|vacation|wedding)|last (month|week|year)|this (month|year))`),
+		regexp.MustCompile(`(?i)(work at|job at|occupation|previous job|used to work)`),
+	}
+
 	for _, s := range sentences {
 		s := strings.TrimSpace(s)
-		if len(s) < 10 {
+		if len(s) < 8 {
 			continue
 		}
-		// Look for proper names or important facts (capitalized words)
-		if strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") && len(strings.Fields(s)) > 3 {
-			facts = append(facts, s)
+
+		// Check against patterns
+		for _, re := range factPatterns {
+			if re.MatchString(s) {
+				facts = append(facts, s)
+				break
+			}
+		}
+
+		// Also keep sentences that look like strong personal statements
+		if len(facts) == 0 || facts[len(facts)-1] != s {
+			lower := strings.ToLower(s)
+			if strings.Contains(lower, "i ") &&
+				(strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") ||
+					strings.ContainsAny(lower, "0123456789")) &&
+				len(strings.Fields(s)) >= 5 {
+				facts = append(facts, s)
+			}
 		}
 	}
-	return facts
+
+	// Deduplicate
+	seen := make(map[string]bool)
+	unique := make([]string, 0, len(facts))
+	for _, f := range facts {
+		if !seen[f] {
+			seen[f] = true
+			unique = append(unique, f)
+		}
+	}
+	return unique
 }
 
 // SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
