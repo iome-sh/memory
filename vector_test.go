@@ -59,10 +59,10 @@ func TestVectorStore_Disabled(t *testing.T) {
 func TestVectorStore_EnabledFalsePaths(t *testing.T) {
 	vs := NewVectorStore("", "test")
 
-	// Empty query should be handled gracefully
+	// Empty query should be handled gracefully (disabled path returns nil, nil)
 	_, err := vs.SearchSimilar(nil, 10, nil, true)
-	if err == nil {
-		t.Error("SearchSimilar with empty vector should return error when enabled, but since disabled it returns nil, nil")
+	if err != nil {
+		t.Errorf("SearchSimilar on disabled store should return nil error, got: %v", err)
 	}
 
 	// We mainly test that no panic occurs on disabled store
@@ -148,8 +148,10 @@ func TestVectorStore_WithTemporaryQdrant(t *testing.T) {
 		t.Fatalf("CreateCollection failed against temporary Qdrant: %v", err)
 	}
 
+	// Use a valid UUID-style ID (GenerateMemoryID produces cuid which works with Qdrant)
+	id := GenerateMemoryID()
 	vec := []float32{0.1, 0.2, 0.3}
-	if err := vs.StoreVector("vec-1", vec, map[string]interface{}{"type": "test"}); err != nil {
+	if err := vs.StoreVector(id, vec, map[string]interface{}{"type": "test"}); err != nil {
 		t.Fatalf("StoreVector failed: %v", err)
 	}
 
