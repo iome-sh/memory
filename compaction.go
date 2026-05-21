@@ -36,10 +36,10 @@ type CompactionConfig struct {
 var DefaultCompactionConfig = CompactionConfig{
 	Tier2Strategy:       StrategyPatternExtraction,
 	Tier3Strategy:       StrategyCorePrinciple,
-	TemporalWindowSize:  12,  // default beta (cycles)
+	TemporalWindowSize:  12, // default beta (cycles)
 	SimilarityThreshold: 0.75,
-	DataSim:              0.7,  // RecMem sweet spot
-	DataCount:            5,    // RecMem critical mass
+	DataSim:             0.7, // RecMem sweet spot
+	DataCount:           5,   // RecMem critical mass
 }
 
 // VectorStoreCallback allows optional vector integration (e.g. Qdrant)
@@ -110,8 +110,8 @@ func (ps *PalaceStore) PerformCompaction(
 			ps.handleArchive(act.TargetIDs, targetTier)
 		case "MERGE":
 			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
+		}
 	}
-}
 }
 
 // averageEmbedding for alpha check
@@ -189,17 +189,17 @@ type CompactionAction struct {
 func parseCompactionActions(output string) []CompactionAction {
 	// Try JSON first (structured mode)
 	var jsonActions []struct {
-		Action string `json:"action"`
+		Action string   `json:"action"`
 		Target []string `json:"target"`
-		Reason string `json:"reason"`
+		Reason string   `json:"reason"`
 	}
 	if err := json.Unmarshal([]byte(output), &jsonActions); err == nil {
 		var actions []CompactionAction
 		for _, ja := range jsonActions {
-						actions = append(actions, CompactionAction{
-			Action:    ja.Action,
-			TargetIDs: ja.Target,
-			Reason:    ja.Reason,
+			actions = append(actions, CompactionAction{
+				Action:    ja.Action,
+				TargetIDs: ja.Target,
+				Reason:    ja.Reason,
 			})
 		}
 		return actions
@@ -290,7 +290,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(condensed, 768)
 		payload := map[string]interface{}{
-			"type": "summary",
+			"type":      "summary",
 			"compacted": true,
 		}
 		_ = vectorCb(newID, vec, payload)
@@ -301,7 +301,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-	}
+		}
 	}
 }
 
@@ -347,7 +347,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(principle, 768)
 		payload := map[string]interface{}{
-			"type": "core_principle",
+			"type":      "core_principle",
 			"compacted": true,
 		}
 		_ = vectorCb(newID, vec, payload)
@@ -357,7 +357,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-	}
+		}
 	}
 }
 
@@ -366,7 +366,7 @@ func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier) {
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-	}
+		}
 	}
 }
 
@@ -393,15 +393,15 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 	now := time.Now()
 	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
-		ID:        newID,
-		Type:      "merged",
-		Tier:      TierContextual,
-		Version:   1,
-		CreatedAt: now,
-		UpdatedAt: now,
-		Content: MemoryContent{Summary: truncate(merged, 140), Full: merged, Tags: []string{"merged", "compacted"}},
+		ID:         newID,
+		Type:       "merged",
+		Tier:       TierContextual,
+		Version:    1,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+		Content:    MemoryContent{Summary: truncate(merged, 140), Full: merged, Tags: []string{"merged", "compacted"}},
 		Provenance: MemoryProvenance{SourceStep: "compaction", ParentIDs: parents},
-		Metrics: MemoryMetrics{ScoreImpact: totalScore / float64(len(parents)), UsageCount: 1},
+		Metrics:    MemoryMetrics{ScoreImpact: totalScore / float64(len(parents)), UsageCount: 1},
 	}
 	ps.Write(newEntry)
 
@@ -414,7 +414,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-	}
+		}
 	}
 }
 
