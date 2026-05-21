@@ -151,9 +151,9 @@ def main():
             f.write(json.dumps(h, ensure_ascii=False) + "\n")
 
     print(f"\nWrote {len(hypotheses)} hypotheses to {args.output}")
-    print("Now run the official evaluator:")
+    print("Now run the official evaluator (adjust paths to match your layout):")
     print("  cd LongMemEval/src/evaluation")
-    print(f"  python evaluate_qa.py gpt-4o ../../{args.output} ../../data/longmemeval_oracle.json")
+    print(f"  python evaluate_qa.py gpt-4o ../../../{args.output} ../../../data/longmemeval_oracle.json")
 
 
 if __name__ == "__main__":
