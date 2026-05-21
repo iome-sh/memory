@@ -147,6 +147,46 @@ go fmt ./...
 go vet ./...
 ```
 
+## Benchmarking with LongMemEval
+
+We provide first-class support for the official [LongMemEval](https://github.com/xiaowu0162/LongMemEval) benchmark (ICLR 2025) so you can measure recall accuracy, temporal reasoning, and token efficiency of the RecMem features.
+
+### Quick Start
+
+1. **Start the benchmark server** (uses your PalaceStore + SearchMemory):
+   ```bash
+   go run cmd/longmemeval-server/main.go
+   ```
+   The server listens on `http://localhost:8765` and exposes `/ingest`, `/retrieve`, and `/compact`.
+
+2. **Download the official dataset** (small split for testing):
+   ```bash
+   mkdir -p data/
+   wget https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json -O data/longmemeval_s_cleaned.json
+   # For full eval also download longmemeval_oracle.json
+   ```
+
+3. **Run the Python orchestrator** (requires `openai`, `tqdm`, `requests`):
+   ```bash
+   pip install openai tqdm requests
+   python scripts/longmemeval_orchestrator.py \
+       --dataset data/longmemeval_s_cleaned.json \
+       --output hypotheses.jsonl
+   ```
+
+4. **Run the official judge** (from the LongMemEval repo):
+   ```bash
+   git clone https://github.com/xiaowu0162/LongMemEval.git
+   cd LongMemEval/src/evaluation
+   export OPENAI_API_KEY=sk-...
+   python evaluate_qa.py gpt-4o ../../../hypotheses.jsonl ../../../data/longmemeval_oracle.json
+   python print_qa_metrics.py gpt-4o ../../../hypotheses.jsonl.log ../../../data/longmemeval_oracle.json
+   ```
+
+The harness exercises `Write` + hybrid `SearchMemory`. You can easily extend `handleIngest` to call `WriteLatent` + `AutoRecMemCompaction` (with a real `generateFn`) and `SemanticRefine` to quantify the RecMem density-driven gains.
+
+See `scripts/longmemeval_orchestrator.py` for the full mapping logic and easy customization.
+
 ### Updating Documentation
 
 When rolling out new features, always update:
@@ -155,7 +195,7 @@ When rolling out new features, always update:
 
 Then commit with a clear message, e.g.:
 ```bash
-git commit -m "feat(vector): add worker-pool batch sparse collection creation with retry"
+git commit -m "feat(benchmark): add LongMemEval HTTP server and Python orchestrator harness"
 ```
 
 ## Cross-Pollination from H-Mem
