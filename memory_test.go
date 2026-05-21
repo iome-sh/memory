@@ -114,3 +114,45 @@ func TestPalaceStore_WriteLatent(t *testing.T) {
 		t.Log("latent entry loaded via fallback")
 	}
 }
+
+// Phase 2 recurrence trigger tests
+func TestShouldTriggerPhaseTransition(t *testing.T) {
+	cfg := DefaultCompactionConfig
+
+	// Recurrent similar entries should trigger
+	similar := []MemoryEntry{
+		{Content: MemoryContent{Summary: "project phoenix kickoff"}},
+		{Content: MemoryContent{Summary: "project phoenix update"}},
+		{Content: MemoryContent{Summary: "project phoenix review"}},
+		{Content: MemoryContent{Summary: "project phoenix done"}},
+		{Content: MemoryContent{Summary: "project phoenix retrospective"}},
+	}
+	if !shouldTriggerPhaseTransition(similar, cfg) {
+		t.Error("expected to trigger on recurrent similar cluster")
+	}
+
+	// Dissimilar entries should not trigger
+	dissimilar := []MemoryEntry{
+		{Content: MemoryContent{Summary: "weather in Vancouver today"}},
+		{Content: MemoryContent{Summary: "best recipe for pad thai"}},
+	}
+	if shouldTriggerPhaseTransition(dissimilar, cfg) {
+		t.Error("should not trigger on dissimilar entries")
+	}
+}
+
+func TestClusterBySimilarity(t *testing.T) {
+	entries := []MemoryEntry{
+		{Content: MemoryContent{Summary: "alpha sprint planning"}},
+		{Content: MemoryContent{Summary: "alpha sprint review"}},
+		{Content: MemoryContent{Summary: "unrelated cooking tip"}},
+	}
+	clusters := clusterBySimilarity(entries, 0.7)
+	if len(clusters) == 0 {
+		t.Fatal("expected at least one cluster")
+	}
+	// The similar alpha items should be grouped; the unrelated one filtered
+	if len(clusters[0]) < 2 {
+		t.Error("expected cluster to contain the recurrent alpha items")
+	}
+}
