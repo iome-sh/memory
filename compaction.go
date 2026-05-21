@@ -110,8 +110,8 @@ func (ps *PalaceStore) PerformCompaction(
 			ps.handleArchive(act.TargetIDs, targetTier)
 		case "MERGE":
 			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
-		}
 	}
+}
 }
 
 // averageEmbedding for alpha check
@@ -301,7 +301,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
@@ -357,7 +357,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
@@ -366,7 +366,7 @@ func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier) {
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
@@ -407,14 +407,17 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(merged, 768)
-		_ = vectorCb(newID, map[string]interface{}{"type": "merged"})
+		payload := map[string]interface{}{
+			"type": "merged",
+		}
+		_ = vectorCb(newID, vec, payload)
 	}
 
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
