@@ -13,7 +13,15 @@ import (
 
 // LongMemEvalServer wraps PalaceStore for the LongMemEval benchmark harness.
 // Run with: go run cmd/longmemeval-server/main.go
-// Then use the Python orchestrator to drive ingestion + retrieval.
+
+// MemoryHit is a lightweight DTO for the benchmark.
+// We avoid returning the full MemoryEntry to prevent JSON marshaling surprises.
+type MemoryHit struct {
+	ID      string  `json:"id"`
+	Summary string  `json:"summary"`
+	Full    string  `json:"full"`
+	Score   float64 `json:"score,omitempty"`
+}
 
 type IngestRequest struct {
 	ConvID string `json:"conv_id"`
@@ -31,8 +39,7 @@ type RetrieveRequest struct {
 }
 
 type RetrieveResponse struct {
-	Memories []memory.MemoryEntry `json:"memories"`
-	Scores   []float64            `json:"scores,omitempty"`
+	Memories []MemoryHit `json:"memories"`
 }
 
 var globalStore *memory.PalaceStore
@@ -71,18 +78,17 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				Summary: truncate(t.Content, 280),
 			},
 			Cycle: t.Cycle,
-			// TemporalTags can be populated here if timestamps are parsed
 		}
 		if err := globalStore.Write(entry); err != nil {
-			log.Printf("write error: %v", err)
+			log.Printf("write error for conv %s: %v", req.ConvID, err)
 		}
 	}
 
-	// Optional: trigger compaction every N turns for RecMem testing
-	// if len(req.Turns) > 0 { _ = globalStore.AutoRecMemCompaction(...) }
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "ingested": fmt.Sprintf("%d turns", len(req.Turns))})
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":   "ok",
+		"ingested": fmt.Sprintf("%d turns", len(req.Turns)),
+	})
 }
 
 func handleRetrieve(w http.ResponseWriter, r *http.Request) {
@@ -95,18 +101,24 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		req.Limit = 8
 	}
 
-	// Use the package's hybrid SearchMemory (keyword + vector re-rank)
 	results := globalStore.SearchMemory(req.Query, nil, req.Limit, nil)
 
-	resp := RetrieveResponse{Memories: results}
+	 hits := make([]MemoryHit, 0, len(results))
+	for _, e := range results {
+		hits = append(hits, MemoryHit{
+			ID:      e.ID,
+			Summary: e.Content.Summary,
+			Full:    e.Content.Full,
+			// Score can be extended later using MultiFactorScore if needed
+		})
+	}
+
+	resp := RetrieveResponse{Memories: hits}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
 
 func handleCompact(w http.ResponseWriter, r *http.Request) {
-	// In a full run you would pass a real generateFn (LLM call) here.
-	// For benchmark we expose the hook so the orchestrator can decide when to compact.
-	// Example: globalStore.AutoRecMemCompaction(yourGenerateFn, nil)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "compaction triggered (stub)"})
 }
