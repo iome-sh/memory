@@ -69,7 +69,8 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, t := range req.Turns {
-		entry := memory.MemoryEntry{
+		// 1. Store raw conversation turn
+		rawEntry := memory.MemoryEntry{
 			ID:   memory.GenerateMemoryID(),
 			Type: "conversation_turn",
 			Tier: memory.TierWorking,
@@ -79,8 +80,55 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			},
 			Cycle: t.Cycle,
 		}
-		if err := globalStore.Write(entry); err != nil {
+		if err := globalStore.Write(rawEntry); err != nil {
 			log.Printf("write error for conv %s: %v", req.ConvID, err)
+		}
+
+		// 2. Extract atomic facts and store them in TierSemantic (high-signal index)
+		factEntry := memory.MemoryEntry{
+			ID:   memory.GenerateMemoryID(),
+			Type: "atomic_fact",
+			Tier: memory.TierSemantic,
+			Content: memory.MemoryContent{
+				Full:    t.Content,
+				Summary: truncate(t.Content, 200),
+			},
+			Cycle: t.Cycle,
+			Metrics: memory.MemoryMetrics{
+				ScoreImpact: 0.92, // High importance so facts rank well
+				UsageCount:  1,
+			},
+		}
+
+		// Only write if we actually extracted something useful
+		facts := memory.ExtractAtomicFacts(factEntry) // Note: using exported version if available, or internal
+		if len(facts) > 0 {
+			// Create one semantic entry per extracted fact for better granularity
+			for _, factText := range facts {
+				factID := memory.GenerateMemoryID()
+				atomicFact := memory.MemoryEntry{
+					ID:        factID,
+					Type:      "atomic_fact",
+					Tier:      memory.TierSemantic,
+					Version:   1,
+					CreatedAt: rawEntry.CreatedAt,
+					UpdatedAt: rawEntry.CreatedAt,
+					Content: memory.MemoryContent{
+						Summary: truncate(factText, 180),
+						Full:    factText,
+						Tags:    []string{"extracted", "personal_fact"},
+					},
+					Provenance: memory.MemoryProvenance{
+						SourceStep: "longmemeval_ingest",
+						ParentIDs:  []string{rawEntry.ID},
+					},
+					Metrics: memory.MemoryMetrics{
+						ScoreImpact: 0.95,
+						UsageCount:  1,
+					},
+				}
+				_ = globalStore.Write(atomicFact)
+			}
 		}
 	}
 
@@ -104,16 +152,14 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	// Generate query embedding for re-ranking
 	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
 
-	// 1. Keyword + vector search (generous internal limit)
+	// Keyword + recent hybrid retrieval (high recall for benchmark)
 	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*4, queryVec)
 
-	// 2. Recent Working tier entries (strong recency bias for personal memory questions)
 	recent := globalStore.ListEntriesInTier(memory.TierWorking)
 	if len(recent) > 50 {
 		recent = recent[:50]
 	}
 
-	// 3. Merge + dedup by ID
 	seen := make(map[string]bool)
 	combined := make([]memory.MemoryEntry, 0, len(keywordResults)+len(recent))
 	for _, e := range keywordResults {
@@ -129,7 +175,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 4. Re-rank combined set by vector similarity (best effort)
 	if len(queryVec) > 0 && len(combined) > 1 {
 		sort.SliceStable(combined, func(i, j int) bool {
 			iText := combined[i].Content.Summary + " " + combined[i].Content.Full
@@ -140,7 +185,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// 5. Return top Limit
 	if len(combined) > req.Limit {
 		combined = combined[:req.Limit]
 	}
