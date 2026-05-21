@@ -561,7 +561,7 @@ func CalculateRecencyBoost(deltaHours float64) float64 {
 		return 0.55
 	case deltaHours < 168:
 		return 0.4
-	default:
+	default:=
 		return 0.2
 	}
 }
@@ -631,10 +631,9 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 	return entries
 }
 
-// extractAtomicFacts extracts high-value personal facts from a memory entry.
-// Focused on LongMemEval-style questions (education, identity, locations, quantities, preferences, events).
-// This is a strong heuristic starting point; can be replaced by LLM-based extraction later.
-func extractAtomicFacts(entry MemoryEntry) []string {
+// ExtractAtomicFacts extracts high-value personal facts from a memory entry.
+// Focused on LongMemEval-style questions. Exported for benchmark server use.
+func ExtractAtomicFacts(entry MemoryEntry) []string {
 	text := entry.Content.Full
 	if text == "" {
 		text = entry.Content.Summary
@@ -646,7 +645,6 @@ func extractAtomicFacts(entry MemoryEntry) []string {
 	var facts []string
 	sentences := strings.Split(text, ". ")
 
-	// Patterns for personal facts
 	factPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`(?i)(graduated|degree|studied|university|college|bachelor|master|phd|major in)`),
 		regexp.MustCompile(`(?i)(my name (is|was)|last name|changed my name|used to be called)`),
@@ -665,7 +663,6 @@ func extractAtomicFacts(entry MemoryEntry) []string {
 			continue
 		}
 
-		// Check against patterns
 		for _, re := range factPatterns {
 			if re.MatchString(s) {
 				facts = append(facts, s)
@@ -673,19 +670,16 @@ func extractAtomicFacts(entry MemoryEntry) []string {
 			}
 		}
 
-		// Also keep sentences that look like strong personal statements
 		if len(facts) == 0 || facts[len(facts)-1] != s {
 			lower := strings.ToLower(s)
 			if strings.Contains(lower, "i ") &&
-				(strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") ||
-					strings.ContainsAny(lower, "0123456789")) &&
+				(strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") || strings.ContainsAny(lower, "0123456789")) &&
 				len(strings.Fields(s)) >= 5 {
 				facts = append(facts, s)
 			}
 		}
 	}
 
-	// Deduplicate
 	seen := make(map[string]bool)
 	unique := make([]string, 0, len(facts))
 	for _, f := range facts {
@@ -705,7 +699,7 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 	}
 
 	for _, entry := range cluster {
-		facts := extractAtomicFacts(entry)
+		facts := ExtractAtomicFacts(entry)
 		for _, factText := range facts {
 			now := time.Now()
 			factID := GenerateMemoryID()
