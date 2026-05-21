@@ -85,25 +85,8 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 2. Extract atomic facts and store them in TierSemantic (high-signal index)
-		factEntry := memory.MemoryEntry{
-			ID:   memory.GenerateMemoryID(),
-			Type: "atomic_fact",
-			Tier: memory.TierSemantic,
-			Content: memory.MemoryContent{
-				Full:    t.Content,
-				Summary: truncate(t.Content, 200),
-			},
-			Cycle: t.Cycle,
-			Metrics: memory.MemoryMetrics{
-				ScoreImpact: 0.92, // High importance so facts rank well
-				UsageCount:  1,
-			},
-		}
-
-		// Only write if we actually extracted something useful
-		facts := memory.ExtractAtomicFacts(factEntry) // Note: using exported version if available, or internal
+		facts := memory.ExtractAtomicFacts(rawEntry)
 		if len(facts) > 0 {
-			// Create one semantic entry per extracted fact for better granularity
 			for _, factText := range facts {
 				factID := memory.GenerateMemoryID()
 				atomicFact := memory.MemoryEntry{
@@ -146,28 +129,46 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Limit <= 0 {
-		req.Limit = 20
+		req.Limit = 24
 	}
 
 	// Generate query embedding for re-ranking
 	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
 
-	// Keyword + recent hybrid retrieval (high recall for benchmark)
-	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*4, queryVec)
+	// Deep dive refactor for LongMemEval:
+	// Aggressively prioritize TierSemantic facts (high-signal extracted facts)
+	semanticFacts := globalStore.ListEntriesInTier(memory.TierSemantic)
 
+	// Keyword + vector search with generous pool
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*5, queryVec)
+
+	// Recent Working tier (recency bias)
 	recent := globalStore.ListEntriesInTier(memory.TierWorking)
-	if len(recent) > 50 {
-		recent = recent[:50]
+	if len(recent) > 60 {
+		recent = recent[:60]
 	}
 
+	// Merge: semantic first, then keyword, then recent
 	seen := make(map[string]bool)
-	combined := make([]memory.MemoryEntry, 0, len(keywordResults)+len(recent))
+	combined := make([]memory.MemoryEntry, 0, len(semanticFacts)+len(keywordResults)+len(recent))
+
+	// 1. Always include ALL semantic facts (this is the key refactor for recall)
+	for _, e := range semanticFacts {
+		if !seen[e.ID] {
+			seen[e.ID] = true
+			combined = append(combined, e)
+		}
+	}
+
+	// 2. Keyword results
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
 			seen[e.ID] = true
 			combined = append(combined, e)
 		}
 	}
+
+	// 3. Recent entries
 	for _, e := range recent {
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -175,16 +176,18 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Re-rank the combined set
 	if len(queryVec) > 0 && len(combined) > 1 {
 		sort.SliceStable(combined, func(i, j int) bool {
 			iText := combined[i].Content.Summary + " " + combined[i].Content.Full
 			jText := combined[j].Content.Summary + " " + combined[j].Content.Full
 			iVec := memory.GenerateSimpleEmbedding(iText, len(queryVec))
-			jVec := memory.GenerateSimpleEmbedding(jText, len(queryVec))
+			jVec := GenerateSimpleEmbedding(jText, len(queryVec))
 			return memory.CosineSimilarity(iVec, queryVec) > memory.CosineSimilarity(jVec, queryVec)
 		})
 	}
 
+	// Take top Limit
 	if len(combined) > req.Limit {
 		combined = combined[:req.Limit]
 	}
