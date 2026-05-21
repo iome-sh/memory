@@ -197,9 +197,9 @@ func parseCompactionActions(output string) []CompactionAction {
 		var actions []CompactionAction
 		for _, ja := range jsonActions {
 			actions = append(actions, CompactionAction{
-				Action:    ja.Action,
-				TargetIDs: ja.Target,
-				Reason:    ja.Reason,
+			Action:    ja.Action,
+			TargetIDs: ja.Target,
+			Reason:    ja.Reason,
 			})
 		}
 		return actions
@@ -301,7 +301,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
@@ -423,4 +423,61 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max] + "..."
+}
+
+// clusterBySimilarity groups entries whose content embeddings are within the configured similarity threshold.
+// Production note: This is a simple O(n) implementation sufficient for Phase 2. For high-volume production
+// a proper spatial index (HNSW, IVF) or DBSCAN would be used to avoid quadratic cost.
+func clusterBySimilarity(entries []MemoryEntry, threshold float64) [][]MemoryEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	// For Phase 2 we return entries that are similar to the centroid as a single cluster.
+	// A more advanced implementation would compute connected components.
+	avg := averageEmbedding(entries)
+	cluster := make([]MemoryEntry, 0, len(entries))
+	for _, e := range entries {
+		vec := GenerateSimpleEmbedding(e.Content.Summary+" "+e.Content.Full, 768)
+		if CosineSimilarity(vec, avg) >= threshold {
+			cluster = append(cluster, e)
+		}
+	}
+	if len(cluster) == 0 {
+		return nil
+	}
+	return [][]MemoryEntry{cluster}
+}
+
+// shouldTriggerPhaseTransition returns true when a cluster has both sufficient count and density.
+// This is the core RecMem phase-transition predicate.
+func shouldTriggerPhaseTransition(entries []MemoryEntry, cfg CompactionConfig) bool {
+	if len(entries) < cfg.DataCount {
+		return false
+	}
+	avg := averageEmbedding(entries)
+	for _, e := range entries {
+		vec := GenerateSimpleEmbedding(e.Content.Summary+" "+e.Content.Full, 768)
+		if CosineSimilarity(vec, avg) < cfg.DataSim {
+			return false
+		}
+	}
+	return true
+}
+
+// AutoRecMemCompaction is the production entry point for automatic RecMem formation.
+// It scans the subconscious buffer and triggers full compaction when a recurrent cluster is detected.
+// The caller must supply the LLM generateFn and optional vector callback.
+func (ps *PalaceStore) AutoRecMemCompaction(generateFn func(prompt string) string, vectorCb VectorStoreCallback) {
+	cfg := ps.Config.CompactionConfig
+	sub := ps.listSubconsciousEntries()
+	if len(sub) == 0 {
+		return
+	}
+	clusters := clusterBySimilarity(sub, cfg.DataSim)
+	for _, cluster := range clusters {
+		if shouldTriggerPhaseTransition(cluster, cfg) {
+			ps.PerformCompaction(TierContextual, cfg, generateFn, vectorCb)
+			// TODO Phase 3: ps.SemanticRefine(cluster)
+		}
+	}
 }
