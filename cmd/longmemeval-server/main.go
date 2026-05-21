@@ -97,17 +97,53 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Limit <= 0 {
-		req.Limit = 8
+		req.Limit = 16
 	}
 
-	// Generate query embedding for semantic re-ranking
+	// Generate query embedding (used for re-ranking)
 	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
 
-	// Use improved SearchMemory (token-based keyword + vector re-rank)
-	results := globalStore.SearchMemory(req.Query, nil, req.Limit, queryVec)
+	// 1. Keyword + vector search (higher internal limit for recall)
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*3, queryVec)
 
-	hits := make([]MemoryHit, 0, len(results))
-	for _, e := range results {
+	// 2. Also include recent Working tier entries (recency bias helps many personal questions)
+	recent := globalStore.listEntriesInTier(memory.TierWorking)
+	if len(recent) > 40 {
+		recent = recent[:40] // take the top 40 by current relevance score (includes recency)
+	}
+
+	// Merge + dedup by ID
+	seen := make(map[string]bool)
+	combined := make([]memory.MemoryEntry, 0, len(keywordResults)+len(recent))
+	for _, e := range keywordResults {
+		if !seen[e.ID] {
+			seen[e.ID] = true
+			combined = append(combined, e)
+		}
+	}
+	for _, e := range recent {
+		if !seen[e.ID] {
+			seen[e.ID] = true
+			combined = append(combined, e)
+		}
+	}
+
+	// Re-rank the combined set with vector similarity if we have a query vector
+	if len(queryVec) > 0 && len(combined) > 0 {
+		sort.Slice(combined, func(i, j int) bool {
+			iVec := memory.GenerateSimpleEmbedding(combined[i].Content.Summary+" "+combined[i].Content.Full, len(queryVec))
+			jVec := memory.GenerateSimpleEmbedding(combined[j].Content.Summary+" "+combined[j].Content.Full, len(queryVec))
+			return memory.CosineSimilarity(iVec, queryVec) > memory.CosineSimilarity(jVec, queryVec)
+		})
+	}
+
+	// Take top Limit
+	if len(combined) > req.Limit {
+		combined = combined[:req.Limit]
+	}
+
+	hits := make([]MemoryHit, 0, len(combined))
+	for _, e := range combined {
 		hits = append(hits, MemoryHit{
 			ID:      e.ID,
 			Summary: e.Content.Summary,
