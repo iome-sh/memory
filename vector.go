@@ -304,6 +304,14 @@ func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrency(names []strin
 	return vs.CreateBatchSparseCollectionsWithConcurrencyContext(context.Background(), names, concurrency)
 }
 
+// CreateBatchSparseCollectionsWithConcurrencyContext is the context-aware version with custom concurrency.
+func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrencyContext(ctx context.Context, names []string, concurrency int) error {
+	if concurrency <= 0 {
+		concurrency = defaultCollectionCreationConcurrency
+	}
+	return vs.createBatchSparseCollections(ctx, names, concurrency)
+}
+
 func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name string, maxRetries int) error {
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
