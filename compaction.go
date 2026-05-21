@@ -17,7 +17,7 @@ const (
 	StrategyCorePrinciple     CompactionStrategy = "core_principle"
 )
 
-// CompactionConfig (extended with H-Mem ideas)
+// CompactionConfig (extended with RecMem phase-transition parameters)
 type CompactionConfig struct {
 	Tier2Strategy      CompactionStrategy `json:"tier2_strategy"`
 	Tier3Strategy      CompactionStrategy `json:"tier3_strategy"`
@@ -28,6 +28,9 @@ type CompactionConfig struct {
 	// H-Mem inspired
 	TemporalWindowSize  int     `json:"temporal_window_size"` // beta-like (e.g. cycles or months)
 	SimilarityThreshold float64 `json:"similarity_threshold"` // alpha
+	// RecMem phase-transition (Phase 1)
+	DataSim   float64 `json:"data_sim"`   // geometric similarity radius (default 0.7)
+	DataCount int     `json:"data_count"` // critical recurrence count (default 5)
 }
 
 var DefaultCompactionConfig = CompactionConfig{
@@ -35,6 +38,8 @@ var DefaultCompactionConfig = CompactionConfig{
 	Tier3Strategy:       StrategyCorePrinciple,
 	TemporalWindowSize:  12,  // default beta (cycles)
 	SimilarityThreshold: 0.75,
+	DataSim:              0.7,  // RecMem sweet spot
+	DataCount:            5,    // RecMem critical mass
 }
 
 // VectorStoreCallback allows optional vector integration (e.g. Qdrant)
@@ -105,8 +110,8 @@ func (ps *PalaceStore) PerformCompaction(
 			ps.handleArchive(act.TargetIDs, targetTier)
 		case "MERGE":
 			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
-		}
 	}
+}
 }
 
 // averageEmbedding for alpha check
@@ -158,7 +163,7 @@ func filterByTemporalWindow(entries []MemoryEntry, windowSize int) []MemoryEntry
 		if e.Cycle >= cutoff {
 			result = append(result, e)
 		}
-		}
+	}
 	return result
 }
 
@@ -352,7 +357,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
@@ -361,7 +366,7 @@ func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier) {
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
@@ -409,7 +414,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		if entry, ok := ps.Load(id, tier); ok {
 			entry.Tier = TierArchival
 			ps.Write(entry)
-		}
+	}
 	}
 }
 
