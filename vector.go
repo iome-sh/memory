@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net/url"
 	"strconv"
 	"strings"
@@ -304,19 +304,12 @@ func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrency(names []strin
 	return vs.CreateBatchSparseCollectionsWithConcurrencyContext(context.Background(), names, concurrency)
 }
 
-func (vs *VectorStore) CreateBatchSparseCollectionsWithConcurrencyContext(ctx context.Context, names []string, concurrency int) error {
-	if concurrency <= 0 {
-		concurrency = defaultCollectionCreationConcurrency
-	}
-	return vs.createBatchSparseCollections(ctx, names, concurrency)
-}
-
 func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name string, maxRetries int) error {
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := defaultRetryBackoff * time.Duration(1<<uint(attempt-1))
-			jitter := time.Duration(rand.Int63n(int64(backoff / 2)))
+			jitter := time.Duration(rand.Int64N(int64(backoff / 2)))
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
