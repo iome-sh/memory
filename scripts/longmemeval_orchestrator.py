@@ -55,7 +55,7 @@ def ingest_history(conv_id: str, history: List[Dict[str, Any]]):
     r.raise_for_status()
 
 
-def retrieve_memories(query: str, k: int = 8) -> List[Dict[str, Any]]:
+def retrieve_memories(query: str, k: int = 16) -> List[Dict[str, Any]]:
     payload = {"query": query, "limit": k}
     r = requests.post(f"{SERVER_URL}/retrieve", json=payload, timeout=30)
     r.raise_for_status()
@@ -87,7 +87,7 @@ def generate_answer(question: str, memories: List[Dict[str, Any]]) -> str:
 def load_dataset(path: str) -> List[Dict[str, Any]]:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    # The HF dataset structure may be {"examples": [...]} or a flat list.
+    # The HF dataset structure may be {"examples": [...] } or a flat list.
     # Adjust the key below after inspecting your downloaded JSON.
     if isinstance(data, dict) and "examples" in data:
         return data["examples"]
@@ -135,7 +135,7 @@ def main():
             continue
 
         # 2. Retrieve relevant memories for the question
-        memories = retrieve_memories(question, k=8)
+        memories = retrieve_memories(question, k=16)
 
         # 3. Generate answer with LLM + retrieved context
         try:
