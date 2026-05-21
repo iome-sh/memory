@@ -140,7 +140,7 @@ func (ps *PalaceStore) ensureDirs() error {
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
-	}
+		}
 	}
 	return nil
 }
@@ -357,7 +357,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	} else {
 		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival} {
 			results = append(results, ps.listEntriesInTier(t)...)
-	}
+		}
 	}
 
 	// Keyword filter
@@ -366,7 +366,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	for _, e := range results {
 		if strings.Contains(strings.ToLower(e.Content.Summary), queryLower) || strings.Contains(strings.ToLower(e.Content.Full), queryLower) {
 			filtered = append(filtered, e)
-	}
+		}
 	}
 	results = filtered
 
@@ -376,7 +376,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			iVec := GenerateSimpleEmbedding(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
 			jVec := GenerateSimpleEmbedding(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
 			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
-	}
+		})
 	}
 
 	// Limit
@@ -403,7 +403,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
 			working[i].Tier = TierContextual
 			ps.Write(working[i])
-	}
+		}
 	}
 }
 
@@ -414,7 +414,7 @@ func (ps *PalaceStore) PromoteToContextual(threshold float64) {
 		if CalculateRelevanceScore(e) > threshold {
 			e.Tier = TierContextual
 			ps.Write(e)
-	}
+		}
 	}
 }
 
@@ -436,7 +436,7 @@ func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
 	for _, r := range graph[entity] {
 		if r == related {
 			return
-	}
+		}
 	}
 	graph[entity] = append(graph[entity], related)
 	data, _ := json.MarshalIndent(graph, "", "  ")
@@ -481,7 +481,7 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 		norm = math.Sqrt(norm)
 		for i := range vec {
 			vec[i] /= float32(norm)
-	}
+		}
 	}
 	return vec
 }
@@ -595,7 +595,8 @@ func (ps *PalaceStore) listEntriesInTier(tier MemoryTier) []MemoryEntry {
 			id := strings.TrimSuffix(f.Name(), ".json")
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
-	}
+			}
+		}
 	}
 
 	// Sort by relevance score descending (highest first)
