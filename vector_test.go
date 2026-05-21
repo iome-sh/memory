@@ -2,6 +2,10 @@ package memory
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -66,13 +70,95 @@ func TestVectorStore_EnabledFalsePaths(t *testing.T) {
 	_ = vs.CreateBatchSparseCollections([]string{"c1", "c2"})
 }
 
-// NOTE on real Qdrant testing:
-// For integration tests against a real Qdrant instance you can use Podman:
-//
-//   podman run -d --rm --name test-qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant
-//
-// Then construct VectorStore with "http://localhost:6334".
-// A future helper (startTemporaryQdrant) can be added here that uses
-// os/exec + podman to spin up a temporary container for the duration of the test
-// and cleans it up automatically. This keeps unit tests fast while allowing
-// optional integration coverage when the environment supports it.
+// startTemporaryQdrant starts a temporary Qdrant instance using Podman.
+// It returns the connection URL (gRPC preferred) and a cleanup function.
+// The test is skipped if Podman is not available or the container fails to start.
+// This enables real integration tests for VectorStore when the environment supports it.
+func startTemporaryQdrant(t *testing.T) (url string, cleanup func()) {
+	t.Helper()
+
+	if _, err := exec.LookPath("podman"); err != nil {
+		t.Skip("podman not found in PATH - skipping temporary Qdrant integration test")
+	}
+
+	containerName := fmt.Sprintf("test-qdrant-%d", time.Now().UnixNano())
+
+	// Start Qdrant container (REST on 6333, gRPC on 6334)
+	cmd := exec.Command("podman", "run", "-d", "--rm",
+		"--name", containerName,
+		"-p", "6333:6333",
+		"-p", "6334:6334",
+		"qdrant/qdrant")
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to start temporary Qdrant container: %v\n%s", err, output)
+	}
+
+	url = "http://localhost:6334" // gRPC endpoint (Qdrant client uses this)
+
+	// Wait for Qdrant to become ready (poll REST health)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	restURL := "http://localhost:6333/collections"
+	ready := false
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for temporary Qdrant to become ready")
+		default:
+		}
+
+		resp, err := http.Get(restURL)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				ready = true
+				break
+			}
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if !ready {
+		t.Fatal("Qdrant container started but never became ready")
+	}
+
+	cleanup = func() {
+		exec.Command("podman", "rm", "-f", containerName).Run()
+	}
+
+	t.Cleanup(cleanup)
+	return url, cleanup
+}
+
+// TestVectorStore_WithTemporaryQdrant runs integration tests against a real
+// temporary Qdrant instance started via Podman (when available).
+func TestVectorStore_WithTemporaryQdrant(t *testing.T) {
+	qdrantURL, cleanup := startTemporaryQdrant(t)
+	defer cleanup()
+
+	vs := NewVectorStore(qdrantURL, "test_integration_collection")
+	if !vs.Enabled {
+		t.Fatal("expected VectorStore to be enabled when connecting to temporary Qdrant")
+	}
+
+	// Basic smoke test
+	if err := vs.CreateCollection(768); err != nil {
+		t.Fatalf("CreateCollection failed against temporary Qdrant: %v", err)
+	}
+
+	vec := []float32{0.1, 0.2, 0.3}
+	if err := vs.StoreVector("vec-1", vec, map[string]interface{}{"type": "test"}); err != nil {
+		t.Fatalf("StoreVector failed: %v", err)
+	}
+
+	results, err := vs.SearchSimilar(vec, 5, nil, true)
+	if err != nil {
+		t.Fatalf("SearchSimilar failed: %v", err)
+	}
+	if len(results) == 0 {
+		t.Error("expected at least one result from SearchSimilar")
+	}
+}
