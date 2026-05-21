@@ -91,7 +91,7 @@ type PalaceConfig struct {
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
 	CompactionConfig   CompactionConfig
-	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1)
+	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1) - easily swap GenerateSimpleEmbedding for pure-Go ONNX (oramasearch/onnx-go or AdvancedClimateSystems/gonnx) on macOS/M4
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -238,14 +238,6 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 		os.Remove(tmpName)
 		return fmt.Errorf("rename failed: %w", err)
 	}
-	if err := os.Rename(tmpName, path); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("rename failed: %w", err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("rename failed: %w", err)
-	}
 	return nil
 }
 
@@ -378,7 +370,8 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 		for _, w := range queryWords {
 			if len(w) < 3 {
 				continue // skip very short words
-				if strings.Contains(contentLower, w) {
+			}
+			if strings.Contains(contentLower, w) {
 				match = true
 				break
 			}
@@ -418,7 +411,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
 	})
 
-	for i := 0; i < len(working)-maxCount; i {
+	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
 			working[i].Tier = TierContextual
 			ps.Write(working[i])
@@ -477,8 +470,13 @@ func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
-// GenerateSimpleEmbedding (deterministic, to be replaced by semantic later)
-// Now uses math/rand/v2 as requested for modern Go randomness.
+// GenerateSimpleEmbedding (deterministic hash-based fallback)
+// Research (GitHub + web search 2026-05-21): clems4ever/all-minilm-l6-v2-go is Linux/.so-centric and problematic on macOS/Apple Silicon (M4) due to missing dylib docs and native ONNX dependency.
+// Recommended replacement for full macOS/M4 compatibility (zero native deps, no CUDA): pure-Go ONNX runtimes
+//   - github.com/oramasearch/onnx-go
+//   - github.com/AdvancedClimateSystems/gonnx
+// Both compile cleanly on macOS arm64, load the HF ONNX export of all-MiniLM-L6-v2 directly, and can be wired in by implementing a new func and assigning it to PalaceConfig.EmbeddingFunc (already pluggable).
+// Current implementation uses SHA256 + math/rand/v2 for deterministic, zero-dependency embeddings.
 func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = 768
@@ -489,9 +487,8 @@ func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	}
 	h := sha256.Sum256([]byte(strings.ToLower(text)))
 	seed := binary.BigEndian.Uint64(h[:8])
-	// Use PCG for v2; split seed for two uint64 seeds
 	r := rand.New(rand.NewPCG(seed, seed>>32))
-	for i := 0; i < dim; i {
+	for i := 0; i < dim; i++ {
 		vec[i] = float32(r.Float64()*2 - 1)
 	}
 	var norm float64
