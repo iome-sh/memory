@@ -67,43 +67,59 @@ func NewVectorStore(rawURL, collection string) *VectorStore {
 	}
 }
 
-// StoreVector upserts a dense vector
+// StoreVector upserts a dense vector with payload
 func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]interface{}) error {
 	if !vs.Enabled {
 		return nil
 	}
+
+	point := &qdrant.PointStruct{
+		Id:      qdrant.NewID(id),
+		Vectors: qdrant.NewVectors(vec...),
+	}
+
+	if payload != nil {
+		qdrantPayload := make(map[string]*qdrant.Value)
+		for k, v := range payload {
+			qdrantPayload[k] = qdrant.NewValue(v)
+		}
+		point.Payload = qdrantPayload
+	}
+
 	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
 		CollectionName: vs.Collection,
-		Points: []*qdrant.PointStruct{
-			{
-				Id:      qdrant.NewID(id),
-				Vectors: qdrant.NewVectors(vec...),
-				Payload: nil,
-			},
-		},
+		Points:         []*qdrant.PointStruct{point},
 	})
 	return err
 }
 
-// StoreSparseVector
+// StoreSparseVector upserts a sparse vector with payload
 func (vs *VectorStore) StoreSparseVector(id string, indices []uint32, values []float32, payload map[string]interface{}) error {
 	if !vs.Enabled {
 		return nil
 	}
+
+	point := &qdrant.PointStruct{
+		Id:      qdrant.NewID(id),
+		Vectors: qdrant.NewVectorsSparse(indices, values),
+	}
+
+	if payload != nil {
+		qdrantPayload := make(map[string]*qdrant.Value)
+		for k, v := range payload {
+			qdrantPayload[k] = qdrant.NewValue(v)
+		}
+		point.Payload = qdrantPayload
+	}
+
 	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
 		CollectionName: vs.Collection,
-		Points: []*qdrant.PointStruct{
-			{
-				Id:      qdrant.NewID(id),
-				Vectors: qdrant.NewVectorsSparse(indices, values),
-				Payload: nil,
-			},
-		},
+		Points:         []*qdrant.PointStruct{point},
 	})
 	return err
 }
 
-// BatchUpsert
+// BatchUpsert upserts multiple points at once
 func (vs *VectorStore) BatchUpsert(points []*qdrant.PointStruct) error {
 	if !vs.Enabled {
 		return nil
@@ -142,8 +158,6 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 		Limit:          &limit64,
 		WithPayload:    qdrant.NewWithPayload(withPayload),
 	}
-
-	// Advanced filter (map to qdrant.Filter) can be added in future for production filter support.
 
 	points, err := vs.Client.Query(context.Background(), queryPoints)
 	if err != nil {

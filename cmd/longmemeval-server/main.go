@@ -17,7 +17,6 @@ import (
 // LongMemEvalServer wraps PalaceStore + VectorStore for the LongMemEval benchmark harness with full Qdrant integration.
 // Run with: go run cmd/longmemeval-server/main.go
 // Qdrant must be running with gRPC enabled (default port 6334).
-// Example: podman run -d -p 6333:6333 -p 6334:6334 qdrant/qdrant
 
 // MemoryHit is a lightweight DTO for the benchmark.
 type MemoryHit struct {
@@ -61,13 +60,11 @@ func main() {
 	}
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
-	// Connect to Qdrant gRPC port (6334), not REST (6333)
 	globalVectorStore = memory.NewVectorStore("localhost:6334", "longmemeval_memory")
 
 	if globalVectorStore.Enabled {
 		err := globalVectorStore.CreateCollection(768)
 		if err != nil {
-			// Common benign case: collection already exists
 			if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "ALREADY_EXISTS") {
 				log.Println("[qdrant] collection 'longmemeval_memory' already exists")
 			} else {
@@ -125,7 +122,10 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				"summary": rawEntry.Content.Summary,
 				"cycle":   rawEntry.Cycle,
 			}
-			_ = globalVectorStore.StoreVector(rawEntry.ID, vec, payload)
+			err := globalVectorStore.StoreVector(rawEntry.ID, vec, payload)
+			if err != nil {
+				log.Printf("[qdrant] StoreVector failed for %s: %v", rawEntry.ID, err)
+			}
 		}
 
 		facts := memory.ExtractAtomicFacts(rawEntry)
@@ -160,7 +160,10 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 					"type": "atomic_fact",
 					"text":  factText,
 				}
-				_ = globalVectorStore.StoreVector(factID, vec, payload)
+			err := globalVectorStore.StoreVector(factID, vec, payload)
+				if err != nil {
+					log.Printf("[qdrant] StoreVector failed for atomic fact %s: %v", factID, err)
+				}
 			}
 		}
 
@@ -192,7 +195,10 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			payload := map[string]interface{}{
 				"type": "turn_semantic",
 			}
-			_ = globalVectorStore.StoreVector(turnSemantic.ID, vec, payload)
+			err := globalVectorStore.StoreVector(turnSemantic.ID, vec, payload)
+			if err != nil {
+				log.Printf("[qdrant] StoreVector failed for turn_semantic %s: %v", turnSemantic.ID, err)
+			}
 		}
 	}
 
