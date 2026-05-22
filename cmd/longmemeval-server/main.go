@@ -16,7 +16,8 @@ import (
 
 // LongMemEvalServer wraps PalaceStore + VectorStore for the LongMemEval benchmark harness with full Qdrant integration.
 // Run with: go run cmd/longmemeval-server/main.go
-// Qdrant must be running (e.g. podman run -d -p 6333:6333 qdrant/qdrant). Falls back gracefully if unavailable.
+// Qdrant must be running with gRPC enabled (default port 6334).
+// Example: podman run -d -p 6333:6333 -p 6334:6334 qdrant/qdrant
 
 // MemoryHit is a lightweight DTO for the benchmark.
 type MemoryHit struct {
@@ -52,7 +53,6 @@ func main() {
 	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace")
 	_ = os.MkdirAll(baseDir, 0755)
 
-	// Embedding config (can be swapped to real ONNX)
 	embedFn := memory.GenerateSimpleEmbedding
 
 	cfg := memory.PalaceConfig{
@@ -61,16 +61,23 @@ func main() {
 	}
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
-	// Full Qdrant integration for the benchmark
-	globalVectorStore = memory.NewVectorStore("http://localhost:6333", "longmemeval_memory")
+	// Connect to Qdrant gRPC port (6334), not REST (6333)
+	globalVectorStore = memory.NewVectorStore("localhost:6334", "longmemeval_memory")
+
 	if globalVectorStore.Enabled {
-		if err := globalVectorStore.CreateCollection(768); err != nil {
-			log.Printf("[qdrant] could not create collection (may already exist): %v", err)
+		err := globalVectorStore.CreateCollection(768)
+		if err != nil {
+			// Common benign case: collection already exists
+			if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "ALREADY_EXISTS") {
+				log.Println("[qdrant] collection 'longmemeval_memory' already exists")
+			} else {
+				log.Printf("[qdrant] CreateCollection warning: %v", err)
+			}
 		} else {
-			log.Println("[qdrant] collection 'longmemeval_memory' ready (768 dim, cosine)")
+			log.Println("[qdrant] created collection 'longmemeval_memory' (768 dim, cosine)")
 		}
 	} else {
-		log.Println("[qdrant] not available - running in file-only mode (collection will stay empty)")
+		log.Println("[qdrant] not available — running in file-only mode")
 	}
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +102,6 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	for _, t := range req.Turns {
 		now := time.Now()
 
-		// 1. Store raw conversation turn (Working tier)
 		rawEntry := memory.MemoryEntry{
 			ID:   memory.GenerateMemoryID(),
 			Type: "conversation_turn",
@@ -112,7 +118,6 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			log.Printf("write error for conv %s: %v", req.ConvID, err)
 		}
 
-		// Also upsert to Qdrant (full integration)
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
@@ -123,7 +128,6 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			_ = globalVectorStore.StoreVector(rawEntry.ID, vec, payload)
 		}
 
-		// 2. Extract atomic facts -> TierSemantic
 		facts := memory.ExtractAtomicFacts(rawEntry)
 		for _, factText := range facts {
 			factID := memory.GenerateMemoryID()
@@ -154,13 +158,12 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				vec := globalStore.Config.EmbeddingFunc(factText, 768)
 				payload := map[string]interface{}{
 					"type": "atomic_fact",
-					"text": factText,
+					"text":  factText,
 				}
 				_ = globalVectorStore.StoreVector(factID, vec, payload)
 			}
 		}
 
-		// 3. Guaranteed high-signal semantic entry
 		turnSemantic := memory.MemoryEntry{
 			ID:        memory.GenerateMemoryID(),
 			Type:      "turn_semantic",
@@ -219,14 +222,12 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	var combined []memory.MemoryEntry
 	seen := make(map[string]bool)
 
-	// Prefer vector search when Qdrant is available (full integration)
 	if globalVectorStore != nil && globalVectorStore.Enabled && len(queryVec) > 0 {
 		vecResults, err := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, nil, true)
 		if err == nil {
 			for _, vr := range vecResults {
 				if !seen[vr.ID] {
 					seen[vr.ID] = true
-					// Try to load full entry from PalaceStore (best effort)
 					if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {
 						combined = append(combined, entry)
 					} else if entry, ok := globalStore.Load(vr.ID, memory.TierWorking); ok {
@@ -237,7 +238,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fallback / hybrid: existing tier + keyword logic
 	semanticFacts := globalStore.ListEntriesInTier(memory.TierSemantic)
 	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*4, queryVec)
 	recent := globalStore.ListEntriesInTier(memory.TierWorking)
@@ -264,7 +264,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Re-rank
 	if len(queryVec) > 0 && len(combined) > 1 {
 		sort.SliceStable(combined, func(i, j int) bool {
 			iEntry := combined[i]
