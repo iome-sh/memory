@@ -81,9 +81,16 @@ func (vs *VectorStore) StoreVector(id string, vec []float32, payload map[string]
 	if payload != nil {
 		qdrantPayload := make(map[string]*qdrant.Value)
 		for k, v := range payload {
-			qdrantPayload[k] = qdrant.NewValue(v)
+			val, err := qdrant.NewValue(v)
+			if err != nil {
+				// Skip invalid payload values
+				continue
+			}
+			qdrantPayload[k] = val
 		}
-		point.Payload = qdrantPayload
+		if len(qdrantPayload) > 0 {
+			point.Payload = qdrantPayload
+		}
 	}
 
 	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
@@ -107,9 +114,15 @@ func (vs *VectorStore) StoreSparseVector(id string, indices []uint32, values []f
 	if payload != nil {
 		qdrantPayload := make(map[string]*qdrant.Value)
 		for k, v := range payload {
-			qdrantPayload[k] = qdrant.NewValue(v)
+			val, err := qdrant.NewValue(v)
+			if err != nil {
+				continue
+			}
+			qdrantPayload[k] = val
 		}
-		point.Payload = qdrantPayload
+		if len(qdrantPayload) > 0 {
+			point.Payload = qdrantPayload
+		}
 	}
 
 	_, err := vs.Client.Upsert(context.Background(), &qdrant.UpsertPoints{
