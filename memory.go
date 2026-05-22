@@ -180,6 +180,7 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
 			}
+		}
 	}
 	return entries
 }
@@ -480,18 +481,19 @@ func GenerateMemoryID() string {
 // NewGONNXEmbeddingFunc returns an EmbeddingFunc powered by github.com/advancedclimatesystems/gonnx (pure-Go ONNX runtime, zero native deps, excellent for M4).
 //
 // Usage:
-//   embedFn, err := memory.NewGONNXEmbeddingFunc("/absolute/path/to/all-MiniLM-L6-v2.onnx")
-//   if err != nil { ... }
-//   cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
-//   store := memory.NewPalaceStoreWithConfig(cfg)
+//
+//	embedFn, err := memory.NewGONNXEmbeddingFunc("/absolute/path/to/all-MiniLM-L6-v2.onnx")
+//	if err != nil { ... }
+//	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
+//	store := memory.NewPalaceStoreWithConfig(cfg)
 //
 // The function validates that the model file exists.
 // For full semantic embeddings you must extend the returned func body with:
-//   1. Tokenization (WordPiece for MiniLM)
-//   2. Build input tensors (input_ids, attention_mask)
-//   3. model, _ := gonnx.NewModel(...) or the library's loader
-//   4. result := model.Run(inputs)
-//   5. Mean-pool the output + L2 normalize to get 384-dim vector.
+//  1. Tokenization (WordPiece for MiniLM)
+//  2. Build input tensors (input_ids, attention_mask)
+//  3. model, _ := gonnx.NewModel(...) or the library's loader
+//  4. result := model.Run(inputs)
+//  5. Mean-pool the output + L2 normalize to get 384-dim vector.
 //
 // Current implementation falls back to GenerateSimpleEmbedding for build compatibility.
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
@@ -651,7 +653,7 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
 			}
-	}
+		}
 	}
 
 	// Sort by relevance score descending (highest first)

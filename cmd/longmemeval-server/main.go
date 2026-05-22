@@ -243,7 +243,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 
 			// Simple token overlap bonus
 			iOverlap := tokenOverlapScore(req.Query, iText)
-			jOverlap := tokenOverlapScore(req.Query, jText)
 
 			iScore := iBoost + iSim*0.25 + iRel*0.2 + iOverlap*0.1
 			jScore := jBoost + jSim*0.25 + jRel*0.2 + iOverlap*0.1
