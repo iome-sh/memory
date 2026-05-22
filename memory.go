@@ -292,7 +292,10 @@ func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 	}
 	versionPath := filepath.Join(versionsDir, fmt.Sprintf("v%d.json", entry.Version))
 	data, err := json.MarshalIndent(entry, "", "  ")
-	if err := os.WriteFile(versionPath, data, 0644); err != nil {
+	if err != nil {
+		return fmt.Errorf("marshal failed: %w", err)
+	}
+	if err = os.WriteFile(versionPath, data, 0644); err != nil {
 		return fmt.Errorf("write version failed: %w", err)
 	}
 	return nil
@@ -475,6 +478,7 @@ func GenerateMemoryID() string {
 // Recommended replacement for full macOS/M4 compatibility (zero native deps, no CUDA): pure-Go ONNX runtimes
 //   - github.com/oramasearch/onnx-go
 //   - github.com/AdvancedClimateSystems/gonnx
+//
 // Both compile cleanly on macOS arm64, load the HF ONNX export of all-MiniLM-L6-v2 directly, and can be wired in by implementing a new func and assigning it to PalaceConfig.EmbeddingFunc (already pluggable).
 // Current implementation uses SHA256 + math/rand/v2 for deterministic, zero-dependency embeddings.
 func GenerateSimpleEmbedding(text string, dim int) []float32 {
