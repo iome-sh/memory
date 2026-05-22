@@ -3,8 +3,10 @@ module github.com/sudo-jin/memory
 go 1.23.0
 
 require (
+	github.com/advancedclimatesystems/gonnx v0.1.0
 	github.com/nrednav/cuid2 v1.1.0
 	github.com/qdrant/go-client v1.12.0
+	gorgonia.org/tensor v0.9.24
 )
 
 require (

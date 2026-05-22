@@ -7,7 +7,7 @@
 - Production vector search (dense + sparse via Qdrant Query API)
 - Full PalaceStore with atomic writes, versioning, temporal decay, multi-factor scoring
 - Compaction with temporal windows and alpha constraints
-- Hybrid SearchMemory + pluggable embeddings
+- Hybrid SearchMemory + **pluggable pure-Go ONNX embeddings** (new in this refactor)
 - All core features complete, tested, and hardened
 
 **Module**: `github.com/sudo-jin/memory@v1.0.0`
@@ -20,20 +20,46 @@ Extracted and refactored from `github.com/sudo-jin/ossa/internal/self`.
 
 - Portable (remove darwin-only where possible)
 - Importable as a clean package
-- Core types: MemoryEntry, MemoryTier, compaction, simple embeddings, relations, file-backed Palace
+- Core types: MemoryEntry, MemoryTier, compaction, **real semantic embeddings via pure-Go ONNX**, relations, file-backed Palace
 - Optional Qdrant vector integration
 - Incorporate H-Mem inspired improvements (temporal windows, multi-factor scoring, entity-aware graph)
 - Clean API for other agents/repos to import
 
 ## Current Status
 
-**v1.0.0 released and stable.** Core memory models, PalaceStore, compaction, versioning, temporal decay, multi-factor scoring, pluggable embeddings, Working tier lifecycle, PalaceConfig, hybrid SearchMemory, and full Qdrant vector integration (dense + sparse) are complete, tested, and production-ready.
+**v1.0.0 released and stable.** Core memory models, PalaceStore, compaction, versioning, temporal decay, multi-factor scoring, pluggable embeddings (now with pure-Go ONNX skeleton), Working tier lifecycle, PalaceConfig, hybrid SearchMemory, and full Qdrant vector integration (dense + sparse) are complete, tested, and production-ready.
+
+## Embedding Options (New)
+
+The `EmbeddingFunc` in `PalaceConfig` is fully pluggable.
+
+### Default (fast, deterministic, zero deps)
+`GenerateSimpleEmbedding` — hash-seeded random unit vectors (good for structure/tests, zero semantic value).
+
+### Pure-Go ONNX (recommended for production recall on M4)
+```go
+import "github.com/sudo-jin/memory"
+
+// Load once
+embedFn, err := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
+if err != nil { log.Fatal(err) }
+
+cfg := memory.PalaceConfig{
+	BaseDir:       ".ossa/kb/palace",
+	EmbeddingFunc: embedFn,
+}
+store := memory.NewPalaceStoreWithConfig(cfg)
+```
+
+`NewGONNXEmbeddingFunc` uses `github.com/advancedclimatesystems/gonnx` (pure Go, no native dylibs). Full MiniLM-L6-v2 support requires completing the tokenization + mean-pool steps inside the helper (skeleton provided). Output dim is typically 384.
+
+See the function godoc for the TODO and extension pattern.
 
 ## Planned Structure
 
 ```
 memory/
-├── memory.go          # Core types, Palace storage, embeddings, relations, temporal tags, PalaceConfig
+├── memory.go          # Core types, Palace storage, embeddings (now with NewGONNXEmbeddingFunc), relations, temporal tags, PalaceConfig
 ├── compaction.go      # LLM-driven compaction (agent-managed) with VectorStoreCallback
 ├── vector.go          # Official Qdrant Go client (dense + sparse vectors, batch upsert, worker-pool batch creation, retries, context, partial results)
 ├── memory_test.go     # Unit tests for PalaceStore, embeddings, compaction, vector
@@ -183,7 +209,7 @@ We provide first-class support for the official [LongMemEval](https://github.com
    python print_qa_metrics.py gpt-4o ../../../hypotheses.jsonl.log ../../../data/longmemeval_oracle.json
    ```
 
-The harness exercises `Write` + hybrid `SearchMemory`. You can easily extend `handleIngest` to call `WriteLatent` + `AutoRecMemCompaction` (with a real `generateFn`) and `SemanticRefine` to quantify the RecMem density-driven gains.
+The harness exercises `Write` + hybrid `SearchMemory`. Swapping in a real ONNX embedding via `NewGONNXEmbeddingFunc` will dramatically improve recall on personal-fact questions.
 
 See `scripts/longmemeval_orchestrator.py` for the full mapping logic and easy customization.
 

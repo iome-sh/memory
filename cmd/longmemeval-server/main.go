@@ -49,7 +49,13 @@ var globalStore *memory.PalaceStore
 func main() {
 	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace")
 	_ = os.MkdirAll(baseDir, 0755)
-	globalStore = memory.NewPalaceStore(baseDir)
+
+	// Demo: initialize with configurable embedding (swap to NewGONNXEmbeddingFunc for real semantic vectors)
+	cfg := memory.PalaceConfig{
+		BaseDir:       baseDir,
+		EmbeddingFunc: memory.GenerateSimpleEmbedding, // TODO: replace with memory.NewGONNXEmbeddingFunc("/path/to/model.onnx") for production recall
+	}
+	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -161,7 +167,12 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		req.Limit = 40 // Raised for better recall on LongMemEval
 	}
 
-	queryVec := memory.GenerateSimpleEmbedding(req.Query, 768)
+	// Use the store's configured embedding func (supports pure-Go ONNX swap)
+	embedFn := globalStore.Config.EmbeddingFunc
+	if embedFn == nil {
+		embedFn = memory.GenerateSimpleEmbedding
+	}
+	queryVec := embedFn(req.Query, 768)
 
 	// Deep refactor: aggressive high-recall for LongMemEval
 	// 1. All TierSemantic facts (highest priority for atomic + guaranteed entries)
@@ -221,8 +232,8 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 			iText := iEntry.Content.Summary + " " + iEntry.Content.Full
 			jText := jEntry.Content.Summary + " " + jEntry.Content.Full
 
-			iVec := memory.GenerateSimpleEmbedding(iText, len(queryVec))
-			jVec := memory.GenerateSimpleEmbedding(jText, len(queryVec))
+			iVec := embedFn(iText, len(queryVec))
+			jVec := embedFn(jText, len(queryVec))
 
 			iSim := memory.CosineSimilarity(iVec, queryVec)
 			jSim := memory.CosineSimilarity(jVec, queryVec)
@@ -235,7 +246,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 			jOverlap := tokenOverlapScore(req.Query, jText)
 
 			iScore := iBoost + iSim*0.25 + iRel*0.2 + iOverlap*0.1
-			jScore := jBoost + jSim*0.25 + jRel*0.2 + jOverlap*0.1
+			jScore := jBoost + jSim*0.25 + jRel*0.2 + iOverlap*0.1
 
 			return iScore > jScore
 		})

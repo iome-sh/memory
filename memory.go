@@ -14,7 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/advancedclimatesystems/gonnx"
 	"github.com/nrednav/cuid2"
+	"gorgonia.org/tensor"
 )
 
 // MemoryTier defines the three-tier hierarchical memory (inspired by ossa Palace + H-Mem ideas)
@@ -91,7 +93,7 @@ type PalaceConfig struct {
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
 	CompactionConfig   CompactionConfig
-	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1) - easily swap GenerateSimpleEmbedding for pure-Go ONNX (oramasearch/onnx-go or AdvancedClimateSystems/gonnx) on macOS/M4
+	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1) - swap GenerateSimpleEmbedding for pure-Go ONNX via NewGONNXEmbeddingFunc (AdvancedClimateSystems/gonnx or oramasearch/onnx-go) on M4
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -179,7 +181,6 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			fullPath := filepath.Join(dir, id+".json")
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
-			}
 		}
 	}
 	return entries
@@ -344,7 +345,8 @@ func (ps *PalaceStore) GetStats() MemoryStats {
 }
 
 // SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1
-// Supports query, optional tier filter, limit, and vector if VectorStore attached
+// Supports query, optional tier filter, limit, and vector if VectorStore attached.
+// Now uses the configured EmbeddingFunc from PalaceConfig for vector re-ranking (enables pure-Go ONNX swap).
 func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, vec []float32) []MemoryEntry {
 	if limit <= 0 {
 		limit = 10
@@ -385,11 +387,15 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	}
 	results = filtered
 
-	// Vector re-rank if provided
+	// Vector re-rank if provided -- uses configured EmbeddingFunc (real ONNX when wired)
 	if len(vec) > 0 {
+		embedFn := ps.Config.EmbeddingFunc
+		if embedFn == nil {
+			embedFn = GenerateSimpleEmbedding
+		}
 		sort.Slice(results, func(i, j int) bool {
-			iVec := GenerateSimpleEmbedding(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
-			jVec := GenerateSimpleEmbedding(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
+			iVec := embedFn(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
+			jVec := embedFn(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
 			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
 		})
 	}
@@ -473,14 +479,30 @@ func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
+// NewGONNXEmbeddingFunc returns an EmbeddingFunc powered by AdvancedClimateSystems/gonnx (pure-Go ONNX, zero native deps on M4).
+// Loads the ONNX model at modelPath for validation.
+// For full all-MiniLM-L6-v2 support you must complete: (1) WordPiece tokenization, (2) build input tensors, (3) run inference with mean pooling + L2 norm.
+// Current implementation falls back to GenerateSimpleEmbedding so the package remains buildable and backward-compatible.
+// Recommended usage:
+//   embedFn, _ := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
+//   cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
+//   store := memory.NewPalaceStoreWithConfig(cfg)
+func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
+	if modelPath == "" {
+		return GenerateSimpleEmbedding, nil
+	}
+	// Validate model can be loaded (structure ready for real inference)
+	if _, err := gonnx.NewModel(modelPath); err != nil {
+		return nil, fmt.Errorf("failed to load ONNX model %s: %w", modelPath, err)
+	}
+	// TODO: Implement full inference path here using the loaded model + tokenizer.
+	// For now return the deterministic simple embedding so hybrid search and LongMemEval harness continue to work.
+	// Once tokenization + post-processing is added, replace the body below with real ONNX inference returning 384-dim (or configured) vectors.
+	return GenerateSimpleEmbedding, nil
+}
+
 // GenerateSimpleEmbedding (deterministic hash-based fallback)
-// Research (GitHub + web search 2026-05-21): clems4ever/all-minilm-l6-v2-go is Linux/.so-centric and problematic on macOS/Apple Silicon (M4) due to missing dylib docs and native ONNX dependency.
-// Recommended replacement for full macOS/M4 compatibility (zero native deps, no CUDA): pure-Go ONNX runtimes
-//   - github.com/oramasearch/onnx-go
-//   - github.com/AdvancedClimateSystems/gonnx
-//
-// Both compile cleanly on macOS arm64, load the HF ONNX export of all-MiniLM-L6-v2 directly, and can be wired in by implementing a new func and assigning it to PalaceConfig.EmbeddingFunc (already pluggable).
-// Current implementation uses SHA256 + math/rand/v2 for deterministic, zero-dependency embeddings.
+// Research note: For production semantic quality on M4 use NewGONNXEmbeddingFunc with a real all-MiniLM-L6-v2 ONNX export (pure-Go via gonnx).
 func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = 768
@@ -589,11 +611,13 @@ func CalculateRelevanceScore(entry MemoryEntry) float64 {
 	return total
 }
 
-// MultiFactorScore implements full H-Mem s + t + r scoring with optional query vector for semantic component
-// s = semantic cosine if queryVec provided, else uses ScoreImpact
+// MultiFactorScore implements full H-Mem s + t + r scoring with optional query vector for semantic component.
+// s = semantic cosine if queryVec provided, else uses ScoreImpact.
+// Note: For real semantic quality, pass vectors produced by a configured PalaceConfig.EmbeddingFunc (e.g. NewGONNXEmbeddingFunc).
 func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
 	var semantic float64
 	if len(queryVec) > 0 {
+		// Uses simple for backward compat; real usage should pre-compute vec with the store's EmbeddingFunc
 		entryVec := GenerateSimpleEmbedding(entry.Content.Summary+" "+entry.Content.Full, len(queryVec))
 		semantic = CosineSimilarity(entryVec, queryVec)
 	} else {
@@ -708,7 +732,7 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 			factEntry := MemoryEntry{
 				ID:        factID,
 				Type:      "atomic_fact",
-				Tier:      TierSemantic,
+				Tier:      memory.TierSemantic,
 				Version:   1,
 				CreatedAt: now,
 				UpdatedAt: now,
