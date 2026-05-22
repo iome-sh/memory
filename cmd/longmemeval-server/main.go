@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sudo-jin/memory"
 )
 
@@ -118,13 +119,15 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
-				"type":    rawEntry.Type,
-				"summary": rawEntry.Content.Summary,
-				"cycle":   rawEntry.Cycle,
+				"memory_id": rawEntry.ID, // keep original cuid2 ID in payload
+				"type":     rawEntry.Type,
+				"summary":  rawEntry.Content.Summary,
+				"cycle":    rawEntry.Cycle,
 			}
-			err := globalVectorStore.StoreVector(rawEntry.ID, vec, payload)
+			qdrantID := uuid.NewString()
+			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 			if err != nil {
-				log.Printf("[qdrant] StoreVector failed for %s: %v", rawEntry.ID, err)
+				log.Printf("[qdrant] StoreVector failed for %s: %v", qdrantID, err)
 			}
 		}
 
@@ -157,12 +160,14 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			if globalVectorStore != nil && globalVectorStore.Enabled {
 				vec := globalStore.Config.EmbeddingFunc(factText, 768)
 				payload := map[string]interface{}{
-					"type": "atomic_fact",
-					"text":  factText,
+					"memory_id": factID,
+					"type":     "atomic_fact",
+					"text":     factText,
 				}
-			err := globalVectorStore.StoreVector(factID, vec, payload)
+				qdrantID := uuid.NewString()
+			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 				if err != nil {
-					log.Printf("[qdrant] StoreVector failed for atomic fact %s: %v", factID, err)
+					log.Printf("[qdrant] StoreVector failed for atomic fact %s: %v", qdrantID, err)
 				}
 			}
 		}
@@ -193,11 +198,13 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
-				"type": "turn_semantic",
+				"memory_id": turnSemantic.ID,
+				"type":     "turn_semantic",
 			}
-			err := globalVectorStore.StoreVector(turnSemantic.ID, vec, payload)
+			qdrantID := uuid.NewString()
+			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 			if err != nil {
-				log.Printf("[qdrant] StoreVector failed for turn_semantic %s: %v", turnSemantic.ID, err)
+				log.Printf("[qdrant] StoreVector failed for turn_semantic %s: %v", qdrantID, err)
 			}
 		}
 	}
