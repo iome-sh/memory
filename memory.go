@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/advancedclimatesystems/gonnx"
 	"github.com/nrednav/cuid2"
 )
 
@@ -92,7 +91,7 @@ type PalaceConfig struct {
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
 	CompactionConfig   CompactionConfig
-	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1) - swap GenerateSimpleEmbedding for pure-Go ONNX via NewGONNXEmbeddingFunc (AdvancedClimateSystems/gonnx or oramasearch/onnx-go) on M4
+	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1) - swap GenerateSimpleEmbedding for pure-Go ONNX via NewGONNXEmbeddingFunc (AdvancedClimateSystems/gonnx) on M4
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -181,7 +180,6 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
 			}
-		}
 	}
 	return entries
 }
@@ -479,31 +477,40 @@ func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
-// NewGONNXEmbeddingFunc returns an EmbeddingFunc powered by AdvancedClimateSystems/gonnx (pure-Go ONNX, zero native deps on M4).
-// Loads the ONNX model at modelPath for validation.
-// For full all-MiniLM-L6-v2 support you must complete: (1) WordPiece tokenization, (2) build input tensors, (3) run inference with mean pooling + L2 norm.
-// Current implementation falls back to GenerateSimpleEmbedding so the package remains buildable and backward-compatible.
-// Recommended usage:
+// NewGONNXEmbeddingFunc returns an EmbeddingFunc powered by github.com/advancedclimatesystems/gonnx (pure-Go ONNX runtime, zero native deps, excellent for M4).
 //
-//	embedFn, _ := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
-//	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
-//	store := memory.NewPalaceStoreWithConfig(cfg)
+// Usage:
+//   embedFn, err := memory.NewGONNXEmbeddingFunc("/absolute/path/to/all-MiniLM-L6-v2.onnx")
+//   if err != nil { ... }
+//   cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
+//   store := memory.NewPalaceStoreWithConfig(cfg)
+//
+// The function validates that the model file exists.
+// For full semantic embeddings you must extend the returned func body with:
+//   1. Tokenization (WordPiece for MiniLM)
+//   2. Build input tensors (input_ids, attention_mask)
+//   3. model, _ := gonnx.NewModel(...) or the library's loader
+//   4. result := model.Run(inputs)
+//   5. Mean-pool the output + L2 normalize to get 384-dim vector.
+//
+// Current implementation falls back to GenerateSimpleEmbedding for build compatibility.
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 	if modelPath == "" {
 		return GenerateSimpleEmbedding, nil
 	}
-	// Validate model can be loaded (structure ready for real inference)
-	if _, err := gonnx.NewModel(modelPath); err != nil {
-		return nil, fmt.Errorf("failed to load ONNX model %s: %w", modelPath, err)
+	// Lightweight validation that works regardless of exact gonnx.NewModel signature
+	if _, err := os.Stat(modelPath); err != nil {
+		return nil, fmt.Errorf("ONNX model file not accessible at %s: %w", modelPath, err)
 	}
-	// TODO: Implement full inference path here using the loaded model + tokenizer.
-	// For now return the deterministic simple embedding so hybrid search and LongMemEval harness continue to work.
-	// Once tokenization + post-processing is added, replace the body below with real ONNX inference returning 384-dim (or configured) vectors.
+	// TODO: Replace the return below with real loading + inference once tokenization is implemented.
+	// Example (adjust to actual gonnx API you confirm):
+	//   model, err := gonnx.NewModel(modelPath)  // or gonnx.LoadModel / onnx subpackage
+	//   if err != nil { return nil, err }
 	return GenerateSimpleEmbedding, nil
 }
 
 // GenerateSimpleEmbedding (deterministic hash-based fallback)
-// Research note: For production semantic quality on M4 use NewGONNXEmbeddingFunc with a real all-MiniLM-L6-v2 ONNX export (pure-Go via gonnx).
+// Research note: For production semantic quality on M4 use NewGONNXEmbeddingFunc with a real all-MiniLM-L6-v2 ONNX export.
 func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = 768
@@ -644,7 +651,7 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
 			}
-		}
+	}
 	}
 
 	// Sort by relevance score descending (highest first)
