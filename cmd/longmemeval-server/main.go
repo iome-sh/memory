@@ -14,8 +14,9 @@ import (
 	"github.com/sudo-jin/memory"
 )
 
-// LongMemEvalServer wraps PalaceStore for the LongMemEval benchmark harness.
+// LongMemEvalServer wraps PalaceStore + VectorStore for the LongMemEval benchmark harness with full Qdrant integration.
 // Run with: go run cmd/longmemeval-server/main.go
+// Qdrant must be running (e.g. podman run -d -p 6333:6333 qdrant/qdrant). Falls back gracefully if unavailable.
 
 // MemoryHit is a lightweight DTO for the benchmark.
 type MemoryHit struct {
@@ -29,7 +30,7 @@ type IngestRequest struct {
 	ConvID string `json:"conv_id"`
 	Turns  []struct {
 		Role      string `json:"role"`
-		Content   string `json:"content"`
+		Content   string `json:"content""
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
 	} `json:"turns"`
@@ -45,17 +46,32 @@ type RetrieveResponse struct {
 }
 
 var globalStore *memory.PalaceStore
+var globalVectorStore *memory.VectorStore
 
 func main() {
 	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace")
 	_ = os.MkdirAll(baseDir, 0755)
 
-	// Demo: initialize with configurable embedding (swap to NewGONNXEmbeddingFunc for real semantic vectors)
+	// Embedding config (can be swapped to real ONNX)
+	embedFn := memory.GenerateSimpleEmbedding
+
 	cfg := memory.PalaceConfig{
 		BaseDir:       baseDir,
-		EmbeddingFunc: memory.GenerateSimpleEmbedding, // TODO: replace with memory.NewGONNXEmbeddingFunc("/path/to/model.onnx") for production recall
+		EmbeddingFunc: embedFn,
 	}
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
+
+	// Full Qdrant integration for the benchmark
+	globalVectorStore = memory.NewVectorStore("http://localhost:6333", "longmemeval_memory")
+	if globalVectorStore.Enabled {
+		if err := globalVectorStore.CreateCollection(768); err != nil {
+			log.Printf("[qdrant] could not create collection (may already exist): %v", err)
+		} else {
+			log.Println("[qdrant] collection 'longmemeval_memory' ready (768 dim, cosine)")
+		}
+	} else {
+		log.Println("[qdrant] not available - running in file-only mode (collection will stay empty)")
+	}
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -65,7 +81,7 @@ func main() {
 	http.HandleFunc("/retrieve", handleRetrieve)
 	http.HandleFunc("/compact", handleCompact)
 
-	log.Println("LongMemEval benchmark server listening on :8765")
+	log.Println("LongMemEval benchmark server listening on :8765 (Qdrant integrated)")
 	log.Fatal(http.ListenAndServe(":8765", nil))
 }
 
@@ -79,7 +95,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	for _, t := range req.Turns {
 		now := time.Now()
 
-		// 1. Store raw conversation turn (Working tier for recency)
+		// 1. Store raw conversation turn (Working tier)
 		rawEntry := memory.MemoryEntry{
 			ID:   memory.GenerateMemoryID(),
 			Type: "conversation_turn",
@@ -96,7 +112,18 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			log.Printf("write error for conv %s: %v", req.ConvID, err)
 		}
 
-		// 2. Extract atomic facts -> TierSemantic (high-signal)
+		// Also upsert to Qdrant (full integration)
+		if globalVectorStore != nil && globalVectorStore.Enabled {
+			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
+			payload := map[string]interface{}{
+				"type":    rawEntry.Type,
+				"summary": rawEntry.Content.Summary,
+				"cycle":   rawEntry.Cycle,
+			}
+			_ = globalVectorStore.StoreVector(rawEntry.ID, vec, payload)
+		}
+
+		// 2. Extract atomic facts -> TierSemantic
 		facts := memory.ExtractAtomicFacts(rawEntry)
 		for _, factText := range facts {
 			factID := memory.GenerateMemoryID()
@@ -122,10 +149,18 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				},
 			}
 			_ = globalStore.Write(atomicFact)
+
+			if globalVectorStore != nil && globalVectorStore.Enabled {
+				vec := globalStore.Config.EmbeddingFunc(factText, 768)
+				payload := map[string]interface{}{
+					"type": "atomic_fact",
+					"text":  factText,
+				}
+				_ = globalVectorStore.StoreVector(factID, vec, payload)
+			}
 		}
 
-		// 3. ALWAYS add at least one high-ScoreImpact semantic entry per turn
-		// This guarantees every conversation contributes to TierSemantic for recall
+		// 3. Guaranteed high-signal semantic entry
 		turnSemantic := memory.MemoryEntry{
 			ID:        memory.GenerateMemoryID(),
 			Type:      "turn_semantic",
@@ -143,11 +178,19 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				ParentIDs:  []string{rawEntry.ID},
 			},
 			Metrics: memory.MemoryMetrics{
-				ScoreImpact: 0.88, // High but slightly below pure atomic facts
+				ScoreImpact: 0.88,
 				UsageCount:  1,
 			},
 		}
 		_ = globalStore.Write(turnSemantic)
+
+		if globalVectorStore != nil && globalVectorStore.Enabled {
+			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
+			payload := map[string]interface{}{
+				"type": "turn_semantic",
+			}
+			_ = globalVectorStore.StoreVector(turnSemantic.ID, vec, payload)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -164,48 +207,56 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Limit <= 0 {
-		req.Limit = 40 // Raised for better recall on LongMemEval
+		req.Limit = 40
 	}
 
-	// Use the store's configured embedding func (supports pure-Go ONNX swap)
 	embedFn := globalStore.Config.EmbeddingFunc
 	if embedFn == nil {
 		embedFn = memory.GenerateSimpleEmbedding
 	}
 	queryVec := embedFn(req.Query, 768)
 
-	// Deep refactor: aggressive high-recall for LongMemEval
-	// 1. All TierSemantic facts (highest priority for atomic + guaranteed entries)
+	var combined []memory.MemoryEntry
+	seen := make(map[string]bool)
+
+	// Prefer vector search when Qdrant is available (full integration)
+	if globalVectorStore != nil && globalVectorStore.Enabled && len(queryVec) > 0 {
+		vecResults, err := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, nil, true)
+		if err == nil {
+			for _, vr := range vecResults {
+				if !seen[vr.ID] {
+					seen[vr.ID] = true
+					// Try to load full entry from PalaceStore (best effort)
+					if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {
+						combined = append(combined, entry)
+					} else if entry, ok := globalStore.Load(vr.ID, memory.TierWorking); ok {
+						combined = append(combined, entry)
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback / hybrid: existing tier + keyword logic
 	semanticFacts := globalStore.ListEntriesInTier(memory.TierSemantic)
-
-	// 2. Broad keyword search (larger pool)
-	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*8, queryVec)
-
-	// 3. Recent Working tier (recency bias)
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*4, queryVec)
 	recent := globalStore.ListEntriesInTier(memory.TierWorking)
 	if len(recent) > 100 {
 		recent = recent[:100]
 	}
 
-	// Merge with semantic first, then others (dedup)
-	seen := make(map[string]bool)
-	combined := make([]memory.MemoryEntry, 0, len(semanticFacts)+len(keywordResults)+len(recent))
-
-	// Prepend all semantic (core of high-recall strategy)
 	for _, e := range semanticFacts {
 		if !seen[e.ID] {
 			seen[e.ID] = true
 			combined = append(combined, e)
 		}
 	}
-
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
 			seen[e.ID] = true
 			combined = append(combined, e)
 		}
 	}
-
 	for _, e := range recent {
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -213,13 +264,12 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Re-rank with composite score: heavy boost for TierSemantic + relevance + overlap
+	// Re-rank
 	if len(queryVec) > 0 && len(combined) > 1 {
 		sort.SliceStable(combined, func(i, j int) bool {
 			iEntry := combined[i]
 			jEntry := combined[j]
 
-			// TierSemantic gets strong priority
 			iBoost := 0.0
 			if iEntry.Tier == memory.TierSemantic {
 				iBoost = 0.45
@@ -241,8 +291,8 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 			iRel := memory.CalculateRelevanceScore(iEntry)
 			jRel := memory.CalculateRelevanceScore(jEntry)
 
-			// Simple token overlap bonus
 			iOverlap := tokenOverlapScore(req.Query, iText)
+			jOverlap := tokenOverlapScore(req.Query, jText)
 
 			iScore := iBoost + iSim*0.25 + iRel*0.2 + iOverlap*0.1
 			jScore := jBoost + jSim*0.25 + jRel*0.2 + iOverlap*0.1
@@ -269,7 +319,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// tokenOverlapScore gives bonus for query words appearing in content (loose match)
 func tokenOverlapScore(query, content string) float64 {
 	qLower := strings.ToLower(query)
 	cLower := strings.ToLower(content)
