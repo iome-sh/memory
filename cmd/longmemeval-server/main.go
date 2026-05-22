@@ -30,7 +30,7 @@ type IngestRequest struct {
 	ConvID string `json:"conv_id"`
 	Turns  []struct {
 		Role      string `json:"role"`
-		Content   string `json:"content""
+		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
 	} `json:"turns"`
@@ -154,7 +154,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				vec := globalStore.Config.EmbeddingFunc(factText, 768)
 				payload := map[string]interface{}{
 					"type": "atomic_fact",
-					"text":  factText,
+					"text": factText,
 				}
 				_ = globalVectorStore.StoreVector(factID, vec, payload)
 			}
@@ -292,7 +292,6 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 			jRel := memory.CalculateRelevanceScore(jEntry)
 
 			iOverlap := tokenOverlapScore(req.Query, iText)
-			jOverlap := tokenOverlapScore(req.Query, jText)
 
 			iScore := iBoost + iSim*0.25 + iRel*0.2 + iOverlap*0.1
 			jScore := jBoost + jSim*0.25 + jRel*0.2 + iOverlap*0.1
