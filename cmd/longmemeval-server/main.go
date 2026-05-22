@@ -265,7 +265,7 @@ func tokenOverlapScore(query, content string) float64 {
 	cLower := strings.ToLower(content)
 	qWords := strings.FieldsFunc(qLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	}
+	})
 	if len(qWords) == 0 {
 		return 0
 	}
