@@ -16,7 +16,6 @@ import (
 
 	"github.com/advancedclimatesystems/gonnx"
 	"github.com/nrednav/cuid2"
-	"gorgonia.org/tensor"
 )
 
 // MemoryTier defines the three-tier hierarchical memory (inspired by ossa Palace + H-Mem ideas)
@@ -181,6 +180,7 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 			fullPath := filepath.Join(dir, id+".json")
 			if entry, ok := ps.loadEntry(fullPath); ok {
 				entries = append(entries, entry)
+			}
 		}
 	}
 	return entries
@@ -484,9 +484,10 @@ func GenerateMemoryID() string {
 // For full all-MiniLM-L6-v2 support you must complete: (1) WordPiece tokenization, (2) build input tensors, (3) run inference with mean pooling + L2 norm.
 // Current implementation falls back to GenerateSimpleEmbedding so the package remains buildable and backward-compatible.
 // Recommended usage:
-//   embedFn, _ := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
-//   cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
-//   store := memory.NewPalaceStoreWithConfig(cfg)
+//
+//	embedFn, _ := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
+//	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
+//	store := memory.NewPalaceStoreWithConfig(cfg)
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 	if modelPath == "" {
 		return GenerateSimpleEmbedding, nil
@@ -732,7 +733,7 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 			factEntry := MemoryEntry{
 				ID:        factID,
 				Type:      "atomic_fact",
-				Tier:      memory.TierSemantic,
+				Tier:      TierSemantic,
 				Version:   1,
 				CreatedAt: now,
 				UpdatedAt: now,
