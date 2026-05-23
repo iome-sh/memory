@@ -388,7 +388,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			if strings.Contains(contentLower, w) {
 				match = true
 				break
-		}
+			}
 		}
 		if match {
 			filtered = append(filtered, e)
@@ -490,7 +490,7 @@ func GenerateMemoryID() string {
 }
 
 // NewGONNXEmbeddingFunc returns a production-grade EmbeddingFunc powered by hugot.
-// Correctly creates Session first, then calls NewPipeline(session, config).
+// Uses result.Outputs[0] with type assertion (current hugot backends.PipelineBatchOutput API).
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 	if modelPath == "" {
 		return GenerateSimpleEmbedding, nil
@@ -500,7 +500,7 @@ func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 		return nil, fmt.Errorf("ONNX model not found at %s: %w", modelPath, err)
 	}
 
-	// Create hugot session first (required by current API)
+	// Create hugot session
 	session, err := hugot.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create hugot session: %w", err)
@@ -510,7 +510,6 @@ func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 		ModelPath: modelPath,
 	}
 
-	// Correct signature: NewPipeline(session, config)
 	pipeline, err := hugot.NewPipeline(session, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create hugot pipeline: %w", err)
@@ -522,11 +521,21 @@ func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 		}
 
 		result, err := pipeline.Run([]string{text})
-		if err != nil || result == nil || len(result.Embeddings) == 0 {
+		if err != nil || result == nil {
 			return GenerateSimpleEmbedding(text, dim)
 		}
 
-		embedding := result.Embeddings[0]
+		// Current hugot stores embeddings in result.Outputs[0] as [][]float32
+		if len(result.Outputs) == 0 {
+			return GenerateSimpleEmbedding(text, dim)
+		}
+
+		embeddings, ok := result.Outputs[0].([][]float32)
+		if !ok || len(embeddings) == 0 {
+			return GenerateSimpleEmbedding(text, dim)
+		}
+
+		embedding := embeddings[0]
 
 		// L2 normalize
 		var norm float32
