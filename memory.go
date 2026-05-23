@@ -16,7 +16,6 @@ import (
 	"unicode"
 
 	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelines"
 	"github.com/nrednav/cuid2"
 )
 
@@ -376,7 +375,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
+	}
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -428,7 +427,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	})
+	}
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -490,43 +489,45 @@ func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
-// NewGONNXEmbeddingFunc returns a production-grade EmbeddingFunc powered by hugot (ONNX Runtime).
-// This is the recommended path for high-quality semantic embeddings on Apple Silicon.
-//
-// Usage:
-//
-//	embedFn, err := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
-//	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
-//	store := memory.NewPalaceStoreWithConfig(cfg)
+// NewGONNXEmbeddingFunc returns a production-grade EmbeddingFunc powered by hugot.
+// Fixed to use the correct session-based API for hugot v0.3+.
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 	if modelPath == "" {
 		return GenerateSimpleEmbedding, nil
 	}
 
-	// Validate model file exists
 	if _, err := os.Stat(modelPath); err != nil {
 		return nil, fmt.Errorf("ONNX model not found at %s: %w", modelPath, err)
 	}
 
-	// Create feature extraction pipeline using hugot
+	// Create hugot session
+	session, err := hugot.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hugot session: %w", err)
+	}
+
 	config := hugot.FeatureExtractionConfig{
 		ModelPath: modelPath,
 	}
 
-	pipeline, err := hugot.NewPipeline[pipelines.FeatureExtractionPipeline](config)
+	// Use the session-based constructor
+	pipeline, err := hugot.NewPipeline(session, config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create hugot pipeline for model %s: %w", modelPath, err)
+		return nil, fmt.Errorf("failed to create hugot pipeline: %w", err)
 	}
 
-	// Return a thread-safe embedding function with fallback
 	return func(text string, dim int) []float32 {
 		if text == "" {
 			return make([]float32, dim)
 		}
 
 		result, err := pipeline.Run([]string{text})
-		if err != nil || len(result.Embeddings) == 0 {
-			// Graceful fallback to deterministic embedding
+		if err != nil || result == nil {
+			return GenerateSimpleEmbedding(text, dim)
+		}
+
+		// result.Embeddings is the standard field in hugot FeatureExtraction output
+		if len(result.Embeddings) == 0 {
 			return GenerateSimpleEmbedding(text, dim)
 		}
 
@@ -549,7 +550,6 @@ func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 }
 
 // GenerateSimpleEmbedding (deterministic hash-based fallback)
-// Research note: For production semantic quality on M4 use NewGONNXEmbeddingFunc with a real all-MiniLM-L6-v2 ONNX export.
 func GenerateSimpleEmbedding(text string, dim int) []float32 {
 	if dim <= 0 {
 		dim = 768
@@ -634,16 +634,15 @@ func CalculateRecencyBoost(deltaHours float64) float64 {
 }
 
 // CalculateTemporalDecay implements H-Mem style forgetting curve
-// Exponential decay based on time since last access (hours).
 func CalculateTemporalDecay(entry MemoryEntry) float64 {
 	if entry.LastAccessed.IsZero() {
 		return 1.0
 	}
 	hoursSince := time.Since(entry.LastAccessed).Hours()
-	return math.Exp(-hoursSince / 168) // decay over ~1 week
+	return math.Exp(-hoursSince / 168)
 }
 
-// CalculateRelevanceScore combines score impact, recency, temporal decay, usage (H-Mem s + t + r)
+// CalculateRelevanceScore combines score impact, recency, temporal decay, usage
 func CalculateRelevanceScore(entry MemoryEntry) float64 {
 	if entry.Metrics.ScoreImpact <= 0 {
 		return 0.0
@@ -658,13 +657,10 @@ func CalculateRelevanceScore(entry MemoryEntry) float64 {
 	return total
 }
 
-// MultiFactorScore implements full H-Mem s + t + r scoring with optional query vector for semantic component.
-// s = semantic cosine if queryVec provided, else uses ScoreImpact.
-// Note: For real semantic quality, pass vectors produced by a configured PalaceConfig.EmbeddingFunc (e.g. NewGONNXEmbeddingFunc).
+// MultiFactorScore implements full H-Mem scoring
 func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
 	var semantic float64
 	if len(queryVec) > 0 {
-		// Uses simple for backward compat; real usage should pre-compute vec with the store's EmbeddingFunc
 		entryVec := GenerateSimpleEmbedding(entry.Content.Summary+" "+entry.Content.Full, len(queryVec))
 		semantic = CosineSimilarity(entryVec, queryVec)
 	} else {
@@ -676,7 +672,6 @@ func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
 }
 
 // ListEntriesInTier returns all entries in the given tier, sorted by relevance score (descending).
-// Exported for benchmark harness hybrid retrieval (keyword + recent).
 func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 	dir := ps.getTierDir(tier)
 	files, err := os.ReadDir(dir)
@@ -693,7 +688,6 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 		}
 	}
 
-	// Sort by relevance score descending (highest first)
 	sort.Slice(entries, func(i, j int) bool {
 		return CalculateRelevanceScore(entries[i]) > CalculateRelevanceScore(entries[j])
 	})
@@ -702,7 +696,6 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 }
 
 // ExtractAtomicFacts extracts high-value personal facts from a memory entry.
-// Focused on LongMemEval-style questions. Exported for benchmark server use.
 func ExtractAtomicFacts(entry MemoryEntry) []string {
 	text := entry.Content.Full
 	if text == "" {
@@ -742,7 +735,6 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 			}
 		}
 
-		// Fallback for test compatibility and general robustness
 		if !matched {
 			lower := strings.ToLower(s)
 			if (strings.Contains(lower, "i ") || strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")) &&
@@ -763,8 +755,7 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 	return unique
 }
 
-// extractKeyphrases is a lightweight rule-based extractor for keyphrases (production starting point).
-// For peak LongMemEval performance, replace or augment with local LLM call (ego GGUF/ANE path) for high-quality keyphrases.
+// extractKeyphrases is a lightweight rule-based extractor for keyphrases.
 func extractKeyphrases(text string) []string {
 	if text == "" {
 		return nil
@@ -778,36 +769,28 @@ func extractKeyphrases(text string) []string {
 		if len(w1) > 3 && unicode.IsUpper(rune(w1[0])) && len(w2) > 2 {
 			phrase := w1 + " " + w2
 			if !seen[phrase] {
-				seen[phrase] = true
-				phrases = append(phrases, phrase)
-			}
+			seen[phrase] = true
+			phrases = append(phrases, phrase)
 		}
 	}
-	// Also capture important single capitalized words as keyphrases
 	for _, w := range words {
 		clean := strings.Trim(w, ".,;:!?\"")
 		if len(clean) > 4 && unicode.IsUpper(rune(clean[0])) && !seen[clean] {
-			seen[clean] = true
-			phrases = append(phrases, clean)
-		}
+		seen[clean] = true
+		phrases = append(phrases, clean)
 	}
 	if len(phrases) > 12 {
-		phrases = phrases[:12] // cap for payload size
+		phrases = phrases[:12]
 	}
 	return phrases
 }
 
 // IngestTurn is the primary production entry point for LongMemEval benchmark and ego online session processing.
-// It ensures turn/session granularity, populates all new metadata fields, runs lightweight fact + keyphrase extraction,
-// stores the raw turn entry, and creates fact-augmented variants in the Semantic tier for multiple retrieval pathways.
-// This implements the paper-recommended round-level granularity + fact-augmented key expansion.
-// Call this from longmemeval-server or ego memory writer instead of raw Write for benchmark-optimized ingestion.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
 	}
 
-	// Default timestamp if not provided (critical for temporal reasoning)
 	if turn.Timestamp.IsZero() {
 		turn.Timestamp = time.Now()
 	}
@@ -818,12 +801,10 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 		turn.ID = GenerateMemoryID()
 	}
 
-	// Populate extracted facts if not already provided (reuses and extends existing ExtractAtomicFacts)
 	if len(turn.ExtractedFacts) == 0 {
 		turn.ExtractedFacts = ExtractAtomicFacts(turn)
 	}
 
-	// Lightweight keyphrase extraction (rule-based starting point; swap with local LLM for production peak)
 	if len(turn.Keyphrases) == 0 {
 		combined := turn.Content.Full
 		if combined == "" {
@@ -835,7 +816,6 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 		turn.Keyphrases = extractKeyphrases(combined)
 	}
 
-	// Preserve raw text for provenance and future re-extraction
 	if turn.OriginalText == "" {
 		turn.OriginalText = turn.Content.Full
 		if turn.OriginalText == "" {
@@ -843,19 +823,14 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 		}
 	}
 
-	// Set type for clarity
 	if turn.Type == "" {
 		turn.Type = "turn"
 	}
 
-	// Atomic write of the main turn entry (respects existing versioning + tiers)
 	if err := ps.Write(turn); err != nil {
 		return fmt.Errorf("failed to write turn entry: %w", err)
 	}
 
-	// Fact-augmented variants: create lightweight high-signal fact entries in Semantic tier.
-	// This provides the multiple retrieval pathways recommended by the LongMemEval paper (+9.4% recall).
-	// Non-fatal if individual facts fail; main turn is already persisted.
 	for _, factText := range turn.ExtractedFacts {
 		if strings.TrimSpace(factText) == "" {
 			continue
@@ -883,19 +858,18 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 				ParentIDs:  []string{turn.ID},
 			},
 			Metrics: MemoryMetrics{
-				ScoreImpact: 0.92, // high importance for protected facts
+				ScoreImpact: 0.92,
 				UsageCount:  1,
 			},
 		}
 
-		_ = ps.Write(factEntry) // best-effort; main turn already committed
+		_ = ps.Write(factEntry)
 	}
 
 	return nil
 }
 
 // SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
-// It creates high-fidelity entries and stores them in the semantic tier.
 func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 	if len(cluster) == 0 {
 		return nil
@@ -918,31 +892,25 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-				},
-				Provenance: MemoryProvenance{
-					SourceStep: "semantic_refine",
-					ParentIDs:  []string{entry.ID},
-				},
-				Metrics: MemoryMetrics{
-					ScoreImpact: 0.95, // High importance for protected facts
-					UsageCount:  1,
-				},
-			}
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "semantic_refine",
+				ParentIDs:  []string{entry.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.95,
+				UsageCount:  1,
+			},
+		}
 
-			if err := ps.Write(factEntry); err != nil {
-				return fmt.Errorf("failed to write semantic fact: %w", err)
-			}
+		if err := ps.Write(factEntry); err != nil {
+			return fmt.Errorf("failed to write semantic fact: %w", err)
 		}
 	}
 	return nil
 }
 
-// ReadWithChainOfNote formats retrieved MemoryEntry items into a Chain-of-Note style
-// prompt for the reader LLM. It enforces explicit listing of facts with provenance
-// before reasoning and requests structured JSON output. This captures the
-// paper-recommended reading-strategy gains (+10 points) at negligible cost.
-// Call this after SearchMemory / SearchMemoryExpanded in longmemeval-server
-// or ego chat flows.
+// ReadWithChainOfNote formats retrieved MemoryEntry items into a Chain-of-Note style prompt.
 func (ps *PalaceStore) ReadWithChainOfNote(retrieved []MemoryEntry, query string) (string, error) {
 	if len(retrieved) == 0 {
 		return "", nil
