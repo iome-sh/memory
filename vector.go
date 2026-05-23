@@ -153,6 +153,7 @@ type SearchResult struct {
 
 // buildQdrantFilter converts a simple map filter into qdrant.Filter.
 // Supports basic range and match conditions (used for time-aware expansion).
+// Properly handles error returns from qdrant.NewValue.
 func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 	if len(filter) == 0 {
 		return nil
@@ -165,17 +166,28 @@ func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 		}
 		if m, ok := val.(map[string]interface{}); ok {
 			// Range support e.g. {"timestamp": {"gte": t1, "lte": t2}}
+			var gteVal, lteVal *qdrant.Value
 			if gte, hasGte := m["gte"]; hasGte {
-				if lte, hasLte := m["lte"]; hasLte {
-					must = append(must, qdrant.NewRange(key, &qdrant.Range{
-						Gte: qdrant.NewValue(gte),
-						Lte: qdrant.NewValue(lte),
-					}))
+				if v, err := qdrant.NewValue(gte); err == nil {
+					gteVal = v
 				}
+			}
+			if lte, hasLte := m["lte"]; hasLte {
+				if v, err := qdrant.NewValue(lte); err == nil {
+					lteVal = v
+				}
+			}
+			if gteVal != nil || lteVal != nil {
+				must = append(must, qdrant.NewRange(key, &qdrant.Range{
+					Gte: gteVal,
+					Lte: lteVal,
+				})))
 			}
 		} else {
 			// Simple match
-			must = append(must, qdrant.NewMatch(key, qdrant.NewValue(val)))
+			if v, err := qdrant.NewValue(val); err == nil {
+				must = append(must, qdrant.NewMatch(key, v))
+			}
 		}
 	}
 	if len(must) == 0 {
