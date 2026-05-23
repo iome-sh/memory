@@ -31,26 +31,26 @@ type MemoryHit struct {
 type IngestRequest struct {
 	ConvID  string `json:"conv_id"`
 	Turns   []struct {
-		Role      string `json:"role"`
-		Content   string `json:"content"`
-		Timestamp string `json:"timestamp"`
-		Cycle     int    `json:"cycle"`
+		Role      string `json:"role""
+		Content   string `json:"content""
+		Timestamp string `json:"timestamp""
+		Cycle     int    `json:"cycle""
 	} `json:"turns"`
 	History []struct {
-		Role      string `json:"role"`
-		Content   string `json:"content"`
-		Timestamp string `json:"timestamp"`
-		Cycle     int    `json:"cycle"`
+		Role      string `json:"role""
+		Content   string `json:"content""
+		Timestamp string `json:"timestamp""
+		Cycle     int    `json:"cycle""
 	} `json:"history"`
 }
 
 type RetrieveRequest struct {
-	Query string `json:"query"`
-	Limit int    `json:"limit"`
+	Query string `json:"query""
+	Limit int    `json:"limit""
 }
 
 type RetrieveResponse struct {
-	Memories []MemoryHit `json:"memories"`
+	Memories []MemoryHit `json:"memories""
 }
 
 var globalStore *memory.PalaceStore
@@ -120,7 +120,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		req.ConvID, len(turns), len(req.Turns), len(req.History), globalVectorStore != nil && globalVectorStore.Enabled)
 
 	if len(turns) == 0 {
-		// Log raw top-level keys to discover what the orchestrator actually sends
+		// Log top-level keys
 		var raw map[string]json.RawMessage
 		if json.Unmarshal(body, &raw) == nil {
 			keys := make([]string, 0, len(raw))
@@ -128,6 +128,14 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				keys = append(keys, k)
 			}
 			log.Printf("[ingest] WARNING: 0 turns received. Top-level JSON keys: %v", keys)
+
+			// Show raw value of 'turns' field if present
+			if turnsRaw, ok := raw["turns"]; ok {
+				log.Printf("[ingest] Raw 'turns' value: %s", string(turnsRaw))
+			}
+			if historyRaw, ok := raw["history"]; ok {
+				log.Printf("[ingest] Raw 'history' value: %s", string(historyRaw))
+			}
 		}
 	}
 
