@@ -152,8 +152,8 @@ type SearchResult struct {
 }
 
 // buildQdrantFilter converts a simple map filter into qdrant.Filter.
-// Supports basic range and match conditions (used for time-aware expansion).
-// Properly handles error returns from qdrant.NewValue.
+// Supports basic range (for timestamps) and match conditions.
+// Correctly handles qdrant.NewValue error returns and type conversions for Range/Match.
 func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 	if len(filter) == 0 {
 		return nil
@@ -164,36 +164,65 @@ func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 		if val == nil {
 			continue
 		}
+
 		if m, ok := val.(map[string]interface{}); ok {
-			// Range support e.g. {"timestamp": {"gte": t1, "lte": t2}}
-			var gteVal, lteVal *qdrant.Value
+			// Range condition e.g. {"timestamp": {"gte": 1234567890.0, "lte": 1234567890.0}}
+			var rng qdrant.Range
 			if gte, hasGte := m["gte"]; hasGte {
-				if v, err := qdrant.NewValue(gte); err == nil {
-					gteVal = v
+				if f, ok := toFloat64(gte); ok {
+					rng.Gte = &f
 				}
 			}
 			if lte, hasLte := m["lte"]; hasLte {
-				if v, err := qdrant.NewValue(lte); err == nil {
-					lteVal = v
+				if f, ok := toFloat64(lte); ok {
+					rng.Lte = &f
 				}
 			}
-			if gteVal != nil || lteVal != nil {
-				must = append(must, qdrant.NewRange(key, &qdrant.Range{
-					Gte: gteVal,
-					Lte: lteVal,
-				}))
+			if rng.Gte != nil || rng.Lte != nil {
+				must = append(must, qdrant.NewRange(key, &rng))
 			}
 		} else {
-			// Simple match
-			if v, err := qdrant.NewValue(val); err == nil {
-				must = append(must, qdrant.NewMatch(key, v))
+			// Simple match condition
+			if s, ok := val.(string); ok {
+				must = append(must, qdrant.NewMatch(key, s))
+			} else if f, ok := toFloat64(val); ok {
+				must = append(must, qdrant.NewMatch(key, f))
+			} else if i, ok := val.(int); ok {
+				must = append(must, qdrant.NewMatch(key, int64(i)))
+			} else if i64, ok := val.(int64); ok {
+				must = append(must, qdrant.NewMatch(key, i64))
 			}
 		}
 	}
+
 	if len(must) == 0 {
 		return nil
 	}
 	return &qdrant.Filter{Must: must}
+}
+
+// toFloat64 is a small helper to convert various numeric types to float64 for Range conditions.
+func toFloat64(v interface{}) (float64, bool) {
+	switch x := v.(type) {
+	case float64:
+		return x, true
+	case float32:
+		return float64(x), true
+	case int:
+		return float64(x), true
+	case int32:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	case uint:
+		return float64(x), true
+	case uint32:
+		return float64(x), true
+	case uint64:
+		return float64(x), true
+	default:
+		return 0, false
+	}
 }
 
 // SearchSimilar performs dense vector similarity search using the official Qdrant Query API.
