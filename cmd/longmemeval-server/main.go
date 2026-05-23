@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -28,8 +29,8 @@ type MemoryHit struct {
 }
 
 type IngestRequest struct {
-	ConvID string `json:"conv_id"`
-	Turns  []struct {
+	ConvID  string `json:"conv_id"`
+	Turns   []struct {
 		Role      string `json:"role"`
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
@@ -97,13 +98,18 @@ func main() {
 }
 
 func handleIngest(w http.ResponseWriter, r *http.Request) {
-	var req IngestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Use Turns if present, otherwise fall back to History (orchestrator compatibility)
+	var req IngestRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	turns := req.Turns
 	if len(turns) == 0 {
 		turns = req.History
@@ -112,6 +118,18 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	// === DIAGNOSTIC LOGGING ===
 	log.Printf("[ingest] received conv_id=%s turns=%d (raw_turns=%d, history=%d) vectorStoreEnabled=%v",
 		req.ConvID, len(turns), len(req.Turns), len(req.History), globalVectorStore != nil && globalVectorStore.Enabled)
+
+	if len(turns) == 0 {
+		// Log raw top-level keys to discover what the orchestrator actually sends
+		var raw map[string]json.RawMessage
+		if json.Unmarshal(body, &raw) == nil {
+			keys := make([]string, 0, len(raw))
+			for k := range raw {
+				keys = append(keys, k)
+			}
+			log.Printf("[ingest] WARNING: 0 turns received. Top-level JSON keys: %v", keys)
+		}
+	}
 
 	for _, t := range turns {
 		now := time.Now()
