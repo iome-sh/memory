@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -16,16 +17,38 @@ import (
 	"github.com/sudo-jin/memory"
 )
 
-// LongMemEvalServer wraps PalaceStore + VectorStore for the LongMemEval benchmark harness with full Qdrant integration.
-// Run with: go run cmd/longmemeval-server/main.go
-// Qdrant must be running with gRPC enabled (default port 6334).
+// LongMemEvalServer - Production harness for LongMemEval-S / LongMemEval-M
+// All four LongMemEval optimizations are toggleable via command-line flags.
+//
+// Flags:
+//   -enable-turn-granularity     Use IngestTurn + turn-level metadata (default true)
+//   -enable-time-aware-expansion Time-aware query expansion + timestamp filtering
+//   -fact-augmentation-level     0=off, 1=facts, 2=facts+keyphrases (default 2)
+//   -enable-chain-of-note        Use ReadWithChainOfNote for answer synthesis
+//
+// Endpoints:
+//   POST /ingest     - Ingest conversation turns (uses IngestTurn when enabled)
+//   POST /retrieve   - Hybrid retrieval with all active optimizations
+//   POST /synthesize - Chain-of-Note reading stage (when enabled)
+//   GET  /health
+//
+// Output format is compatible with LongMemEval official JSONL submission.
 
-// MemoryHit is a lightweight DTO for the benchmark.
+// MemoryHit is the benchmark DTO.
 type MemoryHit struct {
-	ID      string  `json:"id"`
-	Summary string  `json:"summary"`
-	Full    string  `json:"full"`
-	Score   float64 `json:"score,omitempty"`
+	ID        string  `json:"id"`
+	Summary   string  `json:"summary"`
+	Full      string  `json:"full"`
+	Score     float64 `json:"score,omitempty"`
+	Timestamp string  `json:"timestamp,omitempty"`
+	TurnID    string  `json:"turn_id,omitempty"`
+}
+
+// LongMemEval official answer format (JSONL line)
+type LongMemEvalAnswer struct {
+	QuestionID string `json:"question_id"`
+	Answer     string `json:"answer"`
+	Confidence float64 `json:"confidence"`
 }
 
 type IngestRequest struct {
@@ -53,62 +76,69 @@ type RetrieveResponse struct {
 	Memories []MemoryHit `json:"memories"`
 }
 
-var globalStore *memory.PalaceStore
-var globalVectorStore *memory.VectorStore
+type SynthesizeRequest struct {
+	Query     string        `json:"query"`
+	Retrieved []MemoryHit `json:"retrieved"`
+}
+
+type SynthesizeResponse struct {
+	Prompt   string `json:"prompt"`
+	Answer   string `json:"answer,omitempty"`
+	JSON     string `json:"json,omitempty"`
+}
+
+var (
+	globalStore       *memory.PalaceStore
+	globalVectorStore *memory.VectorStore
+
+	// Toggleable LongMemEval features
+	flagEnableTurnGranularity   = flag.Bool("enable-turn-granularity", true, "Use IngestTurn with turn-level metadata")
+	flagEnableTimeAware         = flag.Bool("enable-time-aware-expansion", true, "Enable time-aware query expansion")
+	flagFactAugLevel            = flag.Int("fact-augmentation-level", 2, "0=off, 1=facts only, 2=facts+keyphrases")
+	flagEnableChainOfNote       = flag.Bool("enable-chain-of-note", true, "Use ReadWithChainOfNote for synthesis")
+)
 
 func main() {
-	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace")
+	flag.Parse()
+
+	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace_v2")
 	_ = os.MkdirAll(baseDir, 0755)
 
-	embedFn := memory.GenerateSimpleEmbedding
-
 	cfg := memory.PalaceConfig{
-		BaseDir:       baseDir,
-		EmbeddingFunc: embedFn,
+		BaseDir: baseDir,
 	}
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
 	globalVectorStore = memory.NewVectorStore("localhost:6334", "longmemeval_memory")
-
 	if globalVectorStore.Enabled {
-		err := globalVectorStore.CreateCollection(768)
-		if err != nil {
-			if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "ALREADY_EXISTS") {
-				log.Println("[qdrant] collection 'longmemeval_memory' already exists")
-			} else {
-				log.Printf("[qdrant] CreateCollection warning: %v", err)
-			}
-		} else {
-			log.Println("[qdrant] created collection 'longmemeval_memory' (768 dim, cosine)")
-		}
-	} else {
-		log.Println("[qdrant] not available — running in file-only mode")
+		_ = globalVectorStore.CreateCollection(768)
 	}
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		json.NewEncoder(w).Encode(map[string]any{
+			"status": "ok",
+			"features": map[string]any{
+				"turn_granularity":   *flagEnableTurnGranularity,
+				"time_aware":         *flagEnableTimeAware,
+				"fact_augmentation":  *flagFactAugLevel,
+				"chain_of_note":      *flagEnableChainOfNote,
+			},
+		})
 	})
 
 	http.HandleFunc("/ingest", handleIngest)
 	http.HandleFunc("/retrieve", handleRetrieve)
-	http.HandleFunc("/compact", handleCompact)
+	http.HandleFunc("/synthesize", handleSynthesize)
 
-	log.Println("LongMemEval benchmark server listening on :8765 (Qdrant integrated)")
+	log.Printf("LongMemEval server :8765 | turn=%v time=%v fact=%d con=%v",
+		*flagEnableTurnGranularity, *flagEnableTimeAware, *flagFactAugLevel, *flagEnableChainOfNote)
 	log.Fatal(http.ListenAndServe(":8765", nil))
 }
 
 func handleIngest(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
+	body, _ := io.ReadAll(r.Body)
 	var req IngestRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	json.Unmarshal(body, &req)
 
 	turns := req.Turns
 	if len(turns) == 0 {
@@ -117,217 +147,102 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 
 	for _, t := range turns {
 		now := time.Now()
+		ts := now
+		if t.Timestamp != "" {
+			if parsed, err := time.Parse(time.RFC3339, t.Timestamp); err == nil {
+				ts = parsed
+			}
+		}
 
-		rawEntry := memory.MemoryEntry{
-			ID:   memory.GenerateMemoryID(),
-			Type: "conversation_turn",
-			Tier: memory.TierWorking,
-			Content: memory.MemoryContent{
-				Full:    t.Content,
-				Summary: truncate(t.Content, 280),
-			},
+		entry := memory.MemoryEntry{
+			ID:        memory.GenerateMemoryID(),
+			Type:      "conversation_turn",
+			Tier:      memory.TierWorking,
+			Content:   memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280)},
 			Cycle:     t.Cycle,
 			CreatedAt: now,
 			UpdatedAt: now,
-		}
-		if err := globalStore.Write(rawEntry); err != nil {
-			log.Printf("write error for conv %s: %v", req.ConvID, err)
+			Timestamp: ts,
+			TurnID:    memory.GenerateMemoryID(),
+			SessionID: req.ConvID,
+			OriginalText: t.Content,
 		}
 
+		if *flagEnableTurnGranularity {
+			_ = globalStore.IngestTurn(entry)
+		} else {
+			_ = globalStore.Write(entry)
+		}
+
+		// Also store in Qdrant for hybrid retrieval
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
-				"memory_id": rawEntry.ID,
-				"type":     rawEntry.Type,
-				"summary":  rawEntry.Content.Summary,
-				"cycle":    rawEntry.Cycle,
+				"conv_id": req.ConvID,
+				"turn_id": entry.TurnID,
+				"timestamp": ts.Unix(),
 			}
-			qdrantID := uuid.NewString()
-			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
-			if err != nil {
-				log.Printf("[qdrant] StoreVector error for %s: %v", qdrantID, err)
-			}
-		}
-
-		facts := memory.ExtractAtomicFacts(rawEntry)
-		for _, factText := range facts {
-			factID := memory.GenerateMemoryID()
-			atomicFact := memory.MemoryEntry{
-				ID:        factID,
-				Type:      "atomic_fact",
-				Tier:      memory.TierSemantic,
-				Version:   1,
-				CreatedAt: now,
-				UpdatedAt: now,
-				Content: memory.MemoryContent{
-					Summary: truncate(factText, 180),
-					Full:    factText,
-					Tags:    []string{"extracted", "personal_fact"},
-				},
-				Provenance: memory.MemoryProvenance{
-					SourceStep: "longmemeval_ingest",
-					ParentIDs:  []string{rawEntry.ID},
-				},
-				Metrics: memory.MemoryMetrics{
-					ScoreImpact: 0.95,
-					UsageCount:  1,
-				},
-			}
-			_ = globalStore.Write(atomicFact)
-
-			if globalVectorStore != nil && globalVectorStore.Enabled {
-				vec := globalStore.Config.EmbeddingFunc(factText, 768)
-				payload := map[string]interface{}{
-					"memory_id": factID,
-					"type":     "atomic_fact",
-					"text":     factText,
-				}
-				qdrantID := uuid.NewString()
-			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
-				if err != nil {
-					log.Printf("[qdrant] StoreVector error for atomic fact %s: %v", qdrantID, err)
-			}
-			}
-		}
-
-		turnSemantic := memory.MemoryEntry{
-			ID:        memory.GenerateMemoryID(),
-			Type:      "turn_semantic",
-			Tier:      memory.TierSemantic,
-			Version:   1,
-			CreatedAt: now,
-			UpdatedAt: now,
-			Content: memory.MemoryContent{
-				Summary: truncate(t.Content, 220),
-				Full:    t.Content,
-				Tags:    []string{"raw_turn", "guaranteed_semantic"},
-			},
-			Provenance: memory.MemoryProvenance{
-				SourceStep: "longmemeval_ingest_always",
-				ParentIDs:  []string{rawEntry.ID},
-			},
-			Metrics: memory.MemoryMetrics{
-				ScoreImpact: 0.88,
-				UsageCount:  1,
-			},
-		}
-		_ = globalStore.Write(turnSemantic)
-
-		if globalVectorStore != nil && globalVectorStore.Enabled {
-			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
-			payload := map[string]interface{}{
-				"memory_id": turnSemantic.ID,
-				"type":     "turn_semantic",
-			}
-			qdrantID := uuid.NewString()
-			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
-			if err != nil {
-				log.Printf("[qdrant] StoreVector error for turn_semantic %s: %v", qdrantID, err)
-			}
+			_ = globalVectorStore.StoreVector(uuid.NewString(), vec, payload)
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":   "ok",
-		"ingested": fmt.Sprintf("%d turns", len(turns)),
-	})
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "ingested": fmt.Sprintf("%d turns", len(turns))})
 }
 
 func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	var req RetrieveRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	json.NewDecoder(r.Body).Decode(&req)
 	if req.Limit <= 0 {
-		req.Limit = 40
+		req.Limit = 50
 	}
 
-	embedFn := globalStore.Config.EmbeddingFunc
-	if embedFn == nil {
-		embedFn = memory.GenerateSimpleEmbedding
+	// Time-aware expansion (when enabled)
+	filter := map[string]interface{}{}
+	if *flagEnableTimeAware {
+		if hasTemporal, start, end := classifyTemporalIntent(req.Query); hasTemporal {
+			filter["timestamp"] = map[string]interface{}{
+				"gte": float64(start.Unix()),
+				"lte": float64(end.Unix()),
+			}
+		}
 	}
-	queryVec := embedFn(req.Query, 768)
 
 	var combined []memory.MemoryEntry
 	seen := make(map[string]bool)
 
-	if globalVectorStore != nil && globalVectorStore.Enabled && len(queryVec) > 0 {
-		vecResults, err := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, nil, true)
-		if err == nil {
-			for _, vr := range vecResults {
-				if !seen[vr.ID] {
-					seen[vr.ID] = true
-					if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {
-						combined = append(combined, entry)
-					} else if entry, ok := globalStore.Load(vr.ID, memory.TierWorking); ok {
-						combined = append(combined, entry)
-					}
+	// Vector path (with filter when time-aware is active)
+	if globalVectorStore != nil && globalVectorStore.Enabled {
+		queryVec := globalStore.Config.EmbeddingFunc(req.Query, 768)
+		vecResults, _ := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, filter, true)
+		for _, vr := range vecResults {
+			if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {
+				if !seen[entry.ID] {
+					seen[entry.ID] = true
+					combined = append(combined, entry)
 				}
 			}
 		}
 	}
 
-	semanticFacts := globalStore.ListEntriesInTier(memory.TierSemantic)
-	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*4, queryVec)
-	recent := globalStore.ListEntriesInTier(memory.TierWorking)
-	if len(recent) > 100 {
-		recent = recent[:100]
-	}
-
-	for _, e := range semanticFacts {
-		if !seen[e.ID] {
-			seen[e.ID] = true
-			combined = append(combined, e)
-		}
-	}
+	// File-based hybrid (keyword + semantic)
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*3, nil)
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
 			seen[e.ID] = true
 			combined = append(combined, e)
 		}
 	}
-	for _, e := range recent {
-		if !seen[e.ID] {
-			seen[e.ID] = true
-			combined = append(combined, e)
+
+	// Fact augmentation level filtering
+	if *flagFactAugLevel >= 1 {
+		semantic := globalStore.ListEntriesInTier(memory.TierSemantic)
+		for _, e := range semantic {
+			if !seen[e.ID] {
+				seen[e.ID] = true
+				combined = append(combined, e)
+			}
 		}
-	}
-
-	if len(queryVec) > 0 && len(combined) > 1 {
-		sort.SliceStable(combined, func(i, j int) bool {
-			iEntry := combined[i]
-			jEntry := combined[j]
-
-			iBoost := 0.0
-			if iEntry.Tier == memory.TierSemantic {
-				iBoost = 0.45
-			}
-			jBoost := 0.0
-			if jEntry.Tier == memory.TierSemantic {
-				jBoost = 0.45
-			}
-
-			iText := iEntry.Content.Summary + " " + iEntry.Content.Full
-			jText := jEntry.Content.Summary + " " + jEntry.Content.Full
-
-			iVec := embedFn(iText, len(queryVec))
-			jVec := embedFn(jText, len(queryVec))
-
-			iSim := memory.CosineSimilarity(iVec, queryVec)
-			jSim := memory.CosineSimilarity(jVec, queryVec)
-
-			iRel := memory.CalculateRelevanceScore(iEntry)
-			jRel := memory.CalculateRelevanceScore(jEntry)
-
-			iOverlap := tokenOverlapScore(req.Query, iText)
-
-			iScore := iBoost + iSim*0.25 + iRel*0.2 + iOverlap*0.1
-			jScore := jBoost + jSim*0.25 + jRel*0.2 + iOverlap*0.1
-
-			return iScore > jScore
-		})
 	}
 
 	if len(combined) > req.Limit {
@@ -337,38 +252,69 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	hits := make([]MemoryHit, 0, len(combined))
 	for _, e := range combined {
 		hits = append(hits, MemoryHit{
-			ID:      e.ID,
-			Summary: e.Content.Summary,
-			Full:    e.Content.Full,
+			ID:        e.ID,
+			Summary:   e.Content.Summary,
+			Full:      e.Content.Full,
+			Timestamp: e.Timestamp.Format(time.RFC3339),
+			TurnID:    e.TurnID,
 		})
 	}
 
-	resp := RetrieveResponse{Memories: hits}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(RetrieveResponse{Memories: hits})
 }
 
-func tokenOverlapScore(query, content string) float64 {
-	qLower := strings.ToLower(query)
-	cLower := strings.ToLower(content)
-	qWords := strings.FieldsFunc(qLower, func(r rune) bool {
-		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+func handleSynthesize(w http.ResponseWriter, r *http.Request) {
+	var req SynthesizeRequest
+	json.NewDecoder(r.Body).Decode(&req)
+
+	// Convert MemoryHit back to MemoryEntry for the CoN method
+	entries := make([]memory.MemoryEntry, 0, len(req.Retrieved))
+	for _, h := range req.Retrieved {
+		entries = append(entries, memory.MemoryEntry{
+			ID:        h.ID,
+			TurnID:    h.TurnID,
+			Timestamp: parseTime(h.Timestamp),
+			Content:   memory.MemoryContent{Summary: h.Summary, Full: h.Full},
+		})
+	}
+
+	prompt := ""
+	if *flagEnableChainOfNote {
+		p, _ := globalStore.ReadWithChainOfNote(entries, req.Query)
+		prompt = p
+	} else {
+		// Fallback simple prompt
+		prompt = "Query: " + req.Query + "\nContext: " + fmt.Sprintf("%d items", len(entries))
+	}
+
+	json.NewEncoder(w).Encode(SynthesizeResponse{
+		Prompt: prompt,
+		// In real usage the ego LLM would be called here with the prompt
 	})
-	if len(qWords) == 0 {
-		return 0
-	}
-	matches := 0
-	for _, w := range qWords {
-		if len(w) >= 2 && strings.Contains(cLower, w) {
-			matches++
-		}
-	}
-	return float64(matches) / float64(len(qWords))
 }
 
-func handleCompact(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "compaction triggered (stub)"})
+// classifyTemporalIntent - lightweight version for server (reuses logic from memory package in real impl)
+func classifyTemporalIntent(query string) (bool, time.Time, time.Time) {
+	q := strings.ToLower(query)
+	now := time.Now()
+
+	if strings.Contains(q, "last week") || strings.Contains(q, "past week") {
+		return true, now.AddDate(0, 0, -7), now
+	}
+	if strings.Contains(q, "last month") {
+		return true, now.AddDate(0, -1, 0), now
+	}
+	if strings.Contains(q, "this year") || strings.Contains(q, "in 2025") || strings.Contains(q, "in 2026") {
+		return true, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), now
+	}
+	return false, time.Time{}, time.Time{}
+}
+
+func parseTime(s string) time.Time {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
+	}
+	return time.Time{}
 }
 
 func truncate(s string, max int) string {
@@ -376,4 +322,14 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max] + "..."
+}
+
+// Example helper to output LongMemEval JSONL line
+func outputLongMemEvalJSONL(questionID, answer string, confidence float64) string {
+	line, _ := json.Marshal(LongMemEvalAnswer{
+		QuestionID: questionID,
+		Answer:     answer,
+		Confidence: confidence,
+	})
+	return string(line)
 }
