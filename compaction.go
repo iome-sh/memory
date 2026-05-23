@@ -31,22 +31,43 @@ type CompactionConfig struct {
 	// RecMem phase-transition (Phase 1)
 	DataSim   float64 `json:"data_sim"`   // geometric similarity radius (default 0.7)
 	DataCount int     `json:"data_count"` // critical recurrence count (default 5)
+	// LongMemEval production hardening
+	ProtectHighScoreFacts bool    `json:"protect_high_score_facts"` // default true
+	FactScoreThreshold    float64 `json:"fact_score_threshold"`   // default 0.90
 }
 
 var DefaultCompactionConfig = CompactionConfig{
-	Tier2Strategy:       StrategyPatternExtraction,
-	Tier3Strategy:       StrategyCorePrinciple,
-	TemporalWindowSize:  12, // default beta (cycles)
-	SimilarityThreshold: 0.75,
-	DataSim:             0.7, // RecMem sweet spot
-	DataCount:           5,   // RecMem critical mass
+	Tier2Strategy:         StrategyPatternExtraction,
+	Tier3Strategy:        StrategyCorePrinciple,
+	TemporalWindowSize:    12,
+	SimilarityThreshold:   0.75,
+	DataSim:               0.7,
+	DataCount:             5,
+	ProtectHighScoreFacts: true,
+	FactScoreThreshold:    0.90,
 }
 
 // VectorStoreCallback allows optional vector integration (e.g. Qdrant)
 type VectorStoreCallback func(id string, vec []float32, payload map[string]interface{}) error
 
-// PerformCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints
-// generateFn and vectorCallback are injected for standalone flexibility
+// isProtectedFactEntry returns true for high-value fact-augmented entries
+// that should be preferentially kept during compaction (LongMemEval production rule).
+func isProtectedFactEntry(entry MemoryEntry, cfg CompactionConfig) bool {
+	if !cfg.ProtectHighScoreFacts {
+		return false
+	}
+	if entry.Tier == TierSemantic {
+		return true
+	}
+	if (entry.Type == "turn_fact" || entry.Type == "atomic_fact") &&
+		entry.Metrics.ScoreImpact >= cfg.FactScoreThreshold {
+		return true
+	}
+	return false
+}
+
+// PerformCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints.
+// Now respects LongMemEval fact protection and turn granularity.
 func (ps *PalaceStore) PerformCompaction(
 	targetTier MemoryTier,
 	cfg CompactionConfig,
@@ -58,10 +79,22 @@ func (ps *PalaceStore) PerformCompaction(
 		return
 	}
 
-	// H-Mem style: filter to recent temporal window (beta)
-	windowed := filterByTemporalWindow(entries, cfg.TemporalWindowSize)
+	// Separate protected facts from candidates
+	var protected []MemoryEntry
+	var candidates []MemoryEntry
 
-	// Alpha constraint: filter by similarity to average
+	for _, e := range entries {
+		if isProtectedFactEntry(e, cfg) {
+			protected = append(protected, e)
+		} else {
+			candidates = append(candidates, e)
+		}
+	}
+
+	// H-Mem style: filter candidates to recent temporal window
+	windowed := filterByTemporalWindow(candidates, cfg.TemporalWindowSize)
+
+	// Alpha constraint
 	if len(windowed) > 0 && cfg.SimilarityThreshold > 0 {
 		avgVec := averageEmbedding(windowed)
 		var filtered []MemoryEntry
@@ -91,15 +124,14 @@ func (ps *PalaceStore) PerformCompaction(
 		memList.WriteString(fmt.Sprintf("ID:%s Type:%s Summary:%s Score:%.1f\n", e.ID, e.Type, truncate(e.Content.Summary, 200), e.Metrics.ScoreImpact))
 	}
 
-	prompt := fmt.Sprintf("Compact tier %s within temporal window. Candidates:\n%s\nOutput JSON array of actions or ACTION blocks...", getTierName(targetTier), memList.String())
+	prompt := fmt.Sprintf("Compact tier %s within temporal window. Candidates:\n%s\nProtected facts kept: %d\nOutput JSON array of actions...", getTierName(targetTier), memList.String(), len(protected))
 
 	raw := generateFn(prompt)
 	actions := parseCompactionActions(raw)
 
-	// Verification step
 	for _, act := range actions {
 		if !ps.verifyAction(act) {
-			continue // skip invalid
+			continue
 		}
 		switch act.Action {
 		case "SUMMARIZE":
@@ -107,11 +139,11 @@ func (ps *PalaceStore) PerformCompaction(
 		case "CREATE_CORE_PRINCIPLE":
 			ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg, vectorCallback)
 		case "ARCHIVE":
-			ps.handleArchive(act.TargetIDs, targetTier)
+			ps.handleArchive(act.TargetIDs, targetTier, cfg)
 		case "MERGE":
 			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
+		}
 	}
-}
 }
 
 // averageEmbedding for alpha check
@@ -147,7 +179,6 @@ func filterByTemporalWindow(entries []MemoryEntry, windowSize int) []MemoryEntry
 	if windowSize <= 0 {
 		return entries
 	}
-	// Simple cycle-based window (can be extended to month tags)
 	if len(entries) == 0 {
 		return entries
 	}
@@ -187,7 +218,6 @@ type CompactionAction struct {
 
 // parseCompactionActions now supports JSON fallback for structured output
 func parseCompactionActions(output string) []CompactionAction {
-	// Try JSON first (structured mode)
 	var jsonActions []struct {
 		Action string   `json:"action"`
 		Target []string `json:"target"`
@@ -205,7 +235,6 @@ func parseCompactionActions(output string) []CompactionAction {
 		return actions
 	}
 
-	// Fallback to legacy text parsing
 	var actions []CompactionAction
 	lines := strings.Split(output, "\n")
 	var current *CompactionAction
@@ -248,8 +277,12 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	var contents []string
 	var parents []string
 	var totalScore float64
+
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
+			if isProtectedFactEntry(entry, cfg) {
+				continue // never summarize protected facts
+			}
 			contents = append(contents, entry.Content.Full)
 			parents = append(parents, id)
 			totalScore += entry.Metrics.ScoreImpact
@@ -258,8 +291,9 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	if len(contents) == 0 {
 		return
 	}
+
 	combined := strings.Join(contents, "\n\n---\n\n")
-	condensed := truncate(combined, 500) // placeholder - replace with generateFn in real usage
+	condensed := truncate(combined, 500)
 
 	now := time.Now()
 	newID := GenerateMemoryID()
@@ -286,22 +320,22 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	}
 	ps.Write(newEntry)
 
-	// Optional vector integration
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(condensed, 768)
 		payload := map[string]interface{}{
 			"type":      "summary",
 			"compacted": true,
-		}
+			}
 		_ = vectorCb(newID, vec, payload)
 	}
 
-	// Archive originals
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
-			entry.Tier = TierArchival
-			ps.Write(entry)
-	}
+			if !isProtectedFactEntry(entry, cfg) {
+				entry.Tier = TierArchival
+				ps.Write(entry)
+			}
+		}
 	}
 }
 
@@ -312,8 +346,12 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	var contents []string
 	var parents []string
 	var totalScore float64
+
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
+			if isProtectedFactEntry(entry, cfg) {
+				continue
+			}
 			contents = append(contents, entry.Content.Full)
 			parents = append(parents, id)
 			totalScore += entry.Metrics.ScoreImpact
@@ -322,6 +360,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	if len(contents) == 0 {
 		return
 	}
+
 	combined := strings.Join(contents, "\n\n")
 	principle := truncate(combined, 400)
 
@@ -349,24 +388,29 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		payload := map[string]interface{}{
 			"type":      "core_principle",
 			"compacted": true,
-		}
+			}
 		_ = vectorCb(newID, vec, payload)
 	}
 
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
-			entry.Tier = TierArchival
-			ps.Write(entry)
-	}
+			if !isProtectedFactEntry(entry, cfg) {
+				entry.Tier = TierArchival
+				ps.Write(entry)
+			}
+		}
 	}
 }
 
-func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier) {
+func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier, cfg CompactionConfig) {
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
+			if isProtectedFactEntry(entry, cfg) {
+				continue // never archive protected facts
+			}
 			entry.Tier = TierArchival
 			ps.Write(entry)
-	}
+		}
 	}
 }
 
@@ -377,8 +421,12 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 	var contents []string
 	var parents []string
 	var totalScore float64
+
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
+			if isProtectedFactEntry(entry, cfg) {
+				continue // do not merge protected facts
+			}
 			contents = append(contents, entry.Content.Full)
 			parents = append(parents, id)
 			totalScore += entry.Metrics.ScoreImpact
@@ -387,6 +435,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 	if len(contents) == 0 {
 		return
 	}
+
 	combined := strings.Join(contents, "\n\n---\n\n")
 	merged := truncate(combined, 500)
 
@@ -409,15 +458,17 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		vec := GenerateSimpleEmbedding(merged, 768)
 		payload := map[string]interface{}{
 			"type": "merged",
-		}
+			}
 		_ = vectorCb(newID, vec, payload)
 	}
 
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
-			entry.Tier = TierArchival
-			ps.Write(entry)
-	}
+			if !isProtectedFactEntry(entry, cfg) {
+				entry.Tier = TierArchival
+				ps.Write(entry)
+			}
+		}
 	}
 }
 
@@ -429,14 +480,10 @@ func truncate(s string, max int) string {
 }
 
 // clusterBySimilarity groups entries whose content embeddings are within the configured similarity threshold.
-// Production note: This is a simple O(n) implementation sufficient for Phase 2. For high-volume production
-// a proper spatial index (HNSW, IVF) or DBSCAN would be used to avoid quadratic cost.
 func clusterBySimilarity(entries []MemoryEntry, threshold float64) [][]MemoryEntry {
 	if len(entries) == 0 {
 		return nil
 	}
-	// For Phase 2 we return entries that are similar to the centroid as a single cluster.
-	// A more advanced implementation would compute connected components.
 	avg := averageEmbedding(entries)
 	cluster := make([]MemoryEntry, 0, len(entries))
 	for _, e := range entries {
@@ -452,7 +499,6 @@ func clusterBySimilarity(entries []MemoryEntry, threshold float64) [][]MemoryEnt
 }
 
 // shouldTriggerPhaseTransition returns true when a cluster has both sufficient count and density.
-// This is the core RecMem phase-transition predicate.
 func shouldTriggerPhaseTransition(entries []MemoryEntry, cfg CompactionConfig) bool {
 	if len(entries) < cfg.DataCount {
 		return false
@@ -468,8 +514,6 @@ func shouldTriggerPhaseTransition(entries []MemoryEntry, cfg CompactionConfig) b
 }
 
 // AutoRecMemCompaction is the production entry point for automatic RecMem formation.
-// It scans the subconscious buffer and triggers full compaction when a recurrent cluster is detected.
-// The caller must supply the LLM generateFn and optional vector callback.
 func (ps *PalaceStore) AutoRecMemCompaction(generateFn func(prompt string) string, vectorCb VectorStoreCallback) {
 	cfg := ps.Config.CompactionConfig
 	sub := ps.listSubconsciousEntries()
@@ -480,7 +524,6 @@ func (ps *PalaceStore) AutoRecMemCompaction(generateFn func(prompt string) strin
 	for _, cluster := range clusters {
 		if shouldTriggerPhaseTransition(cluster, cfg) {
 			ps.PerformCompaction(TierContextual, cfg, generateFn, vectorCb)
-			// Phase 3: Protect atomic facts
 			_ = ps.SemanticRefine(cluster)
 		}
 	}
