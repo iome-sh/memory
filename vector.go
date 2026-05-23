@@ -181,7 +181,7 @@ func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 				must = append(must, qdrant.NewRange(key, &qdrant.Range{
 					Gte: gteVal,
 					Lte: lteVal,
-				})))
+				}))
 			}
 		} else {
 			// Simple match
@@ -399,7 +399,7 @@ func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name 
 			}
 		}
 		err := client.CreateCollection(ctx, &qdrant.CreateCollection{
-		CollectionName: name,
+			CollectionName: name,
 		})
 		if err == nil {
 			return nil
