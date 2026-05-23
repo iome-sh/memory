@@ -97,6 +97,9 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// === DIAGNOSTIC LOGGING ===
+	log.Printf("[ingest] received conv_id=%s turns=%d vectorStoreEnabled=%v", req.ConvID, len(req.Turns), globalVectorStore != nil && globalVectorStore.Enabled)
+
 	for _, t := range req.Turns {
 		now := time.Now()
 
@@ -119,7 +122,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
-				"memory_id": rawEntry.ID, // keep original cuid2 ID in payload
+				"memory_id": rawEntry.ID,
 				"type":     rawEntry.Type,
 				"summary":  rawEntry.Content.Summary,
 				"cycle":    rawEntry.Cycle,
