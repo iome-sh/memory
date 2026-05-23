@@ -376,7 +376,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	}
+	})
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -428,7 +428,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	}
+	})
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -494,9 +494,10 @@ func GenerateMemoryID() string {
 // This is the recommended path for high-quality semantic embeddings on Apple Silicon.
 //
 // Usage:
-//   embedFn, err := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
-//   cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
-//   store := memory.NewPalaceStoreWithConfig(cfg)
+//
+//	embedFn, err := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
+//	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
+//	store := memory.NewPalaceStoreWithConfig(cfg)
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 	if modelPath == "" {
 		return GenerateSimpleEmbedding, nil
@@ -780,6 +781,7 @@ func extractKeyphrases(text string) []string {
 				seen[phrase] = true
 				phrases = append(phrases, phrase)
 			}
+		}
 	}
 	// Also capture important single capitalized words as keyphrases
 	for _, w := range words {
@@ -787,6 +789,7 @@ func extractKeyphrases(text string) []string {
 		if len(clean) > 4 && unicode.IsUpper(rune(clean[0])) && !seen[clean] {
 			seen[clean] = true
 			phrases = append(phrases, clean)
+		}
 	}
 	if len(phrases) > 12 {
 		phrases = phrases[:12] // cap for payload size
@@ -915,19 +918,20 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-			},
-			Provenance: MemoryProvenance{
-				SourceStep: "semantic_refine",
-				ParentIDs:  []string{entry.ID},
-			},
-			Metrics: MemoryMetrics{
-				ScoreImpact: 0.95, // High importance for protected facts
-				UsageCount:  1,
-			},
-		}
+				},
+				Provenance: MemoryProvenance{
+					SourceStep: "semantic_refine",
+					ParentIDs:  []string{entry.ID},
+				},
+				Metrics: MemoryMetrics{
+					ScoreImpact: 0.95, // High importance for protected facts
+					UsageCount:  1,
+				},
+			}
 
-		if err := ps.Write(factEntry); err != nil {
-			return fmt.Errorf("failed to write semantic fact: %w", err)
+			if err := ps.Write(factEntry); err != nil {
+				return fmt.Errorf("failed to write semantic fact: %w", err)
+			}
 		}
 	}
 	return nil
