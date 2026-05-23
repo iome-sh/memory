@@ -29,28 +29,28 @@ type MemoryHit struct {
 }
 
 type IngestRequest struct {
-	ConvID  string `json:"conv_id"`
-	Turns   []struct {
-		Role      string `json:"role""
-		Content   string `json:"content""
-		Timestamp string `json:"timestamp""
-		Cycle     int    `json:"cycle""
+	ConvID string `json:"conv_id"`
+	Turns  []struct {
+		Role      string `json:"role"`
+		Content   string `json:"content"`
+		Timestamp string `json:"timestamp"`
+		Cycle     int    `json:"cycle"`
 	} `json:"turns"`
 	History []struct {
-		Role      string `json:"role""
-		Content   string `json:"content""
-		Timestamp string `json:"timestamp""
-		Cycle     int    `json:"cycle""
+		Role      string `json:"role"`
+		Content   string `json:"content"`
+		Timestamp string `json:"timestamp"`
+		Cycle     int    `json:"cycle"`
 	} `json:"history"`
 }
 
 type RetrieveRequest struct {
-	Query string `json:"query""
-	Limit int    `json:"limit""
+	Query string `json:"query"`
+	Limit int    `json:"limit"`
 }
 
 type RetrieveResponse struct {
-	Memories []MemoryHit `json:"memories""
+	Memories []MemoryHit `json:"memories"`
 }
 
 var globalStore *memory.PalaceStore
@@ -162,9 +162,9 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
 				"memory_id": rawEntry.ID,
-				"type":     rawEntry.Type,
-				"summary":  rawEntry.Content.Summary,
-				"cycle":    rawEntry.Cycle,
+				"type":      rawEntry.Type,
+				"summary":   rawEntry.Content.Summary,
+				"cycle":     rawEntry.Cycle,
 			}
 			qdrantID := uuid.NewString()
 			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
@@ -203,14 +203,14 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				vec := globalStore.Config.EmbeddingFunc(factText, 768)
 				payload := map[string]interface{}{
 					"memory_id": factID,
-					"type":     "atomic_fact",
-					"text":     factText,
+					"type":      "atomic_fact",
+					"text":      factText,
 				}
 				qdrantID := uuid.NewString()
-			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
+				err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 				if err != nil {
 					log.Printf("[qdrant] StoreVector failed for atomic fact %s: %v", qdrantID, err)
-			}
+				}
 			}
 		}
 
@@ -241,7 +241,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
 				"memory_id": turnSemantic.ID,
-				"type":     "turn_semantic",
+				"type":      "turn_semantic",
 			}
 			qdrantID := uuid.NewString()
 			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
