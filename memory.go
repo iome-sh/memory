@@ -501,14 +501,9 @@ func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 		return nil, fmt.Errorf("ONNX model not found at %s: %w", modelPath, err)
 	}
 
-<<<<<<< HEAD
-	// Create hugot session
-	session, err := hugot.NewSession()
-=======
 	// Create hugot session first (required by current API)
 	ctx := context.Background()
 	session, err := hugot.NewGoSession(ctx)
->>>>>>> fe24eaf (latest pkg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create hugot session: %w", err)
 	}
