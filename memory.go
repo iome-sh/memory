@@ -375,7 +375,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	}
+	})
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -427,7 +427,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	}
+	})
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -769,15 +769,17 @@ func extractKeyphrases(text string) []string {
 		if len(w1) > 3 && unicode.IsUpper(rune(w1[0])) && len(w2) > 2 {
 			phrase := w1 + " " + w2
 			if !seen[phrase] {
-			seen[phrase] = true
-			phrases = append(phrases, phrase)
+				seen[phrase] = true
+				phrases = append(phrases, phrase)
+			}
 		}
 	}
 	for _, w := range words {
 		clean := strings.Trim(w, ".,;:!?\"")
 		if len(clean) > 4 && unicode.IsUpper(rune(clean[0])) && !seen[clean] {
-		seen[clean] = true
-		phrases = append(phrases, clean)
+			seen[clean] = true
+			phrases = append(phrases, clean)
+		}
 	}
 	if len(phrases) > 12 {
 		phrases = phrases[:12]
@@ -892,19 +894,20 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-			},
-			Provenance: MemoryProvenance{
-				SourceStep: "semantic_refine",
-				ParentIDs:  []string{entry.ID},
-			},
-			Metrics: MemoryMetrics{
-				ScoreImpact: 0.95,
-				UsageCount:  1,
-			},
-		}
+				},
+				Provenance: MemoryProvenance{
+					SourceStep: "semantic_refine",
+					ParentIDs:  []string{entry.ID},
+				},
+				Metrics: MemoryMetrics{
+					ScoreImpact: 0.95,
+					UsageCount:  1,
+				},
+			}
 
-		if err := ps.Write(factEntry); err != nil {
-			return fmt.Errorf("failed to write semantic fact: %w", err)
+			if err := ps.Write(factEntry); err != nil {
+				return fmt.Errorf("failed to write semantic fact: %w", err)
+			}
 		}
 	}
 	return nil
