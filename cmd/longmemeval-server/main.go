@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -46,14 +45,14 @@ type MemoryHit struct {
 
 // LongMemEval official answer format (JSONL line)
 type LongMemEvalAnswer struct {
-	QuestionID string `json:"question_id"`
-	Answer     string `json:"answer"`
+	QuestionID string  `json:"question_id"`
+	Answer     string  `json:"answer"`
 	Confidence float64 `json:"confidence"`
 }
 
 type IngestRequest struct {
-	ConvID  string `json:"conv_id"`
-	Turns   []struct {
+	ConvID string `json:"conv_id"`
+	Turns  []struct {
 		Role      string `json:"role"`
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
@@ -77,14 +76,14 @@ type RetrieveResponse struct {
 }
 
 type SynthesizeRequest struct {
-	Query     string        `json:"query"`
+	Query     string      `json:"query"`
 	Retrieved []MemoryHit `json:"retrieved"`
 }
 
 type SynthesizeResponse struct {
-	Prompt   string `json:"prompt"`
-	Answer   string `json:"answer,omitempty"`
-	JSON     string `json:"json,omitempty"`
+	Prompt string `json:"prompt"`
+	Answer string `json:"answer,omitempty"`
+	JSON   string `json:"json,omitempty"`
 }
 
 var (
@@ -92,10 +91,10 @@ var (
 	globalVectorStore *memory.VectorStore
 
 	// Toggleable LongMemEval features
-	flagEnableTurnGranularity   = flag.Bool("enable-turn-granularity", true, "Use IngestTurn with turn-level metadata")
-	flagEnableTimeAware         = flag.Bool("enable-time-aware-expansion", true, "Enable time-aware query expansion")
-	flagFactAugLevel            = flag.Int("fact-augmentation-level", 2, "0=off, 1=facts only, 2=facts+keyphrases")
-	flagEnableChainOfNote       = flag.Bool("enable-chain-of-note", true, "Use ReadWithChainOfNote for synthesis")
+	flagEnableTurnGranularity = flag.Bool("enable-turn-granularity", true, "Use IngestTurn with turn-level metadata")
+	flagEnableTimeAware       = flag.Bool("enable-time-aware-expansion", true, "Enable time-aware query expansion")
+	flagFactAugLevel          = flag.Int("fact-augmentation-level", 2, "0=off, 1=facts only, 2=facts+keyphrases")
+	flagEnableChainOfNote     = flag.Bool("enable-chain-of-note", true, "Use ReadWithChainOfNote for synthesis")
 )
 
 func main() {
@@ -118,10 +117,10 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{
 			"status": "ok",
 			"features": map[string]any{
-				"turn_granularity":   *flagEnableTurnGranularity,
-				"time_aware":         *flagEnableTimeAware,
-				"fact_augmentation":  *flagFactAugLevel,
-				"chain_of_note":      *flagEnableChainOfNote,
+				"turn_granularity":  *flagEnableTurnGranularity,
+				"time_aware":        *flagEnableTimeAware,
+				"fact_augmentation": *flagFactAugLevel,
+				"chain_of_note":     *flagEnableChainOfNote,
 			},
 		})
 	})
@@ -155,16 +154,16 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		entry := memory.MemoryEntry{
-			ID:        memory.GenerateMemoryID(),
-			Type:      "conversation_turn",
-			Tier:      memory.TierWorking,
-			Content:   memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280)},
-			Cycle:     t.Cycle,
-			CreatedAt: now,
-			UpdatedAt: now,
-			Timestamp: ts,
-			TurnID:    memory.GenerateMemoryID(),
-			SessionID: req.ConvID,
+			ID:           memory.GenerateMemoryID(),
+			Type:         "conversation_turn",
+			Tier:         memory.TierWorking,
+			Content:      memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280)},
+			Cycle:        t.Cycle,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+			Timestamp:    ts,
+			TurnID:       memory.GenerateMemoryID(),
+			SessionID:    req.ConvID,
 			OriginalText: t.Content,
 		}
 
@@ -178,8 +177,8 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
-				"conv_id": req.ConvID,
-				"turn_id": entry.TurnID,
+				"conv_id":   req.ConvID,
+				"turn_id":   entry.TurnID,
 				"timestamp": ts.Unix(),
 			}
 			_ = globalVectorStore.StoreVector(uuid.NewString(), vec, payload)
