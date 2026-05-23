@@ -35,6 +35,12 @@ type IngestRequest struct {
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
 	} `json:"turns"`
+	History []struct {
+		Role      string `json:"role"`
+		Content   string `json:"content"`
+		Timestamp string `json:"timestamp"`
+		Cycle     int    `json:"cycle"`
+	} `json:"history"`
 }
 
 type RetrieveRequest struct {
@@ -97,10 +103,17 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// === DIAGNOSTIC LOGGING ===
-	log.Printf("[ingest] received conv_id=%s turns=%d vectorStoreEnabled=%v", req.ConvID, len(req.Turns), globalVectorStore != nil && globalVectorStore.Enabled)
+	// Use Turns if present, otherwise fall back to History (orchestrator compatibility)
+	turns := req.Turns
+	if len(turns) == 0 {
+		turns = req.History
+	}
 
-	for _, t := range req.Turns {
+	// === DIAGNOSTIC LOGGING ===
+	log.Printf("[ingest] received conv_id=%s turns=%d (raw_turns=%d, history=%d) vectorStoreEnabled=%v",
+		req.ConvID, len(turns), len(req.Turns), len(req.History), globalVectorStore != nil && globalVectorStore.Enabled)
+
+	for _, t := range turns {
 		now := time.Now()
 
 		rawEntry := memory.MemoryEntry{
@@ -171,7 +184,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 				if err != nil {
 					log.Printf("[qdrant] StoreVector failed for atomic fact %s: %v", qdrantID, err)
-				}
+			}
 			}
 		}
 
@@ -215,7 +228,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status":   "ok",
-		"ingested": fmt.Sprintf("%d turns", len(req.Turns)),
+		"ingested": fmt.Sprintf("%d turns", len(turns)),
 	})
 }
 
