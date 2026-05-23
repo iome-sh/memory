@@ -29,8 +29,8 @@ type MemoryHit struct {
 }
 
 type IngestRequest struct {
-	ConvID string `json:"conv_id"`
-	Turns  []struct {
+	ConvID  string `json:"conv_id"`
+	Turns   []struct {
 		Role      string `json:"role"`
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
@@ -115,30 +115,6 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		turns = req.History
 	}
 
-	// === DIAGNOSTIC LOGGING ===
-	log.Printf("[ingest] received conv_id=%s turns=%d (raw_turns=%d, history=%d) vectorStoreEnabled=%v",
-		req.ConvID, len(turns), len(req.Turns), len(req.History), globalVectorStore != nil && globalVectorStore.Enabled)
-
-	if len(turns) == 0 {
-		// Log top-level keys
-		var raw map[string]json.RawMessage
-		if json.Unmarshal(body, &raw) == nil {
-			keys := make([]string, 0, len(raw))
-			for k := range raw {
-				keys = append(keys, k)
-			}
-			log.Printf("[ingest] WARNING: 0 turns received. Top-level JSON keys: %v", keys)
-
-			// Show raw value of 'turns' field if present
-			if turnsRaw, ok := raw["turns"]; ok {
-				log.Printf("[ingest] Raw 'turns' value: %s", string(turnsRaw))
-			}
-			if historyRaw, ok := raw["history"]; ok {
-				log.Printf("[ingest] Raw 'history' value: %s", string(historyRaw))
-			}
-		}
-	}
-
 	for _, t := range turns {
 		now := time.Now()
 
@@ -162,14 +138,14 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
 				"memory_id": rawEntry.ID,
-				"type":      rawEntry.Type,
-				"summary":   rawEntry.Content.Summary,
-				"cycle":     rawEntry.Cycle,
+				"type":     rawEntry.Type,
+				"summary":  rawEntry.Content.Summary,
+				"cycle":    rawEntry.Cycle,
 			}
 			qdrantID := uuid.NewString()
 			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 			if err != nil {
-				log.Printf("[qdrant] StoreVector failed for %s: %v", qdrantID, err)
+				log.Printf("[qdrant] StoreVector error for %s: %v", qdrantID, err)
 			}
 		}
 
@@ -203,14 +179,14 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				vec := globalStore.Config.EmbeddingFunc(factText, 768)
 				payload := map[string]interface{}{
 					"memory_id": factID,
-					"type":      "atomic_fact",
-					"text":      factText,
+					"type":     "atomic_fact",
+					"text":     factText,
 				}
 				qdrantID := uuid.NewString()
-				err := globalVectorStore.StoreVector(qdrantID, vec, payload)
+			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 				if err != nil {
-					log.Printf("[qdrant] StoreVector failed for atomic fact %s: %v", qdrantID, err)
-				}
+					log.Printf("[qdrant] StoreVector error for atomic fact %s: %v", qdrantID, err)
+			}
 			}
 		}
 
@@ -241,12 +217,12 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
 			payload := map[string]interface{}{
 				"memory_id": turnSemantic.ID,
-				"type":      "turn_semantic",
+				"type":     "turn_semantic",
 			}
 			qdrantID := uuid.NewString()
 			err := globalVectorStore.StoreVector(qdrantID, vec, payload)
 			if err != nil {
-				log.Printf("[qdrant] StoreVector failed for turn_semantic %s: %v", qdrantID, err)
+				log.Printf("[qdrant] StoreVector error for turn_semantic %s: %v", qdrantID, err)
 			}
 		}
 	}
