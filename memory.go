@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/nrednav/cuid2"
 )
@@ -29,21 +30,31 @@ const (
 )
 
 // MemoryEntry is the core unit stored in the Palace.
+// Extended for LongMemEval production readiness: explicit turn/session granularity + fact-augmented indexing.
 type MemoryEntry struct {
-	ID           string           `json:"id"`
-	Type         string           `json:"type"`
-	Tier         MemoryTier       `json:"tier"`
-	Version      int              `json:"version"`
-	CreatedAt    time.Time        `json:"created_at"`
-	UpdatedAt    time.Time        `json:"updated_at"`
-	Cycle        int              `json:"cycle"`
-	TemporalTags []string         `json:"temporal_tags,omitempty"`
-	AccessCount  int              `json:"access_count"`
-	LastAccessed time.Time        `json:"last_accessed,omitempty"`
-	Content      MemoryContent    `json:"content"`
-	Provenance   MemoryProvenance `json:"provenance"`
-	Metrics      MemoryMetrics    `json:"metrics"`
-	Relations    MemoryRelations  `json:"relations"`
+	ID             string           `json:"id"`
+	Type           string           `json:"type"`
+	Tier           MemoryTier       `json:"tier"`
+	Version        int              `json:"version"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
+	Cycle          int              `json:"cycle"`
+	TemporalTags   []string         `json:"temporal_tags,omitempty"`
+	AccessCount    int              `json:"access_count"`
+	LastAccessed   time.Time        `json:"last_accessed,omitempty"`
+
+	// === LongMemEval / turn-level granularity extensions (production implementation) ===
+	TurnID         string    `json:"turn_id,omitempty"`         // explicit round/turn identifier
+	SessionID      string    `json:"session_id,omitempty"`      // multi-session grouping
+	Timestamp      time.Time `json:"timestamp,omitempty"`       // precise event time for temporal reasoning
+	ExtractedFacts []string  `json:"extracted_facts,omitempty"` // fact-augmented for better recall
+	Keyphrases     []string  `json:"keyphrases,omitempty"`      // keyphrase expansion for indexing
+	OriginalText   string    `json:"original_text,omitempty"`   // raw turn text for provenance
+
+	Content    MemoryContent    `json:"content"`
+	Provenance MemoryProvenance `json:"provenance"`
+	Metrics    MemoryMetrics    `json:"metrics"`
+	Relations  MemoryRelations  `json:"relations"`
 }
 
 // MemoryContent holds summary/full/tags
@@ -224,7 +235,6 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 	if err != nil {
 		return fmt.Errorf("create temp failed: %w", err)
 	}
-	tmpName := tmpFile.Name()
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpName)
@@ -267,7 +277,6 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err != nil {
 		return fmt.Errorf("create temp failed: %w", err)
 	}
-	tmpName := tmpFile.Name()
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpName)
@@ -365,7 +374,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
+	}
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -417,7 +426,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	})
+	}
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -471,6 +480,7 @@ func (ps *PalaceStore) GetRelatedEntities(entity string) []string {
 		json.Unmarshal(data, &graph)
 	}
 	return graph[entity]
+
 }
 
 // GenerateMemoryID uses cuid2
@@ -699,9 +709,9 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 		matched := false
 		for _, re := range factPatterns {
 			if re.MatchString(s) {
-				facts = append(facts, s)
-				matched = true
-				break
+			facts = append(facts, s)
+			matched = true
+			break
 			}
 		}
 
@@ -710,7 +720,7 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 			lower := strings.ToLower(s)
 			if (strings.Contains(lower, "i ") || strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")) &&
 				len(strings.Fields(s)) >= 5 {
-				facts = append(facts, s)
+			facts = append(facts, s)
 			}
 		}
 	}
@@ -724,6 +734,145 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 		}
 	}
 	return unique
+}
+
+// extractKeyphrases is a lightweight rule-based extractor for keyphrases (production starting point).
+// For peak LongMemEval performance, replace or augment with local LLM call (ego GGUF/ANE path) for high-quality keyphrases.
+func extractKeyphrases(text string) []string {
+	if text == "" {
+		return nil
+	}
+	words := strings.Fields(text)
+	var phrases []string
+	seen := make(map[string]bool)
+	for i := 0; i < len(words)-1; i++ {
+		w1 := strings.Trim(words[i], ".,;:!?\"")
+		w2 := strings.Trim(words[i+1], ".,;:!?\"")
+		if len(w1) > 3 && unicode.IsUpper(rune(w1[0])) && len(w2) > 2 {
+			phrase := w1 + " " + w2
+			if !seen[phrase] {
+			seen[phrase] = true
+			phrases = append(phrases, phrase)
+			}
+		}
+	}
+	// Also capture important single capitalized words as keyphrases
+	for _, w := range words {
+		clean := strings.Trim(w, ".,;:!?\"")
+		if len(clean) > 4 && unicode.IsUpper(rune(clean[0])) && !seen[clean] {
+			seen[clean] = true
+			phrases = append(phrases, clean)
+		}
+	}
+	if len(phrases) > 12 {
+		phrases = phrases[:12] // cap for payload size
+	}
+	return phrases
+}
+
+// IngestTurn is the primary production entry point for LongMemEval benchmark and ego online session processing.
+// It ensures turn/session granularity, populates all new metadata fields, runs lightweight fact + keyphrase extraction,
+// stores the raw turn entry, and creates fact-augmented variants in the Semantic tier for multiple retrieval pathways.
+// This implements the paper-recommended round-level granularity + fact-augmented key expansion.
+// Call this from longmemeval-server or ego memory writer instead of raw Write for benchmark-optimized ingestion.
+func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
+	if err := ps.ensureDirs(); err != nil {
+		return fmt.Errorf("ensure dirs failed: %w", err)
+	}
+
+	// Default timestamp if not provided (critical for temporal reasoning)
+	if turn.Timestamp.IsZero() {
+		turn.Timestamp = time.Now()
+	}
+	if turn.TurnID == "" {
+		turn.TurnID = GenerateMemoryID()
+	}
+	if turn.ID == "" {
+		turn.ID = GenerateMemoryID()
+	}
+
+	// Populate extracted facts if not already provided (reuses and extends existing ExtractAtomicFacts)
+	if len(turn.ExtractedFacts) == 0 {
+		turn.ExtractedFacts = ExtractAtomicFacts(turn)
+	}
+
+	// Lightweight keyphrase extraction (rule-based starting point; swap with local LLM for production peak)
+	if len(turn.Keyphrases) == 0 {
+		combined := turn.Content.Full
+		if combined == "" {
+			combined = turn.Content.Summary
+		}
+		if combined == "" {
+			combined = turn.OriginalText
+		}
+		turn.Keyphrases = extractKeyphrases(combined)
+	}
+
+	// Preserve raw text for provenance and future re-extraction
+	if turn.OriginalText == "" {
+		turn.OriginalText = turn.Content.Full
+		if turn.OriginalText == "" {
+			turn.OriginalText = turn.Content.Summary
+		}
+	}
+
+	// Set type for clarity
+	if turn.Type == "" {
+		turn.Type = "turn"
+	}
+
+	// Atomic write of the main turn entry (respects existing versioning + tiers)
+	if err := ps.Write(turn); err != nil {
+		return fmt.Errorf("failed to write turn entry: %w", err)
+	}
+
+	// Fact-augmented variants: create lightweight high-signal fact entries in Semantic tier.
+	// This provides the multiple retrieval pathways recommended by the LongMemEval paper (+9.4% recall).
+	// Non-fatal if individual facts fail; main turn is already persisted.
+	for _, factText := range turn.ExtractedFacts {
+		if strings.TrimSpace(factText) == "" {
+			continue
+		}
+		now := time.Now()
+		factID := GenerateMemoryID()
+
+		factEntry := MemoryEntry{
+			ID:        factID,
+			Type:      "turn_fact",
+			Tier:      TierSemantic,
+			Version:   1,
+			CreatedAt: now,
+			UpdatedAt: now,
+			Timestamp: turn.Timestamp,
+			TurnID:    turn.TurnID,
+			SessionID: turn.SessionID,
+			Content: MemoryContent{
+				Summary: truncate(factText, 280),
+				Full:    factText,
+				Tags:    []string{"fact_augmented", "from_turn", "longmemeval"},
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "ingest_turn_fact",
+				ParentIDs:  []string{turn.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.92, // high importance for protected facts
+				UsageCount:  1,
+			},
+		}
+
+		_ = ps.Write(factEntry) // best-effort; main turn already committed
+	}
+
+	return nil
+}
+
+// truncate helper (already used in SemanticRefine)
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
 
 // SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
@@ -750,15 +899,15 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-				},
-				Provenance: MemoryProvenance{
-					SourceStep: "semantic_refine",
-					ParentIDs:  []string{entry.ID},
-				},
-				Metrics: MemoryMetrics{
-					ScoreImpact: 0.95, // High importance for protected facts
-					UsageCount:  1,
-				},
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "semantic_refine",
+				ParentIDs:  []string{entry.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.95, // High importance for protected facts
+				UsageCount:  1,
+			},
 			}
 
 			if err := ps.Write(factEntry); err != nil {
