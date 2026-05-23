@@ -32,16 +32,16 @@ const (
 // MemoryEntry is the core unit stored in the Palace.
 // Extended for LongMemEval production readiness: explicit turn/session granularity + fact-augmented indexing.
 type MemoryEntry struct {
-	ID           string     `json:"id"`
-	Type         string     `json:"type"`
-	Tier         MemoryTier `json:"tier"`
-	Version      int        `json:"version"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	Cycle        int        `json:"cycle"`
-	TemporalTags []string   `json:"temporal_tags,omitempty"`
-	AccessCount  int        `json:"access_count"`
-	LastAccessed time.Time  `json:"last_accessed,omitempty"`
+	ID             string           `json:"id"`
+	Type           string           `json:"type"`
+	Tier           MemoryTier       `json:"tier"`
+	Version        int              `json:"version"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
+	Cycle          int              `json:"cycle"`
+	TemporalTags   []string         `json:"temporal_tags,omitempty"`
+	AccessCount    int              `json:"access_count"`
+	LastAccessed   time.Time        `json:"last_accessed,omitempty"`
 
 	// === LongMemEval / turn-level granularity extensions (production implementation) ===
 	TurnID         string    `json:"turn_id,omitempty"`         // explicit round/turn identifier
@@ -374,7 +374,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
+	}
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -405,7 +405,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			iVec := embedFn(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
 			jVec := embedFn(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
 			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
-		})
+	}
 	}
 
 	// Limit
@@ -426,7 +426,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	})
+	}
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -663,7 +663,6 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 			if entry, ok := ps.Load(id, tier); ok {
 				entries = append(entries, entry)
 			}
-		}
 	}
 
 	// Sort by relevance score descending (highest first)
@@ -709,9 +708,9 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 		matched := false
 		for _, re := range factPatterns {
 			if re.MatchString(s) {
-				facts = append(facts, s)
-				matched = true
-				break
+			facts = append(facts, s)
+			matched = true
+			break
 			}
 		}
 
@@ -720,7 +719,7 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 			lower := strings.ToLower(s)
 			if (strings.Contains(lower, "i ") || strings.ContainsAny(s, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")) &&
 				len(strings.Fields(s)) >= 5 {
-				facts = append(facts, s)
+			facts = append(facts, s)
 			}
 		}
 	}
@@ -867,14 +866,6 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	return nil
 }
 
-// truncate helper (already used in SemanticRefine)
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}
-
 // SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
 // It creates high-fidelity entries and stores them in the semantic tier.
 func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
@@ -899,15 +890,15 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-				},
-				Provenance: MemoryProvenance{
-					SourceStep: "semantic_refine",
-					ParentIDs:  []string{entry.ID},
-				},
-				Metrics: MemoryMetrics{
-					ScoreImpact: 0.95, // High importance for protected facts
-					UsageCount:  1,
-				},
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "semantic_refine",
+				ParentIDs:  []string{entry.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.95, // High importance for protected facts
+				UsageCount:  1,
+			},
 			}
 
 			if err := ps.Write(factEntry); err != nil {
