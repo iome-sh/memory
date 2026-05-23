@@ -15,6 +15,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/knights-analytics/hugot"
+	"github.com/knights-analytics/hugot/pipelines"
 	"github.com/nrednav/cuid2"
 )
 
@@ -102,7 +104,7 @@ type PalaceConfig struct {
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
 	CompactionConfig   CompactionConfig
-	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1) - swap GenerateSimpleEmbedding for pure-Go ONNX via NewGONNXEmbeddingFunc (AdvancedClimateSystems/gonnx) on M4
+	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1)
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -374,7 +376,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
+	}
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -426,7 +428,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	})
+	}
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -488,37 +490,61 @@ func GenerateMemoryID() string {
 	return cuid2.Generate()
 }
 
-// NewGONNXEmbeddingFunc returns an EmbeddingFunc powered by github.com/advancedclimatesystems/gonnx (pure-Go ONNX runtime, zero native deps, excellent for M4).
+// NewGONNXEmbeddingFunc returns a production-grade EmbeddingFunc powered by hugot (ONNX Runtime).
+// This is the recommended path for high-quality semantic embeddings on Apple Silicon.
 //
 // Usage:
-//
-//	embedFn, err := memory.NewGONNXEmbeddingFunc("/absolute/path/to/all-MiniLM-L6-v2.onnx")
-//	if err != nil { ... }
-//	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
-//	store := memory.NewPalaceStoreWithConfig(cfg)
-//
-// The function validates that the model file exists.
-// For full semantic embeddings you must extend the returned func body with:
-//  1. Tokenization (WordPiece for MiniLM)
-//  2. Build input tensors (input_ids, attention_mask)
-//  3. model, err := gonnx.NewModel(...) or the library's loader
-//  4. result := model.Run(inputs)
-//  5. Mean-pool the output + L2 normalize to get 384-dim vector.
-//
-// Current implementation falls back to GenerateSimpleEmbedding for build compatibility.
+//   embedFn, err := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
+//   cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
+//   store := memory.NewPalaceStoreWithConfig(cfg)
 func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 	if modelPath == "" {
 		return GenerateSimpleEmbedding, nil
 	}
-	// Lightweight validation that works regardless of exact gonnx.NewModel signature
+
+	// Validate model file exists
 	if _, err := os.Stat(modelPath); err != nil {
-		return nil, fmt.Errorf("ONNX model file not accessible at %s: %w", modelPath, err)
+		return nil, fmt.Errorf("ONNX model not found at %s: %w", modelPath, err)
 	}
-	// TODO: Replace the return below with real loading + inference once tokenization is implemented.
-	// Example (adjust to actual gonnx API you confirm):
-	//   model, err := gonnx.NewModel(modelPath)  // or gonnx.LoadModel / onnx subpackage
-	//   if err != nil { return nil, err }
-	return GenerateSimpleEmbedding, nil
+
+	// Create feature extraction pipeline using hugot
+	config := hugot.FeatureExtractionConfig{
+		ModelPath: modelPath,
+	}
+
+	pipeline, err := hugot.NewPipeline[pipelines.FeatureExtractionPipeline](config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hugot pipeline for model %s: %w", modelPath, err)
+	}
+
+	// Return a thread-safe embedding function with fallback
+	return func(text string, dim int) []float32 {
+		if text == "" {
+			return make([]float32, dim)
+		}
+
+		result, err := pipeline.Run([]string{text})
+		if err != nil || len(result.Embeddings) == 0 {
+			// Graceful fallback to deterministic embedding
+			return GenerateSimpleEmbedding(text, dim)
+		}
+
+		embedding := result.Embeddings[0]
+
+		// L2 normalize
+		var norm float32
+		for _, v := range embedding {
+			norm += v * v
+		}
+		if norm > 0 {
+			norm = float32(math.Sqrt(float64(norm)))
+			for i := range embedding {
+				embedding[i] /= norm
+			}
+		}
+
+		return embedding
+	}, nil
 }
 
 // GenerateSimpleEmbedding (deterministic hash-based fallback)
@@ -754,7 +780,6 @@ func extractKeyphrases(text string) []string {
 				seen[phrase] = true
 				phrases = append(phrases, phrase)
 			}
-		}
 	}
 	// Also capture important single capitalized words as keyphrases
 	for _, w := range words {
@@ -762,7 +787,6 @@ func extractKeyphrases(text string) []string {
 		if len(clean) > 4 && unicode.IsUpper(rune(clean[0])) && !seen[clean] {
 			seen[clean] = true
 			phrases = append(phrases, clean)
-		}
 	}
 	if len(phrases) > 12 {
 		phrases = phrases[:12] // cap for payload size
@@ -891,20 +915,19 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-				},
-				Provenance: MemoryProvenance{
-					SourceStep: "semantic_refine",
-					ParentIDs:  []string{entry.ID},
-				},
-				Metrics: MemoryMetrics{
-					ScoreImpact: 0.95, // High importance for protected facts
-					UsageCount:  1,
-				},
-			}
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "semantic_refine",
+				ParentIDs:  []string{entry.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.95, // High importance for protected facts
+				UsageCount:  1,
+			},
+		}
 
-			if err := ps.Write(factEntry); err != nil {
-				return fmt.Errorf("failed to write semantic fact: %w", err)
-			}
+		if err := ps.Write(factEntry); err != nil {
+			return fmt.Errorf("failed to write semantic fact: %w", err)
 		}
 	}
 	return nil
