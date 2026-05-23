@@ -374,7 +374,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	queryLower := strings.ToLower(query)
 	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
+	}
 
 	var filtered []MemoryEntry
 	for _, e := range results {
@@ -426,7 +426,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	// Sort by age (oldest first)
 	sort.Slice(working, func(i, j int) bool {
 		return working[i].CreatedAt.Before(working[j].CreatedAt)
-	})
+	}
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
@@ -491,7 +491,6 @@ func GenerateMemoryID() string {
 // NewGONNXEmbeddingFunc returns an EmbeddingFunc powered by github.com/advancedclimatesystems/gonnx (pure-Go ONNX runtime, zero native deps, excellent for M4).
 //
 // Usage:
-//
 //	embedFn, err := memory.NewGONNXEmbeddingFunc("/absolute/path/to/all-MiniLM-L6-v2.onnx")
 //	if err != nil { ... }
 //	cfg := memory.PalaceConfig{BaseDir: dir, EmbeddingFunc: embedFn}
@@ -501,7 +500,7 @@ func GenerateMemoryID() string {
 // For full semantic embeddings you must extend the returned func body with:
 //  1. Tokenization (WordPiece for MiniLM)
 //  2. Build input tensors (input_ids, attention_mask)
-//  3. model, _ := gonnx.NewModel(...) or the library's loader
+//  3. model, err := gonnx.NewModel(...) or the library's loader
 //  4. result := model.Run(inputs)
 //  5. Mean-pool the output + L2 normalize to get 384-dim vector.
 //
@@ -515,9 +514,9 @@ func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
 		return nil, fmt.Errorf("ONNX model file not accessible at %s: %w", modelPath, err)
 	}
 	// TODO: Replace the return below with real loading + inference once tokenization is implemented.
-	// Example (adjust to actual gonnx API you confirm):
-	//   model, err := gonnx.NewModel(modelPath)  // or gonnx.LoadModel / onnx subpackage
-	//   if err != nil { return nil, err }
+// Example (adjust to actual gonnx API you confirm):
+//   model, err := gonnx.NewModel(modelPath)  // or gonnx.LoadModel / onnx subpackage
+//   if err != nil { return nil, err }
 	return GenerateSimpleEmbedding, nil
 }
 
@@ -751,18 +750,16 @@ func extractKeyphrases(text string) []string {
 		if len(w1) > 3 && unicode.IsUpper(rune(w1[0])) && len(w2) > 2 {
 			phrase := w1 + " " + w2
 			if !seen[phrase] {
-				seen[phrase] = true
-				phrases = append(phrases, phrase)
-			}
+			seen[phrase] = true
+			phrases = append(phrases, phrase)
 		}
 	}
 	// Also capture important single capitalized words as keyphrases
 	for _, w := range words {
 		clean := strings.Trim(w, ".,;:!?\"")
 		if len(clean) > 4 && unicode.IsUpper(rune(clean[0])) && !seen[clean] {
-			seen[clean] = true
-			phrases = append(phrases, clean)
-		}
+		seen[clean] = true
+		phrases = append(phrases, clean)
 	}
 	if len(phrases) > 12 {
 		phrases = phrases[:12] // cap for payload size
@@ -891,21 +888,75 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					Summary: truncate(factText, 200),
 					Full:    factText,
 					Tags:    []string{"semantic", "protected", "atomic_fact"},
-				},
-				Provenance: MemoryProvenance{
-					SourceStep: "semantic_refine",
-					ParentIDs:  []string{entry.ID},
-				},
-				Metrics: MemoryMetrics{
-					ScoreImpact: 0.95, // High importance for protected facts
-					UsageCount:  1,
-				},
-			}
+			},
+			Provenance: MemoryProvenance{
+				SourceStep: "semantic_refine",
+				ParentIDs:  []string{entry.ID},
+			},
+			Metrics: MemoryMetrics{
+				ScoreImpact: 0.95, // High importance for protected facts
+				UsageCount:  1,
+			},
+		}
 
-			if err := ps.Write(factEntry); err != nil {
-				return fmt.Errorf("failed to write semantic fact: %w", err)
-			}
+		if err := ps.Write(factEntry); err != nil {
+			return fmt.Errorf("failed to write semantic fact: %w", err)
 		}
 	}
 	return nil
+}
+
+// ReadWithChainOfNote formats retrieved MemoryEntry items into a Chain-of-Note style
+// prompt for the reader LLM. It enforces explicit listing of facts with provenance
+// before reasoning and requests structured JSON output. This captures the
+// paper-recommended reading-strategy gains (+10 points) at negligible cost.
+// Call this after SearchMemory / SearchMemoryExpanded in longmemeval-server
+// or ego chat flows.
+func (ps *PalaceStore) ReadWithChainOfNote(retrieved []MemoryEntry, query string) (string, error) {
+	if len(retrieved) == 0 {
+		return "", nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString("You are a precise, memory-augmented reasoner.\n\n")
+	sb.WriteString("Original Query: " + query + "\n\n")
+	sb.WriteString("Retrieved Context (use ONLY these items; list them explicitly first):\n\n")
+
+	for i, entry := range retrieved {
+		id := entry.TurnID
+		if id == "" {
+			id = entry.ID
+		}
+		if id == "" {
+			id = fmt.Sprintf("entry-%d", i)
+		}
+
+		ts := ""
+		if !entry.Timestamp.IsZero() {
+			ts = entry.Timestamp.Format(time.RFC3339)
+		} else if !entry.CreatedAt.IsZero() {
+			ts = entry.CreatedAt.Format(time.RFC3339)
+		}
+
+		content := entry.Content.Full
+		if content == "" {
+			content = entry.Content.Summary
+		}
+		if len(entry.ExtractedFacts) > 0 {
+			content = strings.Join(entry.ExtractedFacts, " | ")
+		}
+
+		sb.WriteString(fmt.Sprintf("- [Tier:%d] (id=%s, ts=%s)\n  %s\n\n",
+			entry.Tier, id, ts, strings.TrimSpace(content)))
+	}
+
+	sb.WriteString("Instructions (Chain-of-Note):\n")
+	sb.WriteString("1. First, explicitly list every relevant fact/turn above with its ID and timestamp.\n")
+	sb.WriteString("2. Then reason step-by-step ONLY from the listed items. Do not use external knowledge.\n")
+	sb.WriteString("3. If the information is insufficient, output exactly: I don't know\n")
+	sb.WriteString("4. At the very end, add a confidence score from 0.0 to 1.0.\n\n")
+	sb.WriteString("Output strictly as JSON:\n")
+	sb.WriteString("{\n  \"reasoning\": \"step-by-step reasoning here\",\n  \"answer\": \"final answer or I don't know\",\n  \"confidence\": 0.85\n}\n")
+
+	return sb.String(), nil
 }
