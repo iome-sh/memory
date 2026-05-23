@@ -151,8 +151,41 @@ type SearchResult struct {
 	Payload map[string]interface{}
 }
 
+// buildQdrantFilter converts a simple map filter into qdrant.Filter.
+// Supports basic range and match conditions (used for time-aware expansion).
+func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
+	if len(filter) == 0 {
+		return nil
+	}
+
+	var must []*qdrant.Condition
+	for key, val := range filter {
+		if val == nil {
+			continue
+		}
+		if m, ok := val.(map[string]interface{}); ok {
+			// Range support e.g. {"timestamp": {"gte": t1, "lte": t2}}
+			if gte, hasGte := m["gte"]; hasGte {
+				if lte, hasLte := m["lte"]; hasLte {
+					must = append(must, qdrant.NewRange(key, &qdrant.Range{
+						Gte: qdrant.NewValue(gte),
+						Lte: qdrant.NewValue(lte),
+					}))
+				}
+			}
+		} else {
+			// Simple match
+			must = append(must, qdrant.NewMatch(key, qdrant.NewValue(val)))
+		}
+	}
+	if len(must) == 0 {
+		return nil
+	}
+	return &qdrant.Filter{Must: must}
+}
+
 // SearchSimilar performs dense vector similarity search using the official Qdrant Query API.
-// Production quality: proper errors, payload extraction, limit handling.
+// Now supports payload filter for time-aware and other constrained retrieval.
 func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled {
 		return nil, nil
@@ -170,6 +203,7 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 		Query:          qdrant.NewQueryDense(queryVec),
 		Limit:          &limit64,
 		WithPayload:    qdrant.NewWithPayload(withPayload),
+		Filter:         buildQdrantFilter(filter),
 	}
 
 	points, err := vs.Client.Query(context.Background(), queryPoints)
@@ -216,7 +250,7 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 }
 
 // SearchSparse performs sparse vector similarity search using the official Qdrant Query API.
-// Production quality implementation.
+// Supports payload filter.
 func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled {
 		return nil, nil
@@ -234,6 +268,7 @@ func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32
 		Query:          qdrant.NewQuerySparse(queryIndices, queryValues),
 		Limit:          &limit64,
 		WithPayload:    qdrant.NewWithPayload(withPayload),
+		Filter:         buildQdrantFilter(filter),
 	}
 
 	points, err := vs.Client.Query(context.Background(), queryPoints)
@@ -352,7 +387,7 @@ func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name 
 			}
 		}
 		err := client.CreateCollection(ctx, &qdrant.CreateCollection{
-			CollectionName: name,
+		CollectionName: name,
 		})
 		if err == nil {
 			return nil
@@ -360,7 +395,7 @@ func createCollectionWithRetry(ctx context.Context, client *qdrant.Client, name 
 		lastErr = err
 		if ctx.Err() != nil {
 			return ctx.Err()
-	}
+		}
 	}
 	return lastErr
 }
