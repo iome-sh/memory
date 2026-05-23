@@ -153,7 +153,7 @@ type SearchResult struct {
 
 // buildQdrantFilter converts a simple map filter into qdrant.Filter.
 // Supports basic range (for timestamps) and match conditions.
-// Correctly handles qdrant.NewValue error returns and type conversions for Range/Match.
+// Uses string conversion for match values to be compatible with qdrant.NewMatch.
 func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 	if len(filter) == 0 {
 		return nil
@@ -166,7 +166,7 @@ func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 		}
 
 		if m, ok := val.(map[string]interface{}); ok {
-			// Range condition e.g. {"timestamp": {"gte": 1234567890.0, "lte": 1234567890.0}}
+			// Range condition (timestamp ranges etc.)
 			var rng qdrant.Range
 			if gte, hasGte := m["gte"]; hasGte {
 				if f, ok := toFloat64(gte); ok {
@@ -182,16 +182,9 @@ func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 				must = append(must, qdrant.NewRange(key, &rng))
 			}
 		} else {
-			// Simple match condition
-			if s, ok := val.(string); ok {
-				must = append(must, qdrant.NewMatch(key, s))
-			} else if f, ok := toFloat64(val); ok {
-				must = append(must, qdrant.NewMatch(key, f))
-			} else if i, ok := val.(int); ok {
-				must = append(must, qdrant.NewMatch(key, int64(i)))
-			} else if i64, ok := val.(int64); ok {
-				must = append(must, qdrant.NewMatch(key, i64))
-			}
+			// Match condition - convert everything to string for compatibility
+			strVal := fmt.Sprintf("%v", val)
+			must = append(must, qdrant.NewMatch(key, strVal))
 		}
 	}
 
@@ -201,32 +194,22 @@ func buildQdrantFilter(filter map[string]interface{}) *qdrant.Filter {
 	return &qdrant.Filter{Must: must}
 }
 
-// toFloat64 is a small helper to convert various numeric types to float64 for Range conditions.
+// toFloat64 helper for Range conditions
 func toFloat64(v interface{}) (float64, bool) {
 	switch x := v.(type) {
-	case float64:
-		return x, true
-	case float32:
-		return float64(x), true
-	case int:
-		return float64(x), true
-	case int32:
-		return float64(x), true
-	case int64:
-		return float64(x), true
-	case uint:
-		return float64(x), true
-	case uint32:
-		return float64(x), true
-	case uint64:
-		return float64(x), true
-	default:
-		return 0, false
+	case float64: return x, true
+	case float32: return float64(x), true
+	case int:     return float64(x), true
+	case int32:   return float64(x), true
+	case int64:   return float64(x), true
+	case uint:    return float64(x), true
+	case uint32:  return float64(x), true
+	case uint64:  return float64(x), true
+	default:      return 0, false
 	}
 }
 
 // SearchSimilar performs dense vector similarity search using the official Qdrant Query API.
-// Now supports payload filter for time-aware and other constrained retrieval.
 func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled {
 		return nil, nil
@@ -291,7 +274,6 @@ func (vs *VectorStore) SearchSimilar(queryVec []float32, limit int, filter map[s
 }
 
 // SearchSparse performs sparse vector similarity search using the official Qdrant Query API.
-// Supports payload filter.
 func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled {
 		return nil, nil
@@ -356,7 +338,6 @@ func (vs *VectorStore) SearchSparse(queryIndices []uint32, queryValues []float32
 }
 
 // SearchByText performs text-based semantic search.
-// Uses the package-internal GenerateSimpleEmbedding for fallback semantic capability (no external embedder required).
 func (vs *VectorStore) SearchByText(text string, limit int, filter map[string]interface{}, withPayload bool) ([]SearchResult, error) {
 	if !vs.Enabled || text == "" {
 		return nil, nil
