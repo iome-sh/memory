@@ -16,7 +16,7 @@ QA_WORKERS="${LONGMEMEVAL_QA_WORKERS:-4}"
 log "phase 1 — download dataset if missing"
 bash scripts/download_longmemeval_dataset.sh
 
-log "phase 2 — offline ONNX recall bench (full oracle split)"
+log "phase 2 — offline ONNX recall bench (full oracle split; ~500q, ~3-5 min — progress on stderr)"
 LONGMEMEVAL_DATASET="${DATASET}" LONGMEMEVAL_LIMIT="${LONGMEMEVAL_BENCH_LIMIT:-0}" \
   bash scripts/longmemeval_recall_bench.sh
 
