@@ -9,6 +9,18 @@ import (
 	"github.com/knights-analytics/hugot"
 )
 
+func TestResolveEmbeddingDim(t *testing.T) {
+	if got := ResolveEmbeddingDim(""); got != DefaultHashEmbeddingDim {
+		t.Fatalf("empty path dim = %d, want %d", got, DefaultHashEmbeddingDim)
+	}
+	if got := ResolveEmbeddingDim("   "); got != DefaultHashEmbeddingDim {
+		t.Fatalf("whitespace path dim = %d, want %d", got, DefaultHashEmbeddingDim)
+	}
+	if got := ResolveEmbeddingDim("/models/minilm"); got != MiniLMEmbeddingDim {
+		t.Fatalf("onnx path dim = %d, want %d", got, MiniLMEmbeddingDim)
+	}
+}
+
 func TestNewGONNXEmbeddingFunc_EmptyPathUsesHash(t *testing.T) {
 	fn, err := NewGONNXEmbeddingFunc("")
 	if err != nil {

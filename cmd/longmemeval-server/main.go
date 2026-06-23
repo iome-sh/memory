@@ -89,6 +89,7 @@ type SynthesizeResponse struct {
 var (
 	globalStore       *memory.PalaceStore
 	globalVectorStore *memory.VectorStore
+	embeddingDim      int
 
 	// Toggleable LongMemEval features
 	flagEnableTurnGranularity = flag.Bool("enable-turn-granularity", true, "Use IngestTurn with turn-level metadata")
@@ -103,14 +104,28 @@ func main() {
 	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace_v2")
 	_ = os.MkdirAll(baseDir, 0755)
 
+	modelPath := strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath))
+	embeddingDim = memory.ResolveEmbeddingDim(modelPath)
+	embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
+	if err != nil {
+		log.Printf("onnx embedding init failed (%v); falling back to hash dim=%d", err, memory.DefaultHashEmbeddingDim)
+		embedFn = memory.GenerateSimpleEmbedding
+		embeddingDim = memory.DefaultHashEmbeddingDim
+	} else if modelPath == "" {
+		log.Printf("embedding mode=hash dim=%d (set %s for ONNX MiniLM)", embeddingDim, memory.EnvONNXModelPath)
+	} else {
+		log.Printf("embedding mode=onnx dim=%d model=%s", embeddingDim, modelPath)
+	}
+
 	cfg := memory.PalaceConfig{
-		BaseDir: baseDir,
+		BaseDir:       baseDir,
+		EmbeddingFunc: embedFn,
 	}
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
 	globalVectorStore = memory.NewVectorStore("localhost:6334", "longmemeval_memory")
 	if globalVectorStore.Enabled {
-		_ = globalVectorStore.CreateCollection(768)
+		_ = globalVectorStore.CreateCollection(embeddingDim)
 	}
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +190,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 
 		// Also store in Qdrant for hybrid retrieval
 		if globalVectorStore != nil && globalVectorStore.Enabled {
-			vec := globalStore.Config.EmbeddingFunc(t.Content, 768)
+			vec := globalStore.Config.EmbeddingFunc(t.Content, embeddingDim)
 			payload := map[string]interface{}{
 				"conv_id":   req.ConvID,
 				"turn_id":   entry.TurnID,
@@ -212,7 +227,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 
 	// Vector path (with filter when time-aware is active)
 	if globalVectorStore != nil && globalVectorStore.Enabled {
-		queryVec := globalStore.Config.EmbeddingFunc(req.Query, 768)
+		queryVec := globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
 		vecResults, _ := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, filter, true)
 		for _, vr := range vecResults {
 			if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {

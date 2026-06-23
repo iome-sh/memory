@@ -194,9 +194,15 @@ We provide first-class support for the official [LongMemEval](https://github.com
 
 1. **Start the benchmark server** (uses your PalaceStore + SearchMemory):
    ```bash
+   # Optional: production ONNX embeddings (384-d MiniLM; dramatically better recall)
+   export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
+   # Or point at cached testdata: export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+
    go run cmd/longmemeval-server/main.go
    ```
-   The server listens on `http://localhost:8765` and exposes `/ingest`, `/retrieve`, and `/compact`.
+   The server listens on `http://localhost:8765` and exposes `/ingest`, `/retrieve`, and `/synthesize`.
+
+   On startup the server logs `embedding mode=onnx` or `embedding mode=hash`. When `MEMORY_ONNX_MODEL_PATH` is unset, hash embeddings use dimension **768**; with ONNX, Qdrant collections are created at **384** (`memory.MiniLMEmbeddingDim`). Init failures fall back to hash with a log line.
 
 2. **Download the official dataset** (small split for testing):
    ```bash
@@ -222,7 +228,7 @@ We provide first-class support for the official [LongMemEval](https://github.com
    python print_qa_metrics.py gpt-4o ../../../hypotheses.jsonl.log ../../../data/longmemeval_oracle.json
    ```
 
-The harness exercises `Write` + hybrid `SearchMemory`. Swapping in a real ONNX embedding via `NewGONNXEmbeddingFunc` will dramatically improve recall on personal-fact questions.
+The harness wires `memory.NewGONNXEmbeddingFuncFromEnv()` automatically when `MEMORY_ONNX_MODEL_PATH` is set, exercising `Write` + hybrid `SearchMemory` with semantic ONNX re-ranking. Without ONNX, recall on personal-fact questions is limited by hash embeddings.
 
 See `scripts/longmemeval_orchestrator.py` for the full mapping logic and easy customization.
 
