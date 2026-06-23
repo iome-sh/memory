@@ -1,6 +1,6 @@
 # Memory Package - Improvements & Roadmap
 
-**Repository**: `github.com/sudo-jin/memory`
+**Repository**: `github.com/iome-sh/memory`
 **Purpose**: Prioritized improvement plan for the standalone hierarchical memory package (Palace).
 **Last Updated**: May 2026
 

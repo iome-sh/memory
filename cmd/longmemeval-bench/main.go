@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sudo-jin/memory"
+	"github.com/iome-sh/memory"
 )
 
 // FlexAnswer unmarshals LongMemEval answers that may be JSON strings or numbers.

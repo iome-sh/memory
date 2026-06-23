@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/knights-analytics/hugot"
-	"github.com/sudo-jin/memory"
+	"github.com/iome-sh/memory"
 )
 
 func TestFlexAnswer_UnmarshalJSON(t *testing.T) {

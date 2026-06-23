@@ -10,7 +10,7 @@
 - Hybrid SearchMemory + **pluggable pure-Go ONNX embeddings** (new in this refactor)
 - All core features complete, tested, and hardened
 
-**Module**: `github.com/sudo-jin/memory@v1.0.0`
+**Module**: `github.com/iome-sh/memory@v1.0.0`
 
 Standalone, portable Go package for hierarchical agent memory (Palace).
 
@@ -63,7 +63,7 @@ go build -tags ORT -o bin/longmemeval-bench-ort ./cmd/longmemeval-bench
 
 ### Semantic recall (all ONNX backends)
 ```go
-import "github.com/sudo-jin/memory"
+import "github.com/iome-sh/memory"
 
 // Download once (or set MEMORY_ONNX_MODEL_PATH to an existing hugot model dir)
 embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
@@ -118,7 +118,7 @@ memory/
 ```go
 import (
 	"context"
-	"github.com/sudo-jin/memory"
+	"github.com/iome-sh/memory"
 )
 
 // Basic PalaceStore
@@ -174,7 +174,7 @@ _ = vs.CreateCollection(768) // or CreateSparseCollection()
 ### Setup
 
 ```bash
-git clone https://github.com/sudo-jin/memory.git
+git clone https://github.com/iome-sh/memory.git
 cd memory
 go mod download
 ```

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LongMemEval Orchestrator for github.com/sudo-jin/memory
+LongMemEval Orchestrator for github.com/iome-sh/memory
 
 This script drives the Go HTTP server (cmd/longmemeval-server) to benchmark
 the PalaceStore + RecMem features on the official LongMemEval dataset.
@@ -168,7 +168,7 @@ def answer_in_memories(answer: str, memories: List[Dict[str, Any]], topk: int) -
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LongMemEval harness for sudo-jin/memory")
+    parser = argparse.ArgumentParser(description="LongMemEval harness for iome-sh/memory")
     parser.add_argument("--dataset", required=True, help="Path to longmemeval_s_cleaned.json or similar")
     parser.add_argument("--output", default="hypotheses.jsonl", help="Output hypothesis file")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of examples (0 = all)")

@@ -1,4 +1,4 @@
-module github.com/sudo-jin/memory
+module github.com/iome-sh/memory
 
 go 1.26.0
 
