@@ -255,5 +255,6 @@ __marimo__/
 /LongMemEval
 /third_party/LongMemEval
 /testdata/models/
+/testdata/ort-deps/
 /data
 /hypotheses.json*

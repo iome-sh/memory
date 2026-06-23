@@ -1,4 +1,4 @@
-.PHONY: test test-onnx test-ort longmemeval-smoke longmemeval-recall-gate download-dataset \
+.PHONY: test test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval
 
 test:
@@ -7,9 +7,18 @@ test:
 test-onnx:
 	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
 
+download-ort-deps:
+	bash scripts/download_ort_deps.sh
+
+# Requires: make download-ort-deps (libtokenizers.a + libonnxruntime in testdata/ort-deps/lib)
+build-ort-bench: download-ort-deps
+	@eval "$$(./scripts/ort_cgo_env.sh)" && \
+	go build -tags ORT -o bin/longmemeval-bench-ort ./cmd/longmemeval-bench
+
 # Requires CGO_ENABLED=1, -tags ORT, libonnxruntime + libtokenizers.a on the host.
-test-ort:
-	CGO_ENABLED=1 go test -tags ORT -count=1 -run 'ONNX|HugotBackend' ./...
+test-ort: download-ort-deps
+	@eval "$$(./scripts/ort_cgo_env.sh)" && \
+	go test -tags ORT -count=1 -run 'ONNX|HugotBackend' ./...
 
 longmemeval-smoke:
 	go test -count=1 -run IngestRetrieve ./cmd/longmemeval-server/...
