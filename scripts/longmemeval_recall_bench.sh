@@ -20,7 +20,10 @@ fi
 JSON_REPORT="${LONGMEMEVAL_JSON_REPORT:-}"
 QUIET="${LONGMEMEVAL_QUIET:-}"
 
-echo "longmemeval recall bench: dataset=${DATASET} topk=${TOPK} min-recall=${MIN_RECALL}"
+echo "longmemeval recall bench: dataset=${DATASET} topk=${TOPK} min-recall=${MIN_RECALL}" >&2
+if [[ "${LIMIT}" == "0" && "${DATASET}" == *oracle* ]]; then
+  echo "longmemeval recall bench: full oracle run (~500 questions, ~3-5 min ONNX); progress on stderr" >&2
+fi
 ARGS=(
   -dataset "${DATASET}"
   -limit "${LIMIT}"

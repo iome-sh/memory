@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,11 +67,12 @@ type HaystackTurn struct {
 
 // BenchOptions configures an offline recall run (no OpenAI).
 type BenchOptions struct {
-	DatasetPath string
-	Limit       int
-	TopK        int
-	MinRecall   float64
-	ModelPath   string
+	DatasetPath    string
+	Limit          int
+	TopK           int
+	MinRecall      float64
+	ModelPath      string
+	ProgressWriter io.Writer // nil disables per-question progress lines
 }
 
 // QuestionResult is the per-question recall outcome.
@@ -108,12 +110,18 @@ func main() {
 		os.Exit(2)
 	}
 
+	var progress io.Writer
+	if !*quiet {
+		progress = os.Stderr
+	}
+
 	start := time.Now()
 	report, err := RunBench(BenchOptions{
-		DatasetPath: *dataset,
-		Limit:       *limit,
-		TopK:        *topK,
-		MinRecall:   *minRecall,
+		DatasetPath:    *dataset,
+		Limit:          *limit,
+		TopK:           *topK,
+		MinRecall:      *minRecall,
+		ProgressWriter: progress,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bench error: %v\n", err)
@@ -178,6 +186,13 @@ func main() {
 	}
 }
 
+func benchLog(w io.Writer, format string, args ...any) {
+	if w == nil {
+		return
+	}
+	fmt.Fprintf(w, "longmemeval-bench: "+format+"\n", args...)
+}
+
 // RunBench executes ingest+retrieve recall for each LongMemEval instance.
 func RunBench(opts BenchOptions) (BenchReport, error) {
 	instances, err := loadDataset(opts.DatasetPath)
@@ -190,6 +205,8 @@ func RunBench(opts BenchOptions) (BenchReport, error) {
 	if opts.TopK <= 0 {
 		opts.TopK = 5
 	}
+
+	benchLog(opts.ProgressWriter, "loaded %d questions from %s", len(instances), opts.DatasetPath)
 
 	modelPath, err := resolveONNXModelPath(opts.ModelPath)
 	if err != nil {
@@ -211,6 +228,8 @@ func RunBench(opts BenchOptions) (BenchReport, error) {
 	var embedFn memory.EmbeddingFunc
 	var batchFn memory.BatchEmbeddingFunc
 	if strings.TrimSpace(modelPath) != "" {
+		benchLog(opts.ProgressWriter, "loading ONNX embedder from %s (first run may take ~30s)", modelPath)
+		onnxStart := time.Now()
 		emb, embErr := memory.NewGONNXEmbedder(memory.GONNXOptions{
 			ModelPath: modelPath,
 			Strict:    os.Getenv(memory.EnvEmbeddingStrict) == "1" || strings.EqualFold(os.Getenv(memory.EnvEmbeddingStrict), "true"),
@@ -221,7 +240,9 @@ func RunBench(opts BenchOptions) (BenchReport, error) {
 		defer func() { _ = emb.Close() }()
 		embedFn = emb.Func()
 		batchFn = emb.BatchFunc()
+		benchLog(opts.ProgressWriter, "ONNX embedder ready in %s (dim=%d)", time.Since(onnxStart).Round(time.Millisecond), emb.Dimension())
 	} else {
+		benchLog(opts.ProgressWriter, "no ONNX model path; using hash embeddings")
 		var fnErr error
 		embedFn, fnErr = memory.NewGONNXEmbeddingFuncFromEnv()
 		if fnErr != nil {
@@ -231,7 +252,9 @@ func RunBench(opts BenchOptions) (BenchReport, error) {
 	embeddingDim := memory.ResolveEmbeddingDim(modelPath)
 
 	report := BenchReport{Total: len(instances)}
-	for _, inst := range instances {
+	benchStart := time.Now()
+	for i, inst := range instances {
+		qStart := time.Now()
 		qr, err := evalInstance(inst, embedFn, batchFn, embeddingDim, opts.TopK)
 		if err != nil {
 			return BenchReport{}, fmt.Errorf("%s: %w", inst.QuestionID, err)
@@ -240,6 +263,17 @@ func RunBench(opts BenchOptions) (BenchReport, error) {
 		if qr.Hit {
 			report.Hits++
 		}
+		done := i + 1
+		runningRecall := float64(report.Hits) / float64(done)
+		status := "MISS"
+		if qr.Hit {
+			status = "HIT"
+		}
+		benchLog(opts.ProgressWriter, "[%d/%d] %s %s (%.0fms, hits=%d, recall=%.2f, elapsed=%s)",
+			done, report.Total, status, inst.QuestionID,
+			float64(time.Since(qStart).Milliseconds()),
+			report.Hits, runningRecall,
+			time.Since(benchStart).Round(time.Second))
 	}
 	if report.Total > 0 {
 		report.Recall = float64(report.Hits) / float64(report.Total)
