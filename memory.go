@@ -370,32 +370,7 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 		}
 	}
 
-	// Improved keyword filter: token-based (any word overlap)
-	queryLower := strings.ToLower(query)
-	queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
-		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-	})
-
-	var filtered []MemoryEntry
-	for _, e := range results {
-		contentLower := strings.ToLower(e.Content.Summary + " " + e.Content.Full)
-		match := false
-		for _, w := range queryWords {
-			if len(w) < 3 {
-				continue // skip very short words
-			}
-			if strings.Contains(contentLower, w) {
-				match = true
-				break
-			}
-		}
-		if match {
-			filtered = append(filtered, e)
-		}
-	}
-	results = filtered
-
-	// Vector re-rank if provided -- uses configured EmbeddingFunc (real ONNX when wired)
+	// Vector semantic path: rank all candidates when a query embedding is supplied (ONNX recall).
 	if len(vec) > 0 {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
@@ -406,6 +381,31 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			jVec := embedFn(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
 			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
 		})
+	} else {
+		// Keyword filter when no query vector (hash fallback path).
+		queryLower := strings.ToLower(query)
+		queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
+			return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+		})
+
+		var filtered []MemoryEntry
+		for _, e := range results {
+			contentLower := strings.ToLower(e.Content.Summary + " " + e.Content.Full)
+			match := false
+			for _, w := range queryWords {
+				if len(w) < 3 {
+					continue // skip very short words
+				}
+				if strings.Contains(contentLower, w) {
+					match = true
+					break
+				}
+			}
+			if match {
+				filtered = append(filtered, e)
+			}
+		}
+		results = filtered
 	}
 
 	// Limit

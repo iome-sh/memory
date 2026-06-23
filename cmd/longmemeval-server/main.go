@@ -239,8 +239,9 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// File-based hybrid (keyword + semantic)
-	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*3, nil)
+	// File-based hybrid (semantic ONNX re-rank when embedding func is wired, else keyword)
+	queryVec := globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
+	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*3, queryVec)
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
 			seen[e.ID] = true

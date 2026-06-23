@@ -198,6 +198,12 @@ We provide first-class support for the official [LongMemEval](https://github.com
 make longmemeval-smoke
 ```
 
+**Offline ONNX recall gate** (four semantic personal-fact sessions; no OpenAI; requires ≥3/4 top-hit recall):
+
+```bash
+make longmemeval-recall-gate
+```
+
 1. **Start the benchmark server** (uses your PalaceStore + SearchMemory):
    ```bash
    # Optional: production ONNX embeddings (384-d MiniLM; dramatically better recall)
