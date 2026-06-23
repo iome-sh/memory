@@ -22,3 +22,6 @@ jobs:
 
       - name: make test-onnx
         run: make test-onnx
+
+      - name: make longmemeval-recall-gate
+        run: make longmemeval-recall-gate
