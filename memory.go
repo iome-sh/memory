@@ -362,7 +362,16 @@ type scoredMemoryEntry struct {
 }
 
 func entryEmbedText(e MemoryEntry) string {
-	return e.Content.Summary + " " + e.Content.Full
+	summary := strings.TrimSpace(e.Content.Summary)
+	full := strings.TrimSpace(e.Content.Full)
+	switch {
+	case summary == "":
+		return truncateForEmbedding(full)
+	case full == "":
+		return truncateForEmbedding(summary)
+	default:
+		return truncateForEmbedding(summary + " " + full)
+	}
 }
 
 // scoreEntriesByVector precomputes cosine similarity per entry (one embed per entry, not O(n log n) per sort compare).

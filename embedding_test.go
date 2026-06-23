@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/knights-analytics/hugot"
@@ -111,6 +112,40 @@ func TestGONNXEmbedding_SemanticSimilarity(t *testing.T) {
 	hash := GenerateSimpleEmbedding(projectA, MiniLMEmbeddingDim)
 	if vectorsEqual(vecA, hash) {
 		t.Fatal("onnx embedding must differ from hash fallback")
+	}
+}
+
+func TestTruncateForEmbedding(t *testing.T) {
+	short := "hello world"
+	if got := truncateForEmbedding(short); got != short {
+		t.Fatalf("short text changed: %q", got)
+	}
+	long := strings.Repeat("word ", miniLMEmbedRuneBudget+50)
+	got := truncateForEmbedding(long)
+	if len([]rune(got)) != miniLMEmbedRuneBudget {
+		t.Fatalf("rune len = %d, want %d", len([]rune(got)), miniLMEmbedRuneBudget)
+	}
+}
+
+func TestGONNXEmbedding_LongInput(t *testing.T) {
+	modelDir := onnxModelDirForTest(t)
+
+	emb, err := NewGONNXEmbedder(GONNXOptions{ModelPath: modelDir, Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = emb.Close() })
+
+	long := strings.Repeat("The user discussed project milestones and deployment schedules. ", 200)
+	if _, err := emb.Embed(long); err != nil {
+		t.Fatalf("embed long text: %v", err)
+	}
+	batch, err := emb.EmbedBatch([]string{long, long})
+	if err != nil {
+		t.Fatalf("embed batch long text: %v", err)
+	}
+	if len(batch) != 2 {
+		t.Fatalf("batch len = %d, want 2", len(batch))
 	}
 }
 
