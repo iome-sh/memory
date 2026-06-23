@@ -36,7 +36,23 @@ The `EmbeddingFunc` in `PalaceConfig` is fully pluggable.
 ### Default (fast, deterministic, zero deps)
 `GenerateSimpleEmbedding` — hash-seeded random unit vectors (good for structure/tests, zero semantic value).
 
-### Pure-Go ONNX (recommended for production semantic recall)
+### Hugot ONNX embeddings (GoMLX default; ORT optional for speed)
+
+**Default (dev/CI):** pure-Go GoMLX — `MEMORY_HUGOT_BACKEND=go` (or unset). No CGO, no dylibs.
+
+**Linux prod (NVIDIA):** ONNX Runtime + CUDA — build with `-tags ORT`, set:
+
+```bash
+export MEMORY_HUGOT_BACKEND=ort
+export MEMORY_ORT_CUDA=1
+export MEMORY_ORT_LIBRARY_DIR=/usr/lib   # libonnxruntime.so directory
+```
+
+**macOS dev:** ORT + CoreML — build with `-tags ORT`, set `MEMORY_HUGOT_BACKEND=auto` (enables CoreML on darwin, falls back to GoMLX if ORT libs missing).
+
+**Auto:** `MEMORY_HUGOT_BACKEND=auto` tries ORT (CoreML on Mac, CUDA when `MEMORY_ORT_CUDA=1` on Linux), then falls back to GoMLX.
+
+### Semantic recall (all ONNX backends)
 ```go
 import "github.com/sudo-jin/memory"
 
@@ -58,6 +74,11 @@ Environment:
 | Variable | Purpose |
 |----------|---------|
 | `MEMORY_ONNX_MODEL_PATH` | Hugot model directory or `.onnx` file |
+| `MEMORY_HUGOT_BACKEND` | `go` (default), `ort`, or `auto` |
+| `MEMORY_ORT_LIBRARY_DIR` | Directory with `libonnxruntime.so` / `.dylib` (ORT builds) |
+| `MEMORY_ORT_CUDA` | `1` to enable CUDA EP (Linux ORT+GPU) |
+| `MEMORY_ORT_COREML` | `1` to enable CoreML EP (macOS ORT) |
+| `MEMORY_ORT_CUDA_DEVICE_ID` | CUDA device index (default `0`) |
 | `MEMORY_EMBEDDING_STRICT=true` | Disable silent hash fallback on inference errors |
 
 **Qdrant / sidecar:** set collection `EmbeddingDim` to **384** when using MiniLM (not 768 hash default).

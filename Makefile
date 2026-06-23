@@ -1,11 +1,15 @@
-.PHONY: test test-onnx longmemeval-smoke longmemeval-recall-gate download-dataset \
+.PHONY: test test-onnx test-ort longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval
 
 test:
 	go test ./...
 
 test-onnx:
-	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench' ./...
+	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
+
+# Requires CGO_ENABLED=1, -tags ORT, libonnxruntime + libtokenizers.a on the host.
+test-ort:
+	CGO_ENABLED=1 go test -tags ORT -count=1 -run 'ONNX|HugotBackend' ./...
 
 longmemeval-smoke:
 	go test -count=1 -run IngestRetrieve ./cmd/longmemeval-server/...

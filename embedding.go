@@ -30,11 +30,13 @@ const (
 	EnvEmbeddingStrict = "MEMORY_EMBEDDING_STRICT"
 )
 
-// GONNXOptions configures a pure-Go ONNX embedder (hugot backend, no ORT dylibs).
+// GONNXOptions configures a hugot ONNX embedder (GoMLX by default; ORT when built with -tags ORT).
 type GONNXOptions struct {
 	ModelPath string
 	// Strict disables silent fallback to GenerateSimpleEmbedding on inference errors.
 	Strict bool
+	// HugotBackend overrides MEMORY_HUGOT_BACKEND for this embedder (go, ort, auto).
+	HugotBackend HugotBackendConfig
 }
 
 // GONNXEmbedder runs sentence embeddings via hugot FeatureExtractionPipeline.
@@ -45,6 +47,7 @@ type GONNXEmbedder struct {
 	ctx      context.Context
 	dim      int
 	strict   bool
+	backend  string
 
 	fallbackOnce sync.Once
 }
@@ -57,10 +60,15 @@ func NewGONNXEmbedder(opts GONNXOptions) (*GONNXEmbedder, error) {
 	}
 
 	ctx := context.Background()
-	session, err := hugot.NewGoSession(ctx)
+	backendCfg := opts.HugotBackend
+	if backendCfg.Backend == "" {
+		backendCfg = ResolveHugotBackendFromEnv()
+	}
+	session, backendLabel, err := newHugotSession(ctx, backendCfg)
 	if err != nil {
 		return nil, fmt.Errorf("create hugot session: %w", err)
 	}
+	slog.Info("onnx embedder session ready", "backend", backendLabel, "model", dir)
 
 	config := hugot.FeatureExtractionConfig{
 		ModelPath:    dir,
@@ -88,7 +96,16 @@ func NewGONNXEmbedder(opts GONNXOptions) (*GONNXEmbedder, error) {
 		ctx:      ctx,
 		dim:      dim,
 		strict:   opts.Strict,
+		backend:  backendLabel,
 	}, nil
+}
+
+// Backend returns the active hugot backend label (gomlx, ort+cpu, ort+cuda:0, ort+coreml).
+func (e *GONNXEmbedder) Backend() string {
+	if e == nil || e.backend == "" {
+		return "gomlx"
+	}
+	return e.backend
 }
 
 // Dimension returns the native embedding width produced by the loaded ONNX model.
