@@ -52,10 +52,13 @@ type QuestionResult struct {
 
 // BenchReport aggregates recall metrics.
 type BenchReport struct {
-	Total   int
-	Hits    int
-	Recall  float64
-	Results []QuestionResult
+	Total          int
+	Hits           int
+	Recall         float64
+	TotalDuration  time.Duration
+	AvgQuestionMs  float64
+	EmbedCallsNote string
+	Results        []QuestionResult
 }
 
 func main() {
@@ -63,6 +66,8 @@ func main() {
 	limit := flag.Int("limit", 0, "max examples to run (0 = all)")
 	topK := flag.Int("topk", 5, "top-k memories to check for answer overlap")
 	minRecall := flag.Float64("min-recall", 0.6, "minimum aggregate recall; exit 1 if below")
+	jsonReport := flag.String("json-report", "", "write aggregate JSON report to this path")
+	quiet := flag.Bool("quiet", false, "only print aggregate recall line")
 	flag.Parse()
 
 	if strings.TrimSpace(*dataset) == "" {
@@ -70,6 +75,7 @@ func main() {
 		os.Exit(2)
 	}
 
+	start := time.Now()
 	report, err := RunBench(BenchOptions{
 		DatasetPath: *dataset,
 		Limit:       *limit,
@@ -80,22 +86,59 @@ func main() {
 		fmt.Fprintf(os.Stderr, "bench error: %v\n", err)
 		os.Exit(2)
 	}
+	report.TotalDuration = time.Since(start)
+	if report.Total > 0 {
+		report.AvgQuestionMs = float64(report.TotalDuration.Milliseconds()) / float64(report.Total)
+	}
+	report.EmbedCallsNote = "SearchMemory precomputes one embed per entry (batch ONNX when configured); avoids O(n log n) re-embeds in sort comparator"
 
-	for _, r := range report.Results {
-		status := "MISS"
-		if r.Hit {
-			status = "HIT"
+	if strings.TrimSpace(*jsonReport) != "" {
+		payload := struct {
+			Total          int     `json:"total"`
+			Hits           int     `json:"hits"`
+			Recall         float64 `json:"recall"`
+			TotalDuration  string  `json:"total_duration"`
+			AvgQuestionMs  float64 `json:"avg_question_ms"`
+			EmbedCallsNote string  `json:"embed_calls_note"`
+			MinRecall      float64 `json:"min_recall"`
+		}{
+			Total:          report.Total,
+			Hits:           report.Hits,
+			Recall:         report.Recall,
+			TotalDuration:  report.TotalDuration.String(),
+			AvgQuestionMs:  report.AvgQuestionMs,
+			EmbedCallsNote: report.EmbedCallsNote,
+			MinRecall:      *minRecall,
 		}
-		fmt.Printf("[%s] %s recall=%s answer=%q\n", status, r.QuestionID, status, r.Answer)
-		if !r.Hit {
-			fmt.Printf("  question: %s\n", r.Question)
-			fmt.Printf("  top summary: %s\n", r.TopSummary)
-			fmt.Printf("  top full: %s\n", r.TopFull)
+		data, marshalErr := json.MarshalIndent(payload, "", "  ")
+		if marshalErr != nil {
+			fmt.Fprintf(os.Stderr, "json report error: %v\n", marshalErr)
+			os.Exit(2)
+		}
+		if writeErr := os.WriteFile(*jsonReport, append(data, '\n'), 0o644); writeErr != nil {
+			fmt.Fprintf(os.Stderr, "json report write error: %v\n", writeErr)
+			os.Exit(2)
 		}
 	}
 
-	fmt.Printf("\naggregate recall: %d/%d = %.2f (min-recall=%.2f)\n",
-		report.Hits, report.Total, report.Recall, *minRecall)
+	if !*quiet {
+		for _, r := range report.Results {
+			status := "MISS"
+			if r.Hit {
+				status = "HIT"
+			}
+			fmt.Printf("[%s] %s recall=%s answer=%q\n", status, r.QuestionID, status, r.Answer)
+			if !r.Hit {
+				fmt.Printf("  question: %s\n", r.Question)
+				fmt.Printf("  top summary: %s\n", r.TopSummary)
+				fmt.Printf("  top full: %s\n", r.TopFull)
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("aggregate recall: %d/%d = %.2f (min-recall=%.2f, total=%s, avg=%.1fms/q)\n",
+		report.Hits, report.Total, report.Recall, *minRecall, report.TotalDuration.Round(time.Millisecond), report.AvgQuestionMs)
 
 	if report.Recall < *minRecall {
 		os.Exit(1)
@@ -132,15 +175,31 @@ func RunBench(opts BenchOptions) (BenchReport, error) {
 		}
 	}()
 
-	embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
-	if err != nil {
-		return BenchReport{}, fmt.Errorf("onnx embedding init: %w", err)
+	var embedFn memory.EmbeddingFunc
+	var batchFn memory.BatchEmbeddingFunc
+	if strings.TrimSpace(modelPath) != "" {
+		emb, embErr := memory.NewGONNXEmbedder(memory.GONNXOptions{
+			ModelPath: modelPath,
+			Strict:    os.Getenv(memory.EnvEmbeddingStrict) == "1" || strings.EqualFold(os.Getenv(memory.EnvEmbeddingStrict), "true"),
+		})
+		if embErr != nil {
+			return BenchReport{}, fmt.Errorf("onnx embedding init: %w", embErr)
+		}
+		defer func() { _ = emb.Close() }()
+		embedFn = emb.Func()
+		batchFn = emb.BatchFunc()
+	} else {
+		var fnErr error
+		embedFn, fnErr = memory.NewGONNXEmbeddingFuncFromEnv()
+		if fnErr != nil {
+			return BenchReport{}, fmt.Errorf("onnx embedding init: %w", fnErr)
+		}
 	}
 	embeddingDim := memory.ResolveEmbeddingDim(modelPath)
 
 	report := BenchReport{Total: len(instances)}
 	for _, inst := range instances {
-		qr, err := evalInstance(inst, embedFn, embeddingDim, opts.TopK)
+		qr, err := evalInstance(inst, embedFn, batchFn, embeddingDim, opts.TopK)
 		if err != nil {
 			return BenchReport{}, fmt.Errorf("%s: %w", inst.QuestionID, err)
 		}
@@ -170,7 +229,7 @@ func loadDataset(path string) ([]LongMemEvalInstance, error) {
 	return instances, nil
 }
 
-func evalInstance(inst LongMemEvalInstance, embedFn memory.EmbeddingFunc, embeddingDim, topK int) (QuestionResult, error) {
+func evalInstance(inst LongMemEvalInstance, embedFn memory.EmbeddingFunc, batchFn memory.BatchEmbeddingFunc, embeddingDim, topK int) (QuestionResult, error) {
 	baseDir, err := os.MkdirTemp("", "longmemeval_bench_*")
 	if err != nil {
 		return QuestionResult{}, err
@@ -178,8 +237,9 @@ func evalInstance(inst LongMemEvalInstance, embedFn memory.EmbeddingFunc, embedd
 	defer os.RemoveAll(baseDir)
 
 	cfg := memory.PalaceConfig{
-		BaseDir:       baseDir,
-		EmbeddingFunc: embedFn,
+		BaseDir:            baseDir,
+		EmbeddingFunc:      embedFn,
+		BatchEmbeddingFunc: batchFn,
 	}
 	store := memory.NewPalaceStoreWithConfig(cfg)
 

@@ -114,6 +114,45 @@ func TestGONNXEmbedding_SemanticSimilarity(t *testing.T) {
 	}
 }
 
+func TestGONNXEmbedBatch(t *testing.T) {
+	modelDir := onnxModelDirForTest(t)
+
+	emb, err := NewGONNXEmbedder(GONNXOptions{ModelPath: modelDir, Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = emb.Close() })
+
+	texts := []string{
+		"The Phoenix release ships memory sidecar ingest and vector retrieval.",
+		"Phoenix milestone covers Palace memory ingest with hybrid retrieval.",
+		"Rain forecast for Vancouver with scattered afternoon showers.",
+	}
+	batch, err := emb.EmbedBatch(texts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(batch) != len(texts) {
+		t.Fatalf("batch len = %d, want %d", len(batch), len(texts))
+	}
+
+	for i, text := range texts {
+		single, err := emb.Embed(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sim := CosineSimilarity(batch[i], single); sim < 0.99 {
+			t.Fatalf("batch[%d] vs single cosine %.4f < 0.99", i, sim)
+		}
+	}
+
+	simRelated := CosineSimilarity(batch[0], batch[1])
+	simUnrelated := CosineSimilarity(batch[0], batch[2])
+	if simRelated <= simUnrelated {
+		t.Fatalf("related similarity %.4f should exceed unrelated %.4f", simRelated, simUnrelated)
+	}
+}
+
 func TestPalaceStore_SearchMemory_ONNXRerank(t *testing.T) {
 	modelDir := onnxModelDirForTest(t)
 	emb, err := NewGONNXEmbedder(GONNXOptions{ModelPath: modelDir})
@@ -123,8 +162,9 @@ func TestPalaceStore_SearchMemory_ONNXRerank(t *testing.T) {
 	t.Cleanup(func() { _ = emb.Close() })
 
 	store := NewPalaceStoreWithConfig(PalaceConfig{
-		BaseDir:       t.TempDir(),
-		EmbeddingFunc: emb.Func(),
+		BaseDir:            t.TempDir(),
+		EmbeddingFunc:      emb.Func(),
+		BatchEmbeddingFunc: emb.BatchFunc(),
 	})
 
 	entries := []MemoryEntry{

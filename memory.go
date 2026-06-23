@@ -102,11 +102,15 @@ type PalaceConfig struct {
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
 	CompactionConfig   CompactionConfig
-	EmbeddingFunc      EmbeddingFunc `json:"-"` // pluggable (Phase 5.1)
+	EmbeddingFunc      EmbeddingFunc      `json:"-"` // pluggable (Phase 5.1)
+	BatchEmbeddingFunc BatchEmbeddingFunc `json:"-"` // optional ONNX batch path (Phase 5.1)
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
 type EmbeddingFunc func(text string, dim int) []float32
+
+// BatchEmbeddingFunc embeds multiple texts in one forward pass when supported (e.g. GONNXEmbedder).
+type BatchEmbeddingFunc func(texts []string, dim int) ([][]float32, error)
 
 // PalaceStore provides file-backed hierarchical memory storage.
 type PalaceStore struct {
@@ -352,6 +356,45 @@ func (ps *PalaceStore) GetStats() MemoryStats {
 	return stats
 }
 
+type scoredMemoryEntry struct {
+	entry MemoryEntry
+	score float64
+}
+
+func entryEmbedText(e MemoryEntry) string {
+	return e.Content.Summary + " " + e.Content.Full
+}
+
+// scoreEntriesByVector precomputes cosine similarity per entry (one embed per entry, not O(n log n) per sort compare).
+// When batchFn is set and len(results) > 1, uses a single batch ONNX forward pass.
+func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn EmbeddingFunc, batchFn BatchEmbeddingFunc) []scoredMemoryEntry {
+	if len(results) == 0 {
+		return nil
+	}
+	dim := len(vec)
+	scored := make([]scoredMemoryEntry, len(results))
+
+	if batchFn != nil && len(results) > 1 {
+		texts := make([]string, len(results))
+		for i, e := range results {
+			texts[i] = entryEmbedText(e)
+		}
+		vecs, err := batchFn(texts, dim)
+		if err == nil && len(vecs) == len(results) {
+			for i, e := range results {
+				scored[i] = scoredMemoryEntry{entry: e, score: CosineSimilarity(vecs[i], vec)}
+			}
+			return scored
+		}
+	}
+
+	for i, e := range results {
+		eVec := embedFn(entryEmbedText(e), dim)
+		scored[i] = scoredMemoryEntry{entry: e, score: CosineSimilarity(eVec, vec)}
+	}
+	return scored
+}
+
 // SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1
 // Supports query, optional tier filter, limit, and vector if VectorStore attached.
 // Now uses the configured EmbeddingFunc from PalaceConfig for vector re-ranking (enables pure-Go ONNX swap).
@@ -376,11 +419,14 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 		if embedFn == nil {
 			embedFn = GenerateSimpleEmbedding
 		}
-		sort.Slice(results, func(i, j int) bool {
-			iVec := embedFn(results[i].Content.Summary+" "+results[i].Content.Full, len(vec))
-			jVec := embedFn(results[j].Content.Summary+" "+results[j].Content.Full, len(vec))
-			return CosineSimilarity(iVec, vec) > CosineSimilarity(jVec, vec)
+		scored := scoreEntriesByVector(results, vec, embedFn, ps.Config.BatchEmbeddingFunc)
+		sort.Slice(scored, func(i, j int) bool {
+			return scored[i].score > scored[j].score
 		})
+		results = make([]MemoryEntry, len(scored))
+		for i, s := range scored {
+			results[i] = s.entry
+		}
 	} else {
 		// Keyword filter when no query vector (hash fallback path).
 		queryLower := strings.ToLower(query)

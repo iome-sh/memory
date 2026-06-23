@@ -17,9 +17,20 @@ if [[ -z "${MEMORY_ONNX_MODEL_PATH:-}" ]]; then
   fi
 fi
 
+JSON_REPORT="${LONGMEMEVAL_JSON_REPORT:-}"
+QUIET="${LONGMEMEVAL_QUIET:-}"
+
 echo "longmemeval recall bench: dataset=${DATASET} topk=${TOPK} min-recall=${MIN_RECALL}"
-go run ./cmd/longmemeval-bench \
-  -dataset "${DATASET}" \
-  -limit "${LIMIT}" \
-  -topk "${TOPK}" \
+ARGS=(
+  -dataset "${DATASET}"
+  -limit "${LIMIT}"
+  -topk "${TOPK}"
   -min-recall "${MIN_RECALL}"
+)
+if [[ -n "${JSON_REPORT}" ]]; then
+  ARGS+=(-json-report "${JSON_REPORT}")
+fi
+if [[ "${QUIET}" == "1" || "${QUIET}" == "true" ]]; then
+  ARGS+=(-quiet)
+fi
+go run ./cmd/longmemeval-bench "${ARGS[@]}"

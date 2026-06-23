@@ -1,4 +1,5 @@
-.PHONY: test test-onnx longmemeval-smoke longmemeval-recall-gate download-dataset longmemeval-bench longmemeval-bench-full
+.PHONY: test test-onnx longmemeval-smoke longmemeval-recall-gate download-dataset \
+	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval
 
 test:
 	go test ./...
@@ -20,3 +21,19 @@ longmemeval-bench:
 
 longmemeval-bench-full:
 	LONGMEMEVAL_DATASET=data/longmemeval_oracle.json bash scripts/longmemeval_recall_bench.sh
+
+longmemeval-qa-generate:
+	python3 scripts/longmemeval_qa_generate.py \
+		--dataset $${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json} \
+		--output $${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
+		--workers $${LONGMEMEVAL_QA_WORKERS:-4} \
+		$$(if [ -n "$${LONGMEMEVAL_QA_LIMIT:-}" ] && [ "$${LONGMEMEVAL_QA_LIMIT}" != "0" ]; then echo --limit $${LONGMEMEVAL_QA_LIMIT}; fi)
+
+longmemeval-judge:
+	bash scripts/longmemeval_judge.sh \
+		$${LONGMEMEVAL_JUDGE_MODEL:-gpt-4o-mini} \
+		$${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
+		$${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json}
+
+longmemeval-full-eval:
+	bash scripts/longmemeval_full_eval.sh

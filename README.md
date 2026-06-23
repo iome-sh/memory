@@ -217,6 +217,17 @@ make longmemeval-bench-full
 
 The Go CLI (`cmd/longmemeval-bench`) ingests `haystack_sessions` via `IngestTurn`, retrieves with ONNX `SearchMemory`, and scores recall when the oracle answer (or significant answer tokens) appears in top-k memory text. Exit code 1 when recall falls below `-min-recall` (default 0.6).
 
+`SearchMemory` precomputes one embedding per candidate (batch ONNX when `BatchEmbeddingFunc` is set on `PalaceConfig`), avoiding O(n log n) re-embeds inside the sort comparator.
+
+Bench flags:
+
+```bash
+go run ./cmd/longmemeval-bench \
+  -dataset testdata/longmemeval_oracle_subset.json \
+  -quiet \
+  -json-report /tmp/bench-report.json
+```
+
 Optional env overrides for `scripts/longmemeval_recall_bench.sh`:
 
 | Variable | Default |
@@ -224,7 +235,32 @@ Optional env overrides for `scripts/longmemeval_recall_bench.sh`:
 | `LONGMEMEVAL_DATASET` | `testdata/longmemeval_oracle_subset.json` |
 | `LONGMEMEVAL_TOPK` | `5` |
 | `LONGMEMEVAL_MIN_RECALL` | `0.6` |
+| `LONGMEMEVAL_QUIET` | unset (`1` = aggregate line only) |
+| `LONGMEMEVAL_JSON_REPORT` | unset (path for JSON aggregate report) |
 | `MEMORY_ONNX_MODEL_PATH` | `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2` when present |
+
+**Full 500-question eval + OpenAI judge** (offline recall first, then QA generation + official scorer):
+
+```bash
+pip install -r requirements-bench.txt
+make download-dataset
+
+# Phase 1–2: offline recall on full oracle split (no API key)
+make longmemeval-full-eval
+# Or quiet 500-q bench only:
+LONGMEMEVAL_DATASET=data/longmemeval_oracle.json LONGMEMEVAL_QUIET=1 \
+  make longmemeval-bench-full
+
+# Phase 3: QA + judge (requires OPENAI_API_KEY and running server)
+export OPENAI_API_KEY=sk-...
+export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+go run cmd/longmemeval-server/main.go &
+
+make longmemeval-qa-generate LONGMEMEVAL_QA_LIMIT=500 LONGMEMEVAL_QA_WORKERS=4
+make longmemeval-judge LONGMEMEVAL_JUDGE_MODEL=gpt-4o-mini
+```
+
+`scripts/longmemeval_qa_generate.py` uses `requests.Session` + `ThreadPoolExecutor` (default 4 workers) and **one OpenAI call per question** (combined extract+answer prompt). `scripts/longmemeval_judge.sh` shallow-clones the official LongMemEval eval scripts via `scripts/clone_longmemeval_eval.sh` and runs `evaluate_qa.py`; it skips gracefully when `OPENAI_API_KEY` is unset.
 
 Python orchestrator recall-only mode (server must be running; no API key):
 
