@@ -253,5 +253,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 /LongMemEval
+/testdata/models/
 /data
 /hypotheses.json*

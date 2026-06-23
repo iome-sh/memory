@@ -27,7 +27,7 @@ Extracted and refactored from `github.com/sudo-jin/ossa/internal/self`.
 
 ## Current Status
 
-**v1.0.0 released and stable.** Core memory models, PalaceStore, compaction, versioning, temporal decay, multi-factor scoring, pluggable embeddings (now with pure-Go ONNX skeleton), Working tier lifecycle, PalaceConfig, hybrid SearchMemory, and full Qdrant vector integration (dense + sparse) are complete, tested, and production-ready.
+**v1.0.0 released and stable.** Core memory models, PalaceStore, compaction, versioning, temporal decay, multi-factor scoring, pluggable embeddings (**production pure-Go ONNX via hugot**), Working tier lifecycle, PalaceConfig, hybrid SearchMemory, and full Qdrant vector integration (dense + sparse) are complete, tested, and production-ready.
 
 ## Embedding Options (New)
 
@@ -36,12 +36,12 @@ The `EmbeddingFunc` in `PalaceConfig` is fully pluggable.
 ### Default (fast, deterministic, zero deps)
 `GenerateSimpleEmbedding` — hash-seeded random unit vectors (good for structure/tests, zero semantic value).
 
-### Pure-Go ONNX (recommended for production recall on M4)
+### Pure-Go ONNX (recommended for production semantic recall)
 ```go
 import "github.com/sudo-jin/memory"
 
-// Load once
-embedFn, err := memory.NewGONNXEmbeddingFunc("/path/to/all-MiniLM-L6-v2.onnx")
+// Download once (or set MEMORY_ONNX_MODEL_PATH to an existing hugot model dir)
+embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
 if err != nil { log.Fatal(err) }
 
 cfg := memory.PalaceConfig{
@@ -51,9 +51,22 @@ cfg := memory.PalaceConfig{
 store := memory.NewPalaceStoreWithConfig(cfg)
 ```
 
-`NewGONNXEmbeddingFunc` uses `github.com/advancedclimatesystems/gonnx` (pure Go, no native dylibs). Full MiniLM-L6-v2 support requires completing the tokenization + mean-pool steps inside the helper (skeleton provided). Output dim is typically 384.
+`NewGONNXEmbeddingFunc` uses [`hugot`](https://github.com/knights-analytics/hugot) (pure Go backend, no ORT dylibs). Pass a **hugot model directory** (tokenizer + `model.onnx`) or a direct `.onnx` file path. Default export is `KnightsAnalytics/all-MiniLM-L6-v2` (**384** dimensions).
 
-See the function godoc for the TODO and extension pattern.
+Environment:
+
+| Variable | Purpose |
+|----------|---------|
+| `MEMORY_ONNX_MODEL_PATH` | Hugot model directory or `.onnx` file |
+| `MEMORY_EMBEDDING_STRICT=true` | Disable silent hash fallback on inference errors |
+
+**Qdrant / sidecar:** set collection `EmbeddingDim` to **384** when using MiniLM (not 768 hash default).
+
+Download helper:
+
+```bash
+go run ./scripts/download_onnx_model.go
+```
 
 ## Planned Structure
 

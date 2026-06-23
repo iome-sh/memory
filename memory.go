@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -16,7 +15,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/knights-analytics/hugot"
 	"github.com/nrednav/cuid2"
 )
 
@@ -488,74 +486,6 @@ func (ps *PalaceStore) GetRelatedEntities(entity string) []string {
 // GenerateMemoryID uses cuid2
 func GenerateMemoryID() string {
 	return cuid2.Generate()
-}
-
-// NewGONNXEmbeddingFunc returns a production-grade EmbeddingFunc powered by hugot.
-// Uses context + result.GetOutput() for compatibility with hugot v0.7+ on Apple Silicon.
-func NewGONNXEmbeddingFunc(modelPath string) (EmbeddingFunc, error) {
-	if modelPath == "" {
-		return GenerateSimpleEmbedding, nil
-	}
-
-	if _, err := os.Stat(modelPath); err != nil {
-		return nil, fmt.Errorf("ONNX model not found at %s: %w", modelPath, err)
-	}
-
-	ctx := context.Background()
-
-	// Create hugot session (v0.7+ style)
-	session, err := hugot.NewGoSession(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create hugot session: %w", err)
-	}
-
-	config := hugot.FeatureExtractionConfig{
-		ModelPath: modelPath,
-	}
-
-	pipeline, err := hugot.NewPipeline(session, config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create hugot pipeline: %w", err)
-	}
-
-	return func(text string, dim int) []float32 {
-		if text == "" {
-			return make([]float32, dim)
-		}
-
-		result, err := pipeline.Run(ctx, []string{text})
-		if err != nil || result == nil {
-			return GenerateSimpleEmbedding(text, dim)
-		}
-
-		// Use the interface method GetOutput() (correct for current hugot)
-		outputs := result.GetOutput()
-		if len(outputs) == 0 {
-			return GenerateSimpleEmbedding(text, dim)
-		}
-
-		// Type assert embeddings
-		embeddings, ok := outputs[0].([][]float32)
-		if !ok || len(embeddings) == 0 {
-			return GenerateSimpleEmbedding(text, dim)
-		}
-
-		embedding := embeddings[0]
-
-		// L2 normalize
-		var norm float32
-		for _, v := range embedding {
-			norm += v * v
-		}
-		if norm > 0 {
-			norm = float32(math.Sqrt(float64(norm)))
-			for i := range embedding {
-				embedding[i] /= norm
-			}
-		}
-
-		return embedding
-	}, nil
 }
 
 // GenerateSimpleEmbedding (deterministic hash-based fallback)
