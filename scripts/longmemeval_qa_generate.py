@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Efficient LongMemEval QA hypothesis generator for github.com/sudo-jin/memory.
+Efficient LongMemEval QA hypothesis generator for github.com/iome-sh/memory.
 
 Ingests haystack_sessions via the Go HTTP server and generates one OpenAI answer
 per question (single combined prompt — no separate summarize step).

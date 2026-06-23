@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sudo-jin/memory"
+	"github.com/iome-sh/memory"
 )
 
 // LongMemEvalServer - Production harness for LongMemEval-S / LongMemEval-M

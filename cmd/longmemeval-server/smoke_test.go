@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sudo-jin/memory"
+	"github.com/iome-sh/memory"
 )
 
 // setupTestHarness mirrors main() initialization: ONNX from env or hugot download,
