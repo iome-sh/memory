@@ -118,11 +118,66 @@ def load_dataset(path: str) -> List[Dict[str, Any]]:
     return data
 
 
+def haystack_history(example: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Flatten official LongMemEval haystack_sessions into ingest turns."""
+    sessions = example.get("haystack_sessions")
+    if not sessions:
+        return (
+            example.get("history")
+            or example.get("conversation")
+            or example.get("turns", [])
+        )
+
+    dates = example.get("haystack_dates") or []
+    session_ids = example.get("haystack_session_ids") or []
+    turns: List[Dict[str, Any]] = []
+    for sess_idx, session in enumerate(sessions):
+        ts = dates[sess_idx] if sess_idx < len(dates) else ""
+        sid = session_ids[sess_idx] if sess_idx < len(session_ids) else f"sess-{sess_idx}"
+        for turn_idx, turn in enumerate(session):
+            turns.append({
+                "role": turn.get("role", "user"),
+                "content": turn.get("content", ""),
+                "timestamp": ts,
+                "cycle": turn_idx + 1,
+                "session_id": sid,
+            })
+    return turns
+
+
+def answer_in_memories(answer: str, memories: List[Dict[str, Any]], topk: int) -> bool:
+    if not answer or not memories:
+        return False
+    answer_lower = answer.strip().lower()
+    corpus = " ".join(
+        (m.get("full") or m.get("summary") or "").lower()
+        for m in memories[:topk]
+    )
+    if answer_lower in corpus:
+        return True
+    tokens = [
+        w
+        for w in "".join(c if c.isalnum() else " " for c in answer_lower).split()
+        if len(w) >= 3
+    ]
+    if not tokens:
+        return False
+    matched = sum(1 for t in tokens if t in corpus)
+    threshold = len(tokens) if len(tokens) == 1 else (len(tokens) + 1) // 2
+    return matched >= threshold
+
+
 def main():
     parser = argparse.ArgumentParser(description="LongMemEval harness for sudo-jin/memory")
     parser.add_argument("--dataset", required=True, help="Path to longmemeval_s_cleaned.json or similar")
     parser.add_argument("--output", default="hypotheses.jsonl", help="Output hypothesis file")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of examples (0 = all)")
+    parser.add_argument(
+        "--recall-only",
+        action="store_true",
+        help="Skip OpenAI answer generation; ingest+retrieve and print recall stats only",
+    )
+    parser.add_argument("--topk", type=int, default=5, help="Top-k memories for recall-only hit check")
     args = parser.parse_args()
 
     if not check_server():
@@ -134,11 +189,15 @@ def main():
         examples = examples[: args.limit]
 
     hypotheses = []
+    recall_hits = 0
+    recall_total = 0
+
     for ex in tqdm(examples, desc="Processing examples"):
         qid = ex.get("question_id") or ex.get("id") or ex.get("qid")
         question = ex.get("question") or ex.get("query")
-        history = ex.get("history") or ex.get("conversation") or ex.get("turns", [])
+        history = haystack_history(ex)
         conv_id = ex.get("conv_id") or ex.get("conversation_id") or qid
+        oracle = ex.get("answer") or ""
 
         if not qid or not question:
             print(f"Skipping example without question_id/question: {ex.keys()}", file=sys.stderr)
@@ -150,7 +209,16 @@ def main():
             print(f"Ingest error for {qid}: {e}", file=sys.stderr)
             continue
 
-        memories = retrieve_memories(question, k=40)
+        memories = retrieve_memories(question, k=max(args.topk, 40))
+
+        if args.recall_only:
+            recall_total += 1
+            hit = answer_in_memories(oracle, memories, args.topk)
+            if hit:
+                recall_hits += 1
+            status = "HIT" if hit else "MISS"
+            print(f"[{status}] {qid} answer={oracle!r}")
+            continue
 
         try:
             answer = generate_answer(question, memories)
@@ -159,6 +227,11 @@ def main():
             answer = "[ERROR]"
 
         hypotheses.append({"question_id": qid, "hypothesis": answer})
+
+    if args.recall_only:
+        recall = (recall_hits / recall_total) if recall_total else 0.0
+        print(f"\naggregate recall: {recall_hits}/{recall_total} = {recall:.2f}")
+        return
 
     with open(args.output, "w", encoding="utf-8") as f:
         for h in hypotheses:

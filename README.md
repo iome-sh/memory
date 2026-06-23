@@ -204,6 +204,38 @@ make longmemeval-smoke
 make longmemeval-recall-gate
 ```
 
+**Offline LongMemEval recall benchmark** (official JSON schema subset in `testdata/`; no OpenAI):
+
+```bash
+# Committed 3-example oracle subset (CI default)
+make longmemeval-bench
+
+# Full official oracle split (download first)
+make download-dataset
+make longmemeval-bench-full
+```
+
+The Go CLI (`cmd/longmemeval-bench`) ingests `haystack_sessions` via `IngestTurn`, retrieves with ONNX `SearchMemory`, and scores recall when the oracle answer (or significant answer tokens) appears in top-k memory text. Exit code 1 when recall falls below `-min-recall` (default 0.6).
+
+Optional env overrides for `scripts/longmemeval_recall_bench.sh`:
+
+| Variable | Default |
+|----------|---------|
+| `LONGMEMEVAL_DATASET` | `testdata/longmemeval_oracle_subset.json` |
+| `LONGMEMEVAL_TOPK` | `5` |
+| `LONGMEMEVAL_MIN_RECALL` | `0.6` |
+| `MEMORY_ONNX_MODEL_PATH` | `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2` when present |
+
+Python orchestrator recall-only mode (server must be running; no API key):
+
+```bash
+export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+go run cmd/longmemeval-server/main.go &
+python scripts/longmemeval_orchestrator.py \
+  --dataset testdata/longmemeval_oracle_subset.json \
+  --recall-only --topk 5
+```
+
 1. **Start the benchmark server** (uses your PalaceStore + SearchMemory):
    ```bash
    # Optional: production ONNX embeddings (384-d MiniLM; dramatically better recall)
