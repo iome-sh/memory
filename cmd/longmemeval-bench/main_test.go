@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,48 @@ import (
 	"github.com/knights-analytics/hugot"
 	"github.com/sudo-jin/memory"
 )
+
+func TestFlexAnswer_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{name: "string", raw: `"Paris"`, want: "Paris"},
+		{name: "integer", raw: `3`, want: "3"},
+		{name: "float", raw: `17.5`, want: "17.5"},
+		{name: "null", raw: `null`, want: ""},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var a FlexAnswer
+			if err := json.Unmarshal([]byte(tc.raw), &a); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if got := a.String(); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoadDataset_NumericAnswer(t *testing.T) {
+	t.Parallel()
+	raw := `[{"question_id":"x","question":"How many?","answer":3,"haystack_sessions":[[{"role":"user","content":"I have 3 cats"}]]}]`
+	var instances []LongMemEvalInstance
+	if err := json.Unmarshal([]byte(raw), &instances); err != nil {
+		t.Fatalf("parse dataset: %v", err)
+	}
+	if len(instances) != 1 {
+		t.Fatalf("len = %d, want 1", len(instances))
+	}
+	if got := instances[0].Answer.String(); got != "3" {
+		t.Fatalf("answer = %q, want %q", got, "3")
+	}
+}
 
 func TestBench_SubsetPasses(t *testing.T) {
 	modelDir := onnxModelDirForBenchTest(t)
