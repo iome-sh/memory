@@ -101,6 +101,59 @@ func (e *GONNXEmbedder) Close() error {
 	return e.session.Destroy()
 }
 
+// EmbedBatch returns L2-normalized embeddings for all texts in one pipeline forward pass.
+func (e *GONNXEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
+	if e == nil || e.pipeline == nil {
+		return nil, fmt.Errorf("onnx embedder not initialized")
+	}
+	if len(texts) == 0 {
+		return nil, nil
+	}
+
+	trimmed := make([]string, len(texts))
+	for i, text := range texts {
+		trimmed[i] = strings.TrimSpace(text)
+	}
+
+	out, err := e.pipeline.RunPipeline(e.ctx, trimmed)
+	if err != nil {
+		return nil, fmt.Errorf("onnx embed batch: %w", err)
+	}
+	if out == nil || len(out.Embeddings) != len(trimmed) {
+		return nil, fmt.Errorf("onnx embed batch: expected %d embeddings, got %d", len(trimmed), len(out.Embeddings))
+	}
+
+	vecs := make([][]float32, len(trimmed))
+	for i, text := range trimmed {
+		if text == "" {
+			vecs[i] = make([]float32, e.Dimension())
+			continue
+		}
+		if len(out.Embeddings[i]) == 0 {
+			return nil, fmt.Errorf("onnx embed batch: empty embedding at index %d", i)
+		}
+		vec := make([]float32, len(out.Embeddings[i]))
+		copy(vec, out.Embeddings[i])
+		vecs[i] = vec
+	}
+	return vecs, nil
+}
+
+// BatchFunc returns a Palace-compatible batch embedding closure for SearchMemory batch scoring.
+func (e *GONNXEmbedder) BatchFunc() BatchEmbeddingFunc {
+	return func(texts []string, dim int) ([][]float32, error) {
+		vecs, err := e.EmbedBatch(texts)
+		if err != nil {
+			return nil, err
+		}
+		out := make([][]float32, len(vecs))
+		for i, vec := range vecs {
+			out[i] = fitEmbeddingDim(vec, dim)
+		}
+		return out, nil
+	}
+}
+
 // Embed returns an L2-normalized embedding for text.
 func (e *GONNXEmbedder) Embed(text string) ([]float32, error) {
 	if e == nil || e.pipeline == nil {
