@@ -16,6 +16,12 @@ import (
 const (
 	// MiniLMEmbeddingDim is the output size for all-MiniLM-L6-v2 (and KnightsAnalytics ONNX export).
 	MiniLMEmbeddingDim = 384
+	// MiniLMMaxSeqTokens is the BERT position limit for all-MiniLM-L6-v2 ONNX exports.
+	MiniLMMaxSeqTokens = 512
+	// miniLMEmbedRuneBudget caps embed input before ONNX tokenization. Hugot's Go tokenizer
+	// does not truncate to max_position_embeddings; use a conservative rune budget so
+	// tokenized length stays within MiniLMMaxSeqTokens (including [CLS]/[SEP]).
+	miniLMEmbedRuneBudget = 1000
 	// DefaultHashEmbeddingDim is the dimension used by GenerateSimpleEmbedding when dim <= 0.
 	DefaultHashEmbeddingDim = 768
 	// EnvONNXModelPath points at a hugot model directory (tokenizer + model.onnx) or a single .onnx file.
@@ -112,7 +118,7 @@ func (e *GONNXEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
 
 	trimmed := make([]string, len(texts))
 	for i, text := range texts {
-		trimmed[i] = strings.TrimSpace(text)
+		trimmed[i] = truncateForEmbedding(text)
 	}
 
 	out, err := e.pipeline.RunPipeline(e.ctx, trimmed)
@@ -159,7 +165,7 @@ func (e *GONNXEmbedder) Embed(text string) ([]float32, error) {
 	if e == nil || e.pipeline == nil {
 		return nil, fmt.Errorf("onnx embedder not initialized")
 	}
-	text = strings.TrimSpace(text)
+	text = truncateForEmbedding(text)
 	if text == "" {
 		return make([]float32, e.Dimension()), nil
 	}
@@ -269,6 +275,19 @@ func fitEmbeddingDim(vec []float32, dim int) []float32 {
 	out := make([]float32, dim)
 	copy(out, vec)
 	return out
+}
+
+// truncateForEmbedding limits text length so ONNX MiniLM inputs stay within the 512-token window.
+func truncateForEmbedding(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	runes := []rune(text)
+	if len(runes) <= miniLMEmbedRuneBudget {
+		return text
+	}
+	return string(runes[:miniLMEmbedRuneBudget])
 }
 
 func envBool(key string) bool {
