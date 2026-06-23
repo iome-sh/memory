@@ -12,12 +12,45 @@ import (
 	"github.com/sudo-jin/memory"
 )
 
+// FlexAnswer unmarshals LongMemEval answers that may be JSON strings or numbers.
+type FlexAnswer string
+
+func (a *FlexAnswer) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		*a = ""
+		return nil
+	}
+	switch data[0] {
+	case '"':
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		*a = FlexAnswer(s)
+		return nil
+	case 'n':
+		*a = ""
+		return nil
+	default:
+		var n json.Number
+		if err := json.Unmarshal(data, &n); err != nil {
+			return err
+		}
+		*a = FlexAnswer(n.String())
+		return nil
+	}
+}
+
+func (a FlexAnswer) String() string {
+	return string(a)
+}
+
 // LongMemEvalInstance mirrors the official LongMemEval JSON schema (oracle subset).
 type LongMemEvalInstance struct {
 	QuestionID         string           `json:"question_id"`
 	QuestionType       string           `json:"question_type,omitempty"`
 	Question           string           `json:"question"`
-	Answer             string           `json:"answer"`
+	Answer             FlexAnswer       `json:"answer"`
 	QuestionDate       string           `json:"question_date,omitempty"`
 	HaystackSessionIDs []string         `json:"haystack_session_ids,omitempty"`
 	HaystackDates      []string         `json:"haystack_dates,omitempty"`
@@ -287,13 +320,13 @@ func evalInstance(inst LongMemEvalInstance, embedFn memory.EmbeddingFunc, batchF
 	qr := QuestionResult{
 		QuestionID: inst.QuestionID,
 		Question:   inst.Question,
-		Answer:     inst.Answer,
+		Answer:     inst.Answer.String(),
 	}
 	if len(memories) > 0 {
 		qr.TopSummary = memories[0].Content.Summary
 		qr.TopFull = memories[0].Content.Full
 	}
-	qr.Hit = answerInMemories(inst.Answer, memories, topK)
+	qr.Hit = answerInMemories(inst.Answer.String(), memories, topK)
 	return qr, nil
 }
 
