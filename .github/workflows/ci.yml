@@ -1,0 +1,24 @@
+# LongMemEval ONNX smoke gate — workflow_dispatch only (matches aion CI policy).
+name: ci
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOPRIVATE: github.com/sudo-jin/*
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: make test
+        run: make test
+
+      - name: make test-onnx
+        run: make test-onnx

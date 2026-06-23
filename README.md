@@ -192,6 +192,12 @@ We provide first-class support for the official [LongMemEval](https://github.com
 
 ### Quick Start
 
+**Production ONNX smoke gate** (no Qdrant; ingest + retrieve recall on golden-retriever fixture):
+
+```bash
+make longmemeval-smoke
+```
+
 1. **Start the benchmark server** (uses your PalaceStore + SearchMemory):
    ```bash
    # Optional: production ONNX embeddings (384-d MiniLM; dramatically better recall)
