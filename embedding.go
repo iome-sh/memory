@@ -165,6 +165,20 @@ func NewGONNXEmbeddingFuncFromEnv() (EmbeddingFunc, error) {
 	return NewGONNXEmbeddingFunc(os.Getenv(EnvONNXModelPath))
 }
 
+// ResolveEmbeddingDim returns the Qdrant/Palace vector width for the active embedding backend.
+// When an ONNX model path is configured, uses MiniLMEmbeddingDim (384); otherwise hash (768).
+func ResolveEmbeddingDim(modelPath string) int {
+	if strings.TrimSpace(modelPath) != "" {
+		return MiniLMEmbeddingDim
+	}
+	return DefaultHashEmbeddingDim
+}
+
+// ResolveEmbeddingDimFromEnv reads MEMORY_ONNX_MODEL_PATH and returns the matching dimension.
+func ResolveEmbeddingDimFromEnv() int {
+	return ResolveEmbeddingDim(os.Getenv(EnvONNXModelPath))
+}
+
 // resolveONNXModelDir accepts a hugot model directory or a lone .onnx file path.
 func resolveONNXModelDir(modelPath string) (dir string, onnxFile string, err error) {
 	modelPath = strings.TrimSpace(modelPath)
