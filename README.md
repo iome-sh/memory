@@ -48,7 +48,16 @@ export MEMORY_ORT_CUDA=1
 export MEMORY_ORT_LIBRARY_DIR=/usr/lib   # libonnxruntime.so directory
 ```
 
-**macOS dev:** ORT + CoreML — build with `-tags ORT`, set `MEMORY_HUGOT_BACKEND=auto` (enables CoreML on darwin, falls back to GoMLX if ORT libs missing).
+**macOS dev:** ORT + CoreML — one-time native deps, then build with `-tags ORT`:
+
+```bash
+make download-ort-deps          # testdata/ort-deps/lib/{libtokenizers.a,libonnxruntime.dylib}
+eval "$(./scripts/ort_cgo_env.sh)"
+export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+export MEMORY_HUGOT_BACKEND=auto   # CoreML on darwin; GoMLX fallback if ORT init fails
+go build -tags ORT -o bin/longmemeval-bench-ort ./cmd/longmemeval-bench
+# or: make build-ort-bench
+```
 
 **Auto:** `MEMORY_HUGOT_BACKEND=auto` tries ORT (CoreML on Mac, CUDA when `MEMORY_ORT_CUDA=1` on Linux), then falls back to GoMLX.
 
