@@ -25,3 +25,6 @@ jobs:
 
       - name: make longmemeval-recall-gate
         run: make longmemeval-recall-gate
+
+      - name: make longmemeval-bench
+        run: make longmemeval-bench

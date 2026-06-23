@@ -1,0 +1,130 @@
+[
+  {
+    "question_id": "subset-pet-adoption",
+    "question_type": "single-session-user",
+    "question": "Which furry family member did I bring home last spring?",
+    "answer": "Max",
+    "question_date": "2024-06-15",
+    "haystack_session_ids": ["sess-pet-1", "sess-pet-filler"],
+    "haystack_dates": ["2024-03-15T10:00:00Z", "2024-02-01T14:00:00Z"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "I've been thinking about getting a dog for months.",
+          "has_answer": false
+        },
+        {
+          "role": "assistant",
+          "content": "That's exciting! What breed are you considering?",
+          "has_answer": false
+        },
+        {
+          "role": "user",
+          "content": "I adopted a golden retriever named Max in March 2024.",
+          "has_answer": true
+        },
+        {
+          "role": "assistant",
+          "content": "Max sounds like a wonderful companion!",
+          "has_answer": false
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "The weather has been nice for long walks lately.",
+          "has_answer": false
+        },
+        {
+          "role": "assistant",
+          "content": "Spring is a great season for outdoor activities.",
+          "has_answer": false
+        }
+      ]
+    ],
+    "answer_session_ids": ["sess-pet-1"]
+  },
+  {
+    "question_id": "subset-career",
+    "question_type": "single-session-user",
+    "question": "Where do I work studying ocean life?",
+    "answer": "Monterey Bay Aquarium",
+    "question_date": "2024-08-01",
+    "haystack_session_ids": ["sess-career-1", "sess-career-filler"],
+    "haystack_dates": ["2023-06-01T09:00:00Z", "2023-05-10T11:00:00Z"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "I started working as a marine biologist at the Monterey Bay Aquarium in June 2023.",
+          "has_answer": true
+        },
+        {
+          "role": "assistant",
+          "content": "That must be fascinating work with kelp forests and sea otters.",
+          "has_answer": false
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "I finished a certification in scuba diving last year.",
+          "has_answer": false
+        },
+        {
+          "role": "assistant",
+          "content": "Diving skills are invaluable for field research.",
+          "has_answer": false
+        }
+      ]
+    ],
+    "answer_session_ids": ["sess-career-1"]
+  },
+  {
+    "question_id": "subset-allergy",
+    "question_type": "single-session-user",
+    "question": "What foods should I avoid at a seafood restaurant?",
+    "answer": "shellfish",
+    "question_date": "2024-04-20",
+    "haystack_session_ids": ["sess-allergy-1", "sess-allergy-filler"],
+    "haystack_dates": ["2024-01-10T14:00:00Z", "2024-01-05T12:00:00Z"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "I'm planning a dinner with friends downtown.",
+          "has_answer": false
+        },
+        {
+          "role": "assistant",
+          "content": "Do you have any dietary restrictions to keep in mind?",
+          "has_answer": false
+        },
+        {
+          "role": "user",
+          "content": "I'm severely allergic to shellfish and always carry an epinephrine pen.",
+          "has_answer": true
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks for letting me know—I'll keep your shellfish allergy in mind when we pick a restaurant.",
+          "has_answer": false
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "I also prefer vegetarian appetizers when possible.",
+          "has_answer": false
+        },
+        {
+          "role": "assistant",
+          "content": "Many restaurants offer great plant-based starters.",
+          "has_answer": false
+        }
+      ]
+    ],
+    "answer_session_ids": ["sess-allergy-1"]
+  }
+]
