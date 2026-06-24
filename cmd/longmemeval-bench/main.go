@@ -435,7 +435,7 @@ func resolveONNXModelPath(explicit string) (string, error) {
 	}
 
 	repoRoot := findRepoRoot()
-	cached := filepath.Join(repoRoot, "testdata", "models", "KnightsAnalytics_all-MiniLM-L6-v2")
+	cached := filepath.Join(repoRoot, "testdata", "models", memory.DefaultONNXModelCacheDirName())
 	if info, err := os.Stat(cached); err == nil && info.IsDir() {
 		return cached, nil
 	}

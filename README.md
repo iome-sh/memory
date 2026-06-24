@@ -53,7 +53,7 @@ export MEMORY_ORT_LIBRARY_DIR=/usr/lib   # libonnxruntime.so directory
 ```bash
 make download-ort-deps          # testdata/ort-deps/lib/{libtokenizers.a,libonnxruntime.dylib}
 eval "$(./scripts/ort_cgo_env.sh)"
-export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
 export MEMORY_HUGOT_BACKEND=auto   # CoreML on darwin; GoMLX fallback if ORT init fails
 go build -tags ORT -o bin/longmemeval-bench-ort ./cmd/longmemeval-bench
 # or: make build-ort-bench
@@ -76,7 +76,7 @@ cfg := memory.PalaceConfig{
 store := memory.NewPalaceStoreWithConfig(cfg)
 ```
 
-`NewGONNXEmbeddingFunc` uses [`hugot`](https://github.com/knights-analytics/hugot) (pure Go backend, no ORT dylibs). Pass a **hugot model directory** (tokenizer + `model.onnx`) or a direct `.onnx` file path. Default export is `KnightsAnalytics/all-MiniLM-L6-v2` (**384** dimensions).
+`NewGONNXEmbeddingFunc` uses [`hugot`](https://github.com/knights-analytics/hugot) (pure Go backend, no ORT dylibs). Pass a **hugot model directory** (tokenizer + `model.onnx`) or a direct `.onnx` file path. Default export is `KnightsAnalytics/bge-small-en-v1.5` (**384** dimensions).
 
 Environment:
 
@@ -90,7 +90,7 @@ Environment:
 | `MEMORY_ORT_CUDA_DEVICE_ID` | CUDA device index (default `0`) |
 | `MEMORY_EMBEDDING_STRICT=true` | Disable silent hash fallback on inference errors |
 
-**Qdrant / sidecar:** set collection `EmbeddingDim` to **384** when using MiniLM (not 768 hash default).
+**Qdrant / sidecar:** set collection `EmbeddingDim` to **384** when using the default BGE-small ONNX export (not 768 hash default).
 
 Download helper:
 
@@ -267,7 +267,7 @@ Optional env overrides for `scripts/longmemeval_recall_bench.sh`:
 | `LONGMEMEVAL_MIN_RECALL` | `0.6` |
 | `LONGMEMEVAL_QUIET` | unset (`1` = aggregate line only) |
 | `LONGMEMEVAL_JSON_REPORT` | unset (path for JSON aggregate report) |
-| `MEMORY_ONNX_MODEL_PATH` | `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2` when present |
+| `MEMORY_ONNX_MODEL_PATH` | `testdata/models/KnightsAnalytics_bge-small-en-v1.5` when present |
 
 **Full 500-question eval + OpenAI judge** (offline recall first, then QA generation + official scorer):
 
@@ -283,7 +283,7 @@ LONGMEMEVAL_DATASET=data/longmemeval_oracle.json LONGMEMEVAL_QUIET=1 \
 
 # Phase 3: QA + judge (requires OPENAI_API_KEY and running server)
 export OPENAI_API_KEY=sk-...
-export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
 go run cmd/longmemeval-server/main.go &
 
 make longmemeval-qa-generate LONGMEMEVAL_QA_LIMIT=500 LONGMEMEVAL_QA_WORKERS=4
@@ -295,7 +295,7 @@ make longmemeval-judge LONGMEMEVAL_JUDGE_MODEL=gpt-4o-mini
 Python orchestrator recall-only mode (server must be running; no API key):
 
 ```bash
-export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
 go run cmd/longmemeval-server/main.go &
 python scripts/longmemeval_orchestrator.py \
   --dataset testdata/longmemeval_oracle_subset.json \
@@ -304,15 +304,15 @@ python scripts/longmemeval_orchestrator.py \
 
 1. **Start the benchmark server** (uses your PalaceStore + SearchMemory):
    ```bash
-   # Optional: production ONNX embeddings (384-d MiniLM; dramatically better recall)
+   # Optional: production ONNX embeddings (384-d BGE-small; dramatically better recall)
    export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
-   # Or point at cached testdata: export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+   # Or point at cached testdata: export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
 
    go run cmd/longmemeval-server/main.go
    ```
    The server listens on `http://localhost:8765` and exposes `/ingest`, `/retrieve`, and `/synthesize`.
 
-   On startup the server logs `embedding mode=onnx` or `embedding mode=hash`. When `MEMORY_ONNX_MODEL_PATH` is unset, hash embeddings use dimension **768**; with ONNX, Qdrant collections are created at **384** (`memory.MiniLMEmbeddingDim`). Init failures fall back to hash with a log line.
+   On startup the server logs `embedding mode=onnx` or `embedding mode=hash`. When `MEMORY_ONNX_MODEL_PATH` is unset, hash embeddings use dimension **768**; with ONNX, Qdrant collections are created at **384** (`memory.BGESmallEmbeddingDim`). Init failures fall back to hash with a log line.
 
 2. **Download the official dataset** (small split for testing):
    ```bash

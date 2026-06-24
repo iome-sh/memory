@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/iome-sh/memory"
 	"github.com/knights-analytics/hugot"
 )
 
@@ -15,7 +16,7 @@ func downloadONNXModel(repoRoot string) (string, error) {
 		return "", fmt.Errorf("mkdir testdata/models: %w", err)
 	}
 	ctx := context.Background()
-	dir, err := hugot.DownloadModel(ctx, "KnightsAnalytics/all-MiniLM-L6-v2", dest, hugot.NewDownloadOptions())
+	dir, err := hugot.DownloadModel(ctx, memory.DefaultEmbeddingModelFromEnv(), dest, hugot.NewDownloadOptions())
 	if err != nil {
 		return "", fmt.Errorf("download onnx model: %w", err)
 	}
