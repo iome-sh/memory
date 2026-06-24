@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      GOPRIVATE: github.com/sudo-jin/*
+      GOPRIVATE: github.com/iome-sh/*
     steps:
       - uses: actions/checkout@v4
 

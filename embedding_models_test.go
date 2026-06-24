@@ -31,6 +31,16 @@ func TestInferEmbeddingDimFromModelPath(t *testing.T) {
 	}
 }
 
+func TestDefaultONNXModelCacheDirName(t *testing.T) {
+	t.Setenv(EnvEmbeddingModelHF, "")
+	if got := DefaultONNXModelCacheDirName(); got != "KnightsAnalytics_bge-small-en-v1.5" {
+		t.Fatalf("cache dir = %q, want KnightsAnalytics_bge-small-en-v1.5", got)
+	}
+	if got := HugotCacheDirName("org/model-id"); got != "org_model-id" {
+		t.Fatalf("HugotCacheDirName = %q, want org_model-id", got)
+	}
+}
+
 func TestResolveEmbeddingDimUsesModelPath(t *testing.T) {
 	if got := ResolveEmbeddingDim("/models/KnightsAnalytics_bge-small-en-v1.5"); got != BGESmallEmbeddingDim {
 		t.Fatalf("bge dim = %d, want %d", got, BGESmallEmbeddingDim)

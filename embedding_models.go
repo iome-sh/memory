@@ -25,6 +25,16 @@ func DefaultEmbeddingModelFromEnv() string {
 	return DefaultONNXModelHF
 }
 
+// HugotCacheDirName returns the local directory name hugot uses for a Hugging Face model id.
+func HugotCacheDirName(hfModel string) string {
+	return strings.ReplaceAll(strings.TrimSpace(hfModel), "/", "_")
+}
+
+// DefaultONNXModelCacheDirName is the testdata/models subdirectory for the default ONNX export.
+func DefaultONNXModelCacheDirName() string {
+	return HugotCacheDirName(DefaultEmbeddingModelFromEnv())
+}
+
 func getenv(key string) string {
 	return strings.TrimSpace(osGetenv(key))
 }

@@ -11,7 +11,7 @@ TOPK="${LONGMEMEVAL_TOPK:-5}"
 MIN_RECALL="${LONGMEMEVAL_MIN_RECALL:-0.6}"
 
 if [[ -z "${MEMORY_ONNX_MODEL_PATH:-}" ]]; then
-  CACHED="${ROOT}/testdata/models/KnightsAnalytics_all-MiniLM-L6-v2"
+  CACHED="${ROOT}/testdata/models/KnightsAnalytics_bge-small-en-v1.5"
   if [[ -d "${CACHED}" ]]; then
     export MEMORY_ONNX_MODEL_PATH="${CACHED}"
   fi

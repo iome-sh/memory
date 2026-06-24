@@ -7,7 +7,7 @@ per question (single combined prompt — no separate summarize step).
 
 Prerequisites:
   1. Start the benchmark server:
-       export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+       export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
        go run cmd/longmemeval-server/main.go
   2. pip install -r requirements-bench.txt
   3. export OPENAI_API_KEY=sk-...
@@ -178,7 +178,7 @@ def main() -> None:
     if not check_server(probe):
         print(
             "Start the Go server first:\n"
-            "  export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_all-MiniLM-L6-v2\n"
+            "  export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5\n"
             "  go run cmd/longmemeval-server/main.go",
             file=sys.stderr,
         )
