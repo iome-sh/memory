@@ -1,9 +1,13 @@
-// Download the default KnightsAnalytics all-MiniLM-L6-v2 ONNX model for local Palace recall.
+// Download the default KnightsAnalytics bge-small-en-v1.5 ONNX model for local Palace recall.
 //
 // Usage:
 //
 //	go run ./scripts/download_onnx_model.go
 //	export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
+//
+// Optional env:
+//
+//	MEMORY_EMBEDDING_MODEL — Hugging Face model id (default: KnightsAnalytics/bge-small-en-v1.5)
 package main
 
 import (
@@ -11,11 +15,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/knights-analytics/hugot"
 )
 
-const defaultModel = "KnightsAnalytics/all-MiniLM-L6-v2"
+func defaultModel() string {
+	if raw := strings.TrimSpace(os.Getenv("MEMORY_EMBEDDING_MODEL")); raw != "" {
+		return raw
+	}
+	return "KnightsAnalytics/bge-small-en-v1.5"
+}
 
 func main() {
 	dest := filepath.Join("testdata", "models")
@@ -23,7 +33,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "mkdir %s: %v\n", dest, err)
 		os.Exit(1)
 	}
-	dir, err := hugot.DownloadModel(context.Background(), defaultModel, dest, hugot.NewDownloadOptions())
+	dir, err := hugot.DownloadModel(context.Background(), defaultModel(), dest, hugot.NewDownloadOptions())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "download model: %v\n", err)
 		os.Exit(1)

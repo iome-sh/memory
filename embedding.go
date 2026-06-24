@@ -242,12 +242,16 @@ func NewGONNXEmbeddingFuncFromEnv() (EmbeddingFunc, error) {
 }
 
 // ResolveEmbeddingDim returns the Qdrant/Palace vector width for the active embedding backend.
-// When an ONNX model path is configured, uses MiniLMEmbeddingDim (384); otherwise hash (768).
+// When an ONNX model path is configured, infers dimension from the model directory name; otherwise hash (768).
 func ResolveEmbeddingDim(modelPath string) int {
-	if strings.TrimSpace(modelPath) != "" {
-		return MiniLMEmbeddingDim
+	modelPath = strings.TrimSpace(modelPath)
+	if modelPath == "" {
+		return DefaultHashEmbeddingDim
 	}
-	return DefaultHashEmbeddingDim
+	if dim := inferEmbeddingDimFromModelPath(modelPath); dim > 0 {
+		return dim
+	}
+	return BGESmallEmbeddingDim
 }
 
 // ResolveEmbeddingDimFromEnv reads MEMORY_ONNX_MODEL_PATH and returns the matching dimension.
