@@ -405,7 +405,7 @@ func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn Embeddin
 }
 
 // SearchMemoryOptions configures hybrid retrieval with optional session, time-window,
-// and temporal re-ranking filters (s586 temporal retrieval).
+// as-of validity, and temporal re-ranking filters (s586 temporal retrieval; s616 AsOf).
 type SearchMemoryOptions struct {
 	// SessionID, when non-empty, keeps only entries with a matching SessionID.
 	SessionID string
@@ -413,6 +413,9 @@ type SearchMemoryOptions struct {
 	// Both bounds are inclusive when set.
 	TimeFrom *time.Time
 	TimeTo   *time.Time
+	// AsOf, when non-nil, drops candidates where !EntryValidAt(e, *AsOf) before Limit
+	// (K4 facts-as-of / validity window; see EntryValidAt).
+	AsOf *time.Time
 	// Limit caps the result set (default 10 when <= 0).
 	Limit int
 	// Tier, when non-nil, restricts candidates to that tier.
@@ -487,6 +490,17 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 				continue
 			}
 			filtered = append(filtered, e)
+		}
+		results = filtered
+	}
+
+	// As-of validity filter (K4 / s616): after time-window, before keyword/vector + Limit.
+	if opts.AsOf != nil {
+		var filtered []MemoryEntry
+		for _, e := range results {
+			if EntryValidAt(e, *opts.AsOf) {
+				filtered = append(filtered, e)
+			}
 		}
 		results = filtered
 	}

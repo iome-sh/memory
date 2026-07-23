@@ -2,7 +2,7 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3  
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4  
 **Last Updated**: 2026-07-23
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
@@ -30,7 +30,7 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 | **K1** | **Shipped** (s586 / v1.5.2) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
 | **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
-| **K4** | Later / non-goal now | Entity validity windows / temporal knowledge graph |
+| **K4** | **Partial shipped** (s616 / v1.5.4) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`); not full temporal KG |
 
 ---
 
@@ -79,6 +79,7 @@ type SearchMemoryOptions struct {
     SessionID      string
     TimeFrom       *time.Time // inclusive event time (entryEventTime)
     TimeTo         *time.Time // inclusive
+    AsOf           *time.Time // optional; when set, EntryValidAt filter before Limit (s616)
     Limit          int        // default 10
     Tier           *MemoryTier
     QueryVec       []float32
@@ -164,17 +165,61 @@ K3 must:
 
 ---
 
-## K4 — Entity validity windows / temporal KG (later)
+## K4 — Entity validity windows / temporal KG — **Partial shipped** (s616 / v1.5.4)
 
-**Status**: Non-goal for the current kernel track.
+**Goal**: First-class **as-of validity** (bi-temporal lite) so hosts that write `valid_from:` / `valid_until:` TemporalTags can list and search facts valid at a point in time.
 
-Possible future direction (research / product-dependent):
+### Shipped (s616) — facts-as-of first slice
 
-- Entity validity intervals (valid-from / valid-to)
-- Temporal edges on relations for knowledge-graph style recall
-- Consistency with compaction and fact-augmented ingest
+```go
+func ParseValidityWindow(e MemoryEntry) (from, until *time.Time)
+func EntryValidAt(e MemoryEntry, asOf time.Time) bool
 
-Do not schedule K4 against current s586/s587 delivery. Host product “Memory” branding must not claim K4 until separately chartered.
+type FactsAsOfOptions struct {
+    AsOf            time.Time // zero = Now UTC
+    Query           string
+    SessionID       string
+    Entity          string    // entity: TemporalTags filter
+    Limit           int       // default 50
+    Tier            *MemoryTier
+    IncludeArchival bool
+}
+
+func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry
+// SearchMemoryOptions.AsOf *time.Time — filter !EntryValidAt before Limit
+```
+
+#### Validity rules (`EntryValidAt`)
+
+| Case | Rule |
+|------|------|
+| Zero `asOf` | Treated as `time.Now().UTC()` |
+| `valid_from` set | Invalid if `asOf.Before(from)` (inclusive start) |
+| `valid_until` set | Invalid if `!asOf.Before(until)` — **exclusive end** (`asOf == until` is invalid) |
+| No validity tags | “Known by asOf”: valid if `entryEventTime` is zero **or** `!entryEventTime.After(asOf)` |
+
+Tag format (host-written, e.g. aion `applyTemporalToEntry`): `valid_from:<RFC3339>`, `valid_until:<RFC3339>`.
+
+#### ListFactsAsOf
+
+- Default tiers: Working + Contextual + Semantic (+ Archival if `IncludeArchival`)
+- Filters (session, entity, query, validity) apply **before** Limit (underfill class)
+- Ordering: **Semantic first**, then event time descending within rank
+- Entity filter: substring on `entity:` tags when value has no `:`; exact `entity:type:id` when value contains `:`
+
+### Honesty / non-goals (still open)
+
+This is **bi-temporal lite** (validity window on entries via tags), **not**:
+
+- Full Graphiti-style dual clocks (transaction time + validity time as first-class stores)
+- Temporal knowledge graph with edge validity
+- Multi-tenant product Memory GA
+
+Residual for later K4 slices (when product demand is explicit):
+
+- Temporal edges on relations for KG-style recall
+- Consistency with compaction and fact-augmented ingest beyond host tags
+- Optional indexes if O(n) FS scans become the bottleneck
 
 ---
 
@@ -194,8 +239,8 @@ Do not schedule K4 against current s586/s587 delivery. Host product “Memory”
 
 1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
 2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
-3. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)  
-4. Defer **K4** until entity-graph product demand is explicit  
+3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
+4. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
 
 ---
 
@@ -206,9 +251,10 @@ Do not schedule K4 against current s586/s587 delivery. Host product “Memory”
 - Embedding dimension changes require collection recreation when using Qdrant; document in release notes  
 - **v1.5.2**: K1 `SearchMemoryWithOptions`  
 - **v1.5.3**: K2 partial `ListMemoryWithOptions` + `EntryHasTag` / `EntryHasTagPrefix`  
+- **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
 - BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3.*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4.*
 
