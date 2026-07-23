@@ -1,30 +1,71 @@
-# LongMemEval ONNX smoke gate — workflow_dispatch only (matches aion CI policy).
+# CI for github.com/iome-sh/memory (Palace kernel).
+# Unit tests run on every PR/push; heavy LongMemEval/ONNX remain optional (dispatch).
 name: ci
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      run_longmemeval:
+        description: "Also run LongMemEval/ONNX gates (needs network + models)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: test
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      GOPRIVATE: github.com/iome-sh/*
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go mod verify
+        run: go mod verify
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./... -count=1
+
+      - name: go build packages
+        run: |
+          go build ./...
+          go build -o /tmp/longmemeval-bench ./cmd/longmemeval-bench
+          go build -o /tmp/longmemeval-server ./cmd/longmemeval-server
+
+  # Optional heavy gates — workflow_dispatch only (models/network).
+  longmemeval:
+    name: longmemeval-optional
+    if: github.event_name == 'workflow_dispatch' && inputs.run_longmemeval == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
-      - name: make test
-        run: make test
-
+          cache: true
       - name: make test-onnx
         run: make test-onnx
-
       - name: make longmemeval-recall-gate
         run: make longmemeval-recall-gate
-
       - name: make longmemeval-bench
         run: make longmemeval-bench
