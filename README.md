@@ -120,6 +120,8 @@ memory/
 ```go
 import (
 	"context"
+	"time"
+
 	"github.com/iome-sh/memory"
 )
 
@@ -141,9 +143,33 @@ cfg := memory.PalaceConfig{
 }
 store = memory.NewPalaceStoreWithConfig(cfg)
 
-// Hybrid search
+// Hybrid search (keyword + optional vector re-rank)
 results := store.SearchMemory("project goals", nil, 10, nil)
+
+// Temporal / session filters + optional relevance re-rank (s586)
+from := time.Now().Add(-24 * time.Hour)
+results = store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOptions{
+	SessionID:      "sess-abc",
+	TimeFrom:       &from,
+	Limit:          10,
+	ReRankTemporal: true, // sort by CalculateRelevanceScore after keyword/vector path
+})
 ```
+
+### SearchMemory / temporal options
+
+`SearchMemory(query, tier, limit, vec)` is a thin wrapper over `SearchMemoryWithOptions` with no session/time filters and `ReRankTemporal=false` (behavior-preserving).
+
+`SearchMemoryOptions` supports:
+
+| Field | Effect |
+|-------|--------|
+| `SessionID` | Keep only entries with matching `SessionID` |
+| `TimeFrom` / `TimeTo` | Inclusive filter on event time: `Timestamp` if set, else `CreatedAt`, else `LastAccessed` |
+| `Limit` | Result cap (default 10) |
+| `Tier` | Optional tier restriction |
+| `QueryVec` | Vector semantic ranking when non-empty |
+| `ReRankTemporal` | After keyword/vector path, sort by `CalculateRelevanceScore` descending |
 
 ## Qdrant Integration (Vector Database)
 
@@ -249,7 +275,7 @@ make longmemeval-bench-full
 
 The Go CLI (`cmd/longmemeval-bench`) ingests `haystack_sessions` via `IngestTurn`, retrieves with ONNX `SearchMemory`, and scores recall when the oracle answer (or significant answer tokens) appears in top-k memory text. Exit code 1 when recall falls below `-min-recall` (default 0.6).
 
-`SearchMemory` precomputes one embedding per candidate (batch ONNX when `BatchEmbeddingFunc` is set on `PalaceConfig`), avoiding O(n log n) re-embeds inside the sort comparator.
+`SearchMemory` / `SearchMemoryWithOptions` precomputes one embedding per candidate (batch ONNX when `BatchEmbeddingFunc` is set on `PalaceConfig`), avoiding O(n log n) re-embeds inside the sort comparator. Session and time-window filters run before ranking; optional `ReRankTemporal` re-sorts by multi-factor relevance after the keyword/vector path.
 
 Bench flags:
 

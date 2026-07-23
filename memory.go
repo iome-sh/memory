@@ -404,31 +404,100 @@ func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn Embeddin
 	return scored
 }
 
-// SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1
-// Supports query, optional tier filter, limit, and vector if VectorStore attached.
-// Now uses the configured EmbeddingFunc from PalaceConfig for vector re-ranking (enables pure-Go ONNX swap).
+// SearchMemoryOptions configures hybrid retrieval with optional session, time-window,
+// and temporal re-ranking filters (s586 temporal retrieval).
+type SearchMemoryOptions struct {
+	// SessionID, when non-empty, keeps only entries with a matching SessionID.
+	SessionID string
+	// TimeFrom / TimeTo filter by entry event time (see entryEventTime).
+	// Both bounds are inclusive when set.
+	TimeFrom *time.Time
+	TimeTo   *time.Time
+	// Limit caps the result set (default 10 when <= 0).
+	Limit int
+	// Tier, when non-nil, restricts candidates to that tier.
+	Tier *MemoryTier
+	// QueryVec enables vector semantic ranking when non-empty.
+	QueryVec []float32
+	// ReRankTemporal, when true, sorts results by CalculateRelevanceScore descending
+	// after the keyword/vector path (before Limit).
+	ReRankTemporal bool
+}
+
+// entryEventTime returns the preferred event clock for temporal filters:
+// Timestamp if set, else CreatedAt, else LastAccessed.
+func entryEventTime(e MemoryEntry) time.Time {
+	if !e.Timestamp.IsZero() {
+		return e.Timestamp
+	}
+	if !e.CreatedAt.IsZero() {
+		return e.CreatedAt
+	}
+	return e.LastAccessed
+}
+
+// SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1.
+// Thin wrapper over SearchMemoryWithOptions with no session/time filters and ReRankTemporal=false.
 func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, vec []float32) []MemoryEntry {
+	return ps.SearchMemoryWithOptions(query, SearchMemoryOptions{
+		Tier:     tier,
+		Limit:    limit,
+		QueryVec: vec,
+	})
+}
+
+// SearchMemoryWithOptions provides hybrid retrieval with optional session, time-window,
+// and temporal re-ranking. Uses the configured EmbeddingFunc for vector re-ranking.
+func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
+	limit := opts.Limit
 	if limit <= 0 {
 		limit = 10
 	}
 	var results []MemoryEntry
 
 	// Start with all entries (or tier filtered)
-	if tier != nil {
-		results = ps.ListEntriesInTier(*tier)
+	if opts.Tier != nil {
+		results = ps.ListEntriesInTier(*opts.Tier)
 	} else {
 		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
 			results = append(results, ps.ListEntriesInTier(t)...)
 		}
 	}
 
+	// Session filter
+	if opts.SessionID != "" {
+		var filtered []MemoryEntry
+		for _, e := range results {
+			if e.SessionID == opts.SessionID {
+				filtered = append(filtered, e)
+			}
+		}
+		results = filtered
+	}
+
+	// Time-window filter (inclusive bounds on preferred event time)
+	if opts.TimeFrom != nil || opts.TimeTo != nil {
+		var filtered []MemoryEntry
+		for _, e := range results {
+			et := entryEventTime(e)
+			if opts.TimeFrom != nil && et.Before(*opts.TimeFrom) {
+				continue
+			}
+			if opts.TimeTo != nil && et.After(*opts.TimeTo) {
+				continue
+			}
+			filtered = append(filtered, e)
+		}
+		results = filtered
+	}
+
 	// Vector semantic path: rank all candidates when a query embedding is supplied (ONNX recall).
-	if len(vec) > 0 {
+	if len(opts.QueryVec) > 0 {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
 			embedFn = GenerateSimpleEmbedding
 		}
-		scored := scoreEntriesByVector(results, vec, embedFn, ps.Config.BatchEmbeddingFunc)
+		scored := scoreEntriesByVector(results, opts.QueryVec, embedFn, ps.Config.BatchEmbeddingFunc)
 		sort.Slice(scored, func(i, j int) bool {
 			return scored[i].score > scored[j].score
 		})
@@ -461,6 +530,13 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 			}
 		}
 		results = filtered
+	}
+
+	// Optional temporal re-rank after keyword/vector path
+	if opts.ReRankTemporal {
+		sort.SliceStable(results, func(i, j int) bool {
+			return CalculateRelevanceScore(results[i]) > CalculateRelevanceScore(results[j])
+		})
 	}
 
 	// Limit
