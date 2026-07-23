@@ -120,6 +120,8 @@ memory/
 ```go
 import (
 	"context"
+	"time"
+
 	"github.com/iome-sh/memory"
 )
 

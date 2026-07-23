@@ -3,6 +3,7 @@ package memory
 import (
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type countingEmbeddingFunc struct {
@@ -46,4 +47,207 @@ func TestSearchMemory_PrecomputesEmbeddings(t *testing.T) {
 	if got != want {
 		t.Fatalf("embed calls = %d, want %d (precompute once per entry, not O(n log n) sort compares)", got, want)
 	}
+}
+
+func TestSearchMemoryWithOptions_SessionFilter(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	entries := []MemoryEntry{
+		{ID: "s1a", Tier: TierContextual, SessionID: "sess-A", Content: MemoryContent{Summary: "alpha project notes session A"}},
+		{ID: "s1b", Tier: TierContextual, SessionID: "sess-A", Content: MemoryContent{Summary: "alpha follow-up notes session A"}},
+		{ID: "s2a", Tier: TierContextual, SessionID: "sess-B", Content: MemoryContent{Summary: "alpha project notes session B"}},
+		{ID: "s0", Tier: TierContextual, SessionID: "", Content: MemoryContent{Summary: "alpha project notes no session"}},
+	}
+	for _, e := range entries {
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	results := store.SearchMemoryWithOptions("alpha project notes", SearchMemoryOptions{
+		SessionID: "sess-A",
+		Limit:     10,
+	})
+	if len(results) != 2 {
+		t.Fatalf("session filter len = %d, want 2; got %+v", len(results), idsOf(results))
+	}
+	for _, r := range results {
+		if r.SessionID != "sess-A" {
+			t.Fatalf("got SessionID %q, want sess-A", r.SessionID)
+		}
+	}
+}
+
+func TestSearchMemoryWithOptions_TimeWindow(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	base := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		// Timestamp preferred over CreatedAt
+		{
+			ID: "ts-old", Tier: TierContextual,
+			Timestamp: base.Add(-48 * time.Hour),
+			CreatedAt: base, // would pass window if used; Timestamp must win
+			Content:   MemoryContent{Summary: "alpha event old timestamp"},
+		},
+		{
+			ID: "ts-mid", Tier: TierContextual,
+			Timestamp: base,
+			Content:   MemoryContent{Summary: "alpha event mid timestamp"},
+		},
+		{
+			ID: "ts-new", Tier: TierContextual,
+			Timestamp: base.Add(48 * time.Hour),
+			Content:   MemoryContent{Summary: "alpha event new timestamp"},
+		},
+		// CreatedAt fallback when Timestamp zero
+		{
+			ID: "ca-mid", Tier: TierContextual,
+			CreatedAt: base.Add(1 * time.Hour),
+			Content:   MemoryContent{Summary: "alpha event mid created_at"},
+		},
+	}
+	for _, e := range entries {
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	from := base.Add(-1 * time.Hour)
+	to := base.Add(2 * time.Hour)
+	results := store.SearchMemoryWithOptions("alpha event", SearchMemoryOptions{
+		TimeFrom: &from,
+		TimeTo:   &to,
+		Limit:    10,
+	})
+	got := idsOf(results)
+	wantIDs := map[string]bool{"ts-mid": true, "ca-mid": true}
+	if len(results) != 2 {
+		t.Fatalf("time window len = %d, want 2; got %v", len(results), got)
+	}
+	for _, id := range got {
+		if !wantIDs[id] {
+			t.Fatalf("unexpected id %q in results %v", id, got)
+		}
+	}
+}
+
+func TestSearchMemoryWithOptions_ReRankTemporal(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	now := time.Now()
+	// Keyword path returns insertion/list order; temporal re-rank should order by relevance.
+	// CalculateRelevanceScore needs ScoreImpact > 0; recency uses LastAccessed.
+	entries := []MemoryEntry{
+		{
+			ID: "low", Tier: TierContextual, LastAccessed: now.Add(-200 * time.Hour),
+			Content: MemoryContent{Summary: "alpha relevance low"},
+			Metrics: MemoryMetrics{ScoreImpact: 0.2, UsageCount: 0},
+		},
+		{
+			ID: "high", Tier: TierContextual, LastAccessed: now,
+			Content: MemoryContent{Summary: "alpha relevance high"},
+			Metrics: MemoryMetrics{ScoreImpact: 0.9, UsageCount: 5},
+		},
+		{
+			ID: "mid", Tier: TierContextual, LastAccessed: now.Add(-24 * time.Hour),
+			Content: MemoryContent{Summary: "alpha relevance mid"},
+			Metrics: MemoryMetrics{ScoreImpact: 0.5, UsageCount: 1},
+		},
+	}
+	for _, e := range entries {
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Without re-rank: order is whatever keyword path leaves (not guaranteed by score).
+	plain := store.SearchMemoryWithOptions("alpha relevance", SearchMemoryOptions{Limit: 10})
+	if len(plain) != 3 {
+		t.Fatalf("plain len = %d, want 3", len(plain))
+	}
+
+	ranked := store.SearchMemoryWithOptions("alpha relevance", SearchMemoryOptions{
+		Limit:          10,
+		ReRankTemporal: true,
+	})
+	if len(ranked) != 3 {
+		t.Fatalf("ranked len = %d, want 3", len(ranked))
+	}
+	// Stable descending by CalculateRelevanceScore
+	for i := 0; i < len(ranked)-1; i++ {
+		si := CalculateRelevanceScore(ranked[i])
+		sj := CalculateRelevanceScore(ranked[i+1])
+		if si < sj {
+			t.Fatalf("re-rank not descending at %d: %f < %f (ids %v)", i, si, sj, idsOf(ranked))
+		}
+	}
+	if ranked[0].ID != "high" {
+		t.Fatalf("top id = %q, want high (scores high=%f mid=%f low=%f)",
+			ranked[0].ID,
+			CalculateRelevanceScore(entries[1]),
+			CalculateRelevanceScore(entries[2]),
+			CalculateRelevanceScore(entries[0]),
+		)
+	}
+
+	// Stability: same opts → same order
+	ranked2 := store.SearchMemoryWithOptions("alpha relevance", SearchMemoryOptions{
+		Limit:          10,
+		ReRankTemporal: true,
+	})
+	if !sameIDsInOrder(ranked, ranked2) {
+		t.Fatalf("re-rank unstable: %v vs %v", idsOf(ranked), idsOf(ranked2))
+	}
+}
+
+func TestSearchMemory_WrapperParityEmptyOpts(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	entries := []MemoryEntry{
+		{ID: "a", Tier: TierContextual, Content: MemoryContent{Summary: "alpha project notes", Full: "alpha details"}},
+		{ID: "b", Tier: TierContextual, Content: MemoryContent{Summary: "beta release checklist", Full: "beta details"}},
+		{ID: "c", Tier: TierWorking, Content: MemoryContent{Summary: "alpha working notes", Full: "working details"}},
+	}
+	for _, e := range entries {
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Keyword path, no tier
+	legacy := store.SearchMemory("alpha project notes", nil, 10, nil)
+	opts := store.SearchMemoryWithOptions("alpha project notes", SearchMemoryOptions{Limit: 10})
+	if !sameIDsInOrder(legacy, opts) {
+		t.Fatalf("wrapper keyword parity: legacy %v vs opts %v", idsOf(legacy), idsOf(opts))
+	}
+
+	// Vector path with tier filter
+	tier := TierContextual
+	queryVec := GenerateSimpleEmbedding("alpha project notes", 768)
+	legacyVec := store.SearchMemory("alpha project notes", &tier, 2, queryVec)
+	optsVec := store.SearchMemoryWithOptions("alpha project notes", SearchMemoryOptions{
+		Tier:     &tier,
+		Limit:    2,
+		QueryVec: queryVec,
+	})
+	if !sameIDsInOrder(legacyVec, optsVec) {
+		t.Fatalf("wrapper vector parity: legacy %v vs opts %v", idsOf(legacyVec), idsOf(optsVec))
+	}
+}
+
+func idsOf(entries []MemoryEntry) []string {
+	ids := make([]string, len(entries))
+	for i, e := range entries {
+		ids[i] = e.ID
+	}
+	return ids
+}
+
+func sameIDsInOrder(a, b []MemoryEntry) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID != b[i].ID {
+			return false
+		}
+	}
+	return true
 }
