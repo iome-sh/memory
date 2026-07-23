@@ -2,6 +2,18 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
+## v1.5.2 Release
+
+Module: `github.com/iome-sh/memory@v1.5.2` (install: `go get github.com/iome-sh/memory@v1.5.2`).
+
+Includes commits on `main` since `v1.5.1`:
+
+- **`SearchMemoryWithOptions` / `SearchMemoryOptions`** (s586): hybrid retrieval with optional `SessionID`, `TimeFrom` / `TimeTo` inclusive event-time filters, and `ReRankTemporal` (sort by `CalculateRelevanceScore` after keyword/vector path). `SearchMemory` remains a thin behavior-preserving wrapper.
+- **Temporal memory kernel docs** (s587): `docs/temporal-memory-kernel-roadmap.md` (K0–K4 fields, decay, multi-factor score, ingest/search phases).
+- **GitHub Actions CI** (s588): unit tests on PR and push to `main` (`.github/workflows/ci.yml`).
+
+Also inherits v1.5.0/v1.5.1 defaults (BGE-small-en-v1.5 ONNX, 384-d). See [Usage](#usage) for API examples.
+
 ## v1.0.0 Release (May 20, 2026)
 
 **Stable release** of the hierarchical agent memory package (Palace).
