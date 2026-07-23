@@ -187,3 +187,5 @@ Do not schedule K4 against current s586/s587 delivery. Host product “Memory”
 ---
 
 *s587 — docs-only kernel roadmap. Implementation ships under subsequent serials (K1 = s586 peer).*
+
+<!-- ci poke 20260723T073104Z -->
