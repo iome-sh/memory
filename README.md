@@ -2,6 +2,19 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
+## v1.5.4 Release
+
+Module: `github.com/iome-sh/memory@v1.5.4` (install: `go get github.com/iome-sh/memory@v1.5.4`).
+
+Includes commits on `main` since `v1.5.3`:
+
+- **`ListFactsAsOf` / `FactsAsOfOptions`** (s616 / K4 first slice): as-of validity listing over host-written `valid_from:<RFC3339>` / `valid_until:<RFC3339>` TemporalTags. Filters (session, entity, query, `EntryValidAt`) apply **before** Limit. Semantic-first ordering; default Limit **50**.
+- **`ParseValidityWindow` / `EntryValidAt`**: validity window parse + rules (`valid_until` exclusive end; untagged entries fall back to “known by asOf” via event time).
+- **`SearchMemoryOptions.AsOf`**: optional as-of filter on hybrid search (after time-window, before Limit).
+- **Roadmap**: K4 Partial shipped (bi-temporal lite — not full Graphiti dual clocks + temporal KG).
+
+Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
+
 ## v1.5.3 Release
 
 Module: `github.com/iome-sh/memory@v1.5.3` (install: `go get github.com/iome-sh/memory@v1.5.3`).
