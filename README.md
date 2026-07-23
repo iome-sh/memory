@@ -1,5 +1,7 @@
 # memory
 
+[![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
+
 ## v1.0.0 Release (May 20, 2026)
 
 **Stable release** of the hierarchical agent memory package (Palace).
