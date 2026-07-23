@@ -2,7 +2,7 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 peer work tracked as s586  
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3  
 **Last Updated**: 2026-07-23
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
@@ -27,8 +27,8 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 | Phase | Status | Focus |
 |-------|--------|--------|
 | **K0** | **Shipped** | Temporal fields, decay, multi-factor score, `IngestTurn`, hybrid `SearchMemory` |
-| **K1** | In flight (s586 peer) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
-| **K2** | Planned | Explicit event-time index / timeline helper API; tag query helpers |
+| **K1** | **Shipped** (s586 / v1.5.2) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
+| **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
 | **K4** | Later / non-goal now | Entity validity windows / temporal knowledge graph |
 
@@ -68,51 +68,72 @@ On `MemoryEntry` (`memory.go`):
 
 ---
 
-## K1 — Search options (s586 peer)
+## K1 — Search options — **Shipped** (s586 / v1.5.2)
 
 **Goal**: First-class filtered temporal retrieval without callers reimplementing post-filters.
 
-Planned surface (names indicative; implement on this package):
+Shipped surface:
 
 ```go
-// Illustrative — not yet the committed public API.
 type SearchMemoryOptions struct {
-    SessionID string
-    Since     time.Time // inclusive event-time lower bound (Timestamp)
-    Until     time.Time // exclusive or inclusive — document at implement time
-    // Temporal re-rank: blend MultiFactorScore / event-time proximity with vector/keyword rank
+    SessionID      string
+    TimeFrom       *time.Time // inclusive event time (entryEventTime)
+    TimeTo         *time.Time // inclusive
+    Limit          int        // default 10
+    Tier           *MemoryTier
+    QueryVec       []float32
+    ReRankTemporal bool
 }
 
-func (ps *PalaceStore) SearchMemoryWithOptions(
-    query string,
-    tier *MemoryTier,
-    limit int,
-    vec []float32,
-    opts SearchMemoryOptions,
-) []MemoryEntry
+func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry
 ```
 
-### Acceptance intent
+### Acceptance (met)
 
 - Filter by `SessionID` when set
-- Filter by event-time window on `Timestamp` (with clear zero-value semantics)
-- Optional temporal re-rank after vector/keyword scoring (prefer event-time + decay over pure access-time-only decay when `Timestamp` is set)
-- Backward compatible: existing `SearchMemory` remains the simple path
-- Tests under package unit tests (session isolation, window edges, re-rank order)
-
-**Peer serial**: s586 tracks implementation; this document (s587) is the kernel roadmap anchor.
+- Filter by event-time window via `entryEventTime` (`Timestamp` else `CreatedAt` else `LastAccessed`); inclusive bounds
+- Optional `ReRankTemporal` after vector/keyword scoring (`CalculateRelevanceScore`)
+- Filters apply **before** Limit (underfill class)
+- Backward compatible: `SearchMemory` remains a thin wrapper
+- Tests: session isolation, window edges, re-rank order, wrapper parity
 
 ---
 
-## K2 — Event-time index & tag helpers (planned)
+## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3)
 
-**Goal**: Make timeline queries efficient and tag queries first-class without scanning all tier JSON files for every windowed read.
+**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Full FS event-time index remains residual.
 
-### Planned work
+### Shipped (s611)
 
-- Explicit **event-time index** or timeline helper API on `PalaceStore` (e.g. list/scan by `Timestamp` range, optional session scope)
-- **Tag query helpers** for `TemporalTags` / content tags (exact or prefix; document FS cost vs future index)
-- Document complexity: FS Palace remains O(n) without index; index is additive and optional
+```go
+type ListMemoryOptions struct {
+    SessionID       string
+    TimeFrom        *time.Time // inclusive on entryEventTime
+    TimeTo          *time.Time // inclusive
+    Tag             string     // exact match TemporalTags or Content.Tags
+    TagPrefix       string     // strings.HasPrefix on either tag set
+    Query           string     // case-insensitive substring Summary/Full/OriginalText
+    Limit           int        // default 50 when <= 0
+    Tier            *MemoryTier
+    IncludeArchival bool       // when Tier==nil, also include Archival
+    Ascending       bool       // false = newest first (default)
+}
+
+func (ps *PalaceStore) ListMemoryWithOptions(opts ListMemoryOptions) []MemoryEntry
+func EntryHasTag(e MemoryEntry, tag string) bool
+func EntryHasTagPrefix(e MemoryEntry, prefix string) bool
+```
+
+Order of operations: collect candidates → session → time → tag filters → query → sort by `entryEventTime` → limit.
+
+Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Archival** unless `IncludeArchival`).
+
+### Residual / later within K2
+
+- Full **event-time index** (avoid O(n) FS scan of tier JSON for every windowed list)
+- Optional secondary indexes for tags if FS cost becomes the bottleneck
+
+**Honesty**: FS Palace remains **O(n)** over tier files for list/search. Index is additive and optional; this slice does not invent multi-tenant or product Memory GA.
 
 ### Non-goals for K2
 
@@ -171,9 +192,9 @@ Do not schedule K4 against current s586/s587 delivery. Host product “Memory”
 
 ## Suggested implementation order
 
-1. Finish **K1** (`SearchMemoryWithOptions` + tests) — unblocks host temporal retrieve filters without host-side hacks  
-2. **K2** timeline/index helpers when FS scans become the bottleneck in real sessions  
-3. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then)  
+1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
+2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
+3. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)  
 4. Defer **K4** until entity-graph product demand is explicit  
 
 ---
@@ -183,9 +204,11 @@ Do not schedule K4 against current s586/s587 delivery. Host product “Memory”
 - Kernel temporal APIs should remain backward compatible within major module versions where practical  
 - New options structs and methods are preferred over breaking `SearchMemory` signatures  
 - Embedding dimension changes require collection recreation when using Qdrant; document in release notes  
+- **v1.5.2**: K1 `SearchMemoryWithOptions`  
+- **v1.5.3**: K2 partial `ListMemoryWithOptions` + `EntryHasTag` / `EntryHasTagPrefix`  
+- BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 — docs-only kernel roadmap. Implementation ships under subsequent serials (K1 = s586 peer).*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3.*
 
-<!-- ci poke 20260723T073104Z -->

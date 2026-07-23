@@ -2,6 +2,18 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
+## v1.5.3 Release
+
+Module: `github.com/iome-sh/memory@v1.5.3` (install: `go get github.com/iome-sh/memory@v1.5.3`).
+
+Includes commits on `main` since `v1.5.2`:
+
+- **`ListMemoryWithOptions` / `ListMemoryOptions`** (s611 / K2 first slice): event-time ordered timeline listing with optional `SessionID`, `TimeFrom` / `TimeTo`, `Tag` / `TagPrefix`, substring `Query`, tier defaults (Working+Contextual+Semantic; Archival opt-in), and `Ascending`. Filters apply **before** Limit (underfill class, same as K1 search). Default `Limit` is **50**. FS scan remains O(n); full event-time index is residual.
+- **`EntryHasTag` / `EntryHasTagPrefix`**: light helpers over `TemporalTags` and `Content.Tags`.
+- **Roadmap**: K1 marked Shipped; K2 Partial shipped in `docs/temporal-memory-kernel-roadmap.md`.
+
+Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
+
 ## v1.5.2 Release
 
 Module: `github.com/iome-sh/memory@v1.5.2` (install: `go get github.com/iome-sh/memory@v1.5.2`).
@@ -166,6 +178,14 @@ results = store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOpti
 	Limit:          10,
 	ReRankTemporal: true, // sort by CalculateRelevanceScore after keyword/vector path
 })
+
+// Event-time timeline list (s611 / K2) — filters before Limit; default Limit 50
+timeline := store.ListMemoryWithOptions(memory.ListMemoryOptions{
+	SessionID: "sess-abc",
+	TimeFrom:  &from,
+	TagPrefix: "subject:",
+	Limit:     50, // <=0 also defaults to 50
+})
 ```
 
 ### SearchMemory / temporal options
@@ -182,6 +202,21 @@ results = store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOpti
 | `Tier` | Optional tier restriction |
 | `QueryVec` | Vector semantic ranking when non-empty |
 | `ReRankTemporal` | After keyword/vector path, sort by `CalculateRelevanceScore` descending |
+
+### ListMemoryWithOptions / timeline (s611)
+
+Event-time ordered listing for session timelines. Filters run **before** Limit (same underfill class as search). FS scan is **O(n)**; a full event-time index is residual/later.
+
+| Field | Effect |
+|-------|--------|
+| `SessionID` | Keep only matching `SessionID` |
+| `TimeFrom` / `TimeTo` | Inclusive filter on `entryEventTime` |
+| `Tag` / `TagPrefix` | Exact or prefix match on `TemporalTags` or `Content.Tags` |
+| `Query` | Case-insensitive substring on Summary / Full / OriginalText |
+| `Limit` | Result cap (default **50** when ≤ 0) |
+| `Tier` | When set, only that tier |
+| `IncludeArchival` | When `Tier` is nil, also include Archival (default tiers: W+C+S) |
+| `Ascending` | `false` = newest first (default) |
 
 ## Qdrant Integration (Vector Database)
 
