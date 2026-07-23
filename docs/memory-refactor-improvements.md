@@ -2,31 +2,36 @@
 
 **Repository**: `github.com/iome-sh/memory`
 **Purpose**: Prioritized improvement plan for the standalone hierarchical memory package (Palace).
-**Last Updated**: May 2026
+**Last Updated**: 2026-07-23
 
 This document reorganizes improvements by **highest business/engineering impact first**, grouped into logical rollout categories suitable for a standalone, importable Go package.
 
+**Temporal kernel track**: see the dedicated roadmap → [`docs/temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) (K0 shipped … K4 later). Do not conflate this library with aion product Memory add-on GA.
+
 ---
 
-## Recently Completed (as of latest update)
+## Recently Completed (as of 2026-07-23)
 
 - **Vector Similarity Search** — `VectorStore.SearchSimilar`, `SearchByText`, and `SearchResult` with payload support implemented.
 - **Vector Integration via Callbacks** — `VectorStoreCallback` added to `PerformCompaction`.
 - **Temporal Window Filtering** in compaction (H-Mem inspired).
+- **Real Temporal Decay** — `CalculateTemporalDecay` (exponential forgetting curve) + `CalculateRelevanceScore` / `CalculateRecencyBoost` used in tier listing.
+- **Multi-Factor Scoring (s + t + r)** — `MultiFactorScore` combines semantic similarity, temporal decay, and usage robustness.
+- **Hybrid `SearchMemory`** — keyword + vector re-rank via pluggable `EmbeddingFunc` / batch embed on `PalaceStore`.
+- **Turn ingest** — `IngestTurn` with `Timestamp`, `SessionID`, fact-augmented child writes.
+- **MemoryEntry temporal fields** — `Timestamp`, `SessionID`, `TemporalTags` (+ turn granularity fields).
+- **Pluggable ONNX embeddings** — hugot GoMLX default; ORT optional (CUDA/CoreML); BGE-small 384-d production default.
+- **PalaceConfig**, Working-tier eviction, versioning path, LongMemEval harness/gates.
 
 ---
 
 ## 1. High Impact: Core Stability & Reliability (Phase 1)
 
-### 1.1 Real Temporal Decay + Unified Relevance Scoring
+### 1.1 Real Temporal Decay + Unified Relevance Scoring **[Completed — K0]**
 
-**Priority**: Critical
+`CalculateTemporalDecay`, `CalculateRelevanceScore`, and related helpers are implemented and applied in `ListEntriesInTier`.
 
-`calculateTemporalDecay` is still a no-op.
-
-**Actions**:
-- Implement exponential decay + combine with recency into `CalculateRelevanceScore()`.
-- Apply score in listing and compaction candidate selection.
+Further temporal **retrieval** work (session/time filters, temporal re-rank options) lives under **K1** in [`temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md).
 
 ### 1.2 Robust Error Handling & Observability
 
@@ -37,13 +42,9 @@ This document reorganizes improvements by **highest business/engineering impact 
 - Structured logging.
 - Expose `MemoryStats`.
 
-### 1.3 Activate Versioning
+### 1.3 Activate Versioning **[Largely complete]**
 
-**Priority**: High
-
-**Actions**:
-- Wire up `archiveToVersions` in `Write` path.
-- Proper version incrementing.
+Versioning and archive paths exist on the write path; keep hardening edge cases and observability.
 
 ---
 
@@ -53,21 +54,21 @@ This document reorganizes improvements by **highest business/engineering impact 
 
 `VectorStore.SearchSimilar` + `SearchByText` with payload support now available.
 
-**Next**:
-- Add `SearchMemory` helper on `PalaceStore` for hybrid search.
-
 ### 2.2 Optional Vector Integration via Callbacks **[Completed]**
 
-`VectorStoreCallback` supported in compaction.
+`VectorStoreCallback` supported in compaction; vector attach via `PalaceConfig` / store wiring as documented in README.
 
-**Next**:
-- Auto-attach vector storage when `VectorStore` is provided to `PalaceStore`.
+### 2.3 Multi-Factor Scoring (s + t + r) **[Completed — K0]**
 
-### 2.3 Multi-Factor Scoring (s + t + r)
+`MultiFactorScore` implements combined semantic + temporal + robustness scoring (H-Mem style).
 
-**Priority**: High
+**Next (K1)**: wire multi-factor / event-time re-rank into an options-based search API (`SearchMemoryWithOptions`) — see temporal kernel roadmap.
 
-Implement combined semantic + temporal + robustness scoring (H-Mem style).
+### 2.4 Hybrid SearchMemory **[Completed — K0]**
+
+`PalaceStore.SearchMemory` provides hybrid keyword + vector retrieval.
+
+**Next (K1)**: `SearchMemoryWithOptions` for session/time filters + temporal re-rank.
 
 ---
 
@@ -94,29 +95,33 @@ Track before/after scores in `CompactionConfig`.
 
 ## 4. Medium Impact: API & Usability (Phase 2)
 
-### 4.1 Memory Query API
+### 4.1 Memory Query API **[Partially Complete — K0/K1]**
 
-Add `Search(...)` method with hybrid support.
+`SearchMemory` hybrid helper is shipped. Session/time-filtered options API is **K1** (s586 peer).
 
-### 4.2 Working Tier Lifecycle
+### 4.2 Working Tier Lifecycle **[Completed baseline]**
 
-Promotion and eviction logic for Working tier.
+Promotion/eviction helpers for Working tier exist (`EvictWorkingTier` and related).
 
-### 4.3 PalaceStore Configuration
+### 4.3 PalaceStore Configuration **[Completed]**
 
-Introduce `PalaceConfig` for cleaner setup.
+`PalaceConfig` is the supported setup path (base dir, embeddings, vector URL/collection).
 
 ---
 
 ## 5. Medium Impact: Embeddings & Semantic Quality (Phase 2–3)
 
-### 5.1 Replace Simple Embedding
+### 5.1 Replace Simple Embedding **[Completed]**
 
-Make embedding generation pluggable via `EmbeddingFunc`.
+`EmbeddingFunc` / batch embed are pluggable; production pure-Go ONNX via hugot (BGE-small 384-d default).
 
 ### 5.2 Embedding Versioning
 
 Support multiple embedding generations.
+
+### 5.3 Optional Qwen3-0.6B 1024-d preset **[Planned — K3]**
+
+Optional local profile; aion host may prefer embed-worker path. See [`temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) § K3 (dual-path honesty).
 
 ---
 
@@ -125,17 +130,23 @@ Support multiple embedding generations.
 - Cross-platform builds
 - Comprehensive unit + integration tests
 - H-Mem long-term ideas (entity graph, hybrid retrieval)
+- **K2**: event-time index / timeline helpers + tag query helpers on `PalaceStore`
+- **K4 (later / non-goal now)**: entity validity windows / temporal KG — not scheduled on the current kernel track
 
 ---
 
 ## Recommended Rollout Order
 
-| Phase | Focus                              | Key Items                                      | Effort    |
-|-------|------------------------------------|------------------------------------------------|-----------|
-| 1     | Stability + Vector                 | Decay, errors, versioning, vector search       | 1–2 weeks |
-| 2     | Compaction Quality + API           | Alpha compaction, structured output, Search API| 2 weeks   |
-| 3     | Semantic + Polish                  | Pluggable embeddings, Working tier, tests      | 2–3 weeks |
+| Phase | Focus | Key Items | Effort |
+|-------|--------|-----------|--------|
+| ~~1~~ | ~~Stability + Vector~~ | ~~Decay, multi-factor, vector search, SearchMemory~~ | **Done (K0)** |
+| K1 | Temporal retrieval options | `SearchMemoryWithOptions`, session/time filters, temporal re-rank | s586 peer |
+| K2 | Timeline / tags | Event-time index helper, tag query helpers | Planned |
+| 2–3 | Compaction polish + observability | Alpha compaction, structured output, MemoryStats | Ongoing |
+| K3 | Optional dense embed preset | Qwen3-0.6B 1024-d opt-in (not default flip) | Planned |
+| K4 | Temporal KG | Entity validity windows — **non-goal for now** | Later |
 
 ---
 
-**This is the canonical improvement roadmap for the `memory` package.**
+**Canonical improvement backlog for the `memory` package.**  
+**Canonical temporal kernel phases:** [`docs/temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md).

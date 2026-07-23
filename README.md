@@ -357,5 +357,7 @@ git commit -m "feat(benchmark): add LongMemEval HTTP server and Python orchestra
 
 See `docs/memory-refactor-improvements.md` for the full prioritized roadmap (H-Mem temporal windows, s+t+r scoring, entity graph, etc.).
 
+**Temporal memory kernel** (fields, decay, multi-factor score, ingest/search phases K0–K4): see [`docs/temporal-memory-kernel-roadmap.md`](docs/temporal-memory-kernel-roadmap.md). This package is a single-tenant FS Palace; multi-tenant isolation and product Memory GA live in the host (aion), not here.
+
 ## License
 Private (same as ossa).
