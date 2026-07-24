@@ -2,8 +2,8 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4  
-**Last Updated**: 2026-07-23
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5  
+**Last Updated**: 2026-07-24
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
 
@@ -31,6 +31,7 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 | **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
 | **K4** | **Partial shipped** (s616 / v1.5.4) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`); not full temporal KG |
+| **A2** | **Partial shipped** (s619 / v1.5.5) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags; not full Zep KG |
 
 ---
 
@@ -223,6 +224,59 @@ Residual for later K4 slices (when product demand is explicit):
 
 ---
 
+## A2 — Multi-hop / associative retrieval — **Partial shipped** (s619 / v1.5.5)
+
+**Goal**: Competitive multi-hop lite over the existing EntityGraph (`AddEntityRelationship` / `GetRelatedEntities`) and entry Relations / entity tags — not a full Zep / Graphiti knowledge graph.
+
+### Shipped (s619) — multi-hop first slice
+
+```go
+type MultiHopOptions struct {
+    SeedEntity      string     // starting entity key (prefer exact graph node keys)
+    SeedQuery       string     // optional: derive seeds from SearchMemoryWithOptions hits
+    MaxHops         int        // default 2; clamp 1..4 (hop 0 = seed)
+    Limit           int        // default 20; AFTER expansion + collect + filters
+    SessionID       string
+    AsOf            *time.Time // optional EntryValidAt filter
+    Tier            *MemoryTier
+    IncludeArchival bool
+    QueryVec        []float32  // pass-through when seeding via SeedQuery
+}
+
+func (ps *PalaceStore) ExpandRelatedEntities(seed string, maxHops int) []string
+func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry
+func EntryEntityKeys(e MemoryEntry) []string // entity: / subject: / RelatedConcepts
+```
+
+#### Order of operations (`MultiHopRetrieve`)
+
+1. Resolve seeds (`SeedEntity` and/or entity keys from `SeedQuery` search hits via `EntryEntityKeys`)
+2. `ExpandRelatedEntities` BFS for each seed over `GetRelatedEntities` up to `MaxHops`
+3. Collect entries from default tiers matching any expanded entity (`TemporalTags` `entity:*`, `Content.Tags`, `Relations.RelatedConcepts`)
+4. Optional `SessionID` + `AsOf` filters **before** Limit (underfill class)
+5. Sort: entries matching **seed** entities first, then event time descending
+6. Limit
+
+Default tiers when `Tier == nil`: Working + Contextual + Semantic (+ Archival if `IncludeArchival`).
+
+`AddEntityRelationship` ensures `BaseDir/relations` exists before writing the graph file.
+
+### Honesty / non-goals (still open)
+
+This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect), **not**:
+
+- Full Zep / Graphiti temporal knowledge graph with typed edges and edge validity
+- Community detection, path ranking, or embedding-guided graph walk
+- Multi-tenant product Memory GA
+
+Residual for later A2 slices:
+
+- Bidirectional / typed relation edges
+- Path-aware ranking (prefer shorter hops)
+- Indexes if O(n) FS scans + graph BFS become the bottleneck
+
+---
+
 ## How this relates to other docs
 
 | Doc | Role |
@@ -240,7 +294,8 @@ Residual for later K4 slices (when product demand is explicit):
 1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
 2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
 3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
-4. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
+4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; residual: typed edges / path ranking / full Zep KG  
+5. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
 
 ---
 
@@ -252,9 +307,10 @@ Residual for later K4 slices (when product demand is explicit):
 - **v1.5.2**: K1 `SearchMemoryWithOptions`  
 - **v1.5.3**: K2 partial `ListMemoryWithOptions` + `EntryHasTag` / `EntryHasTagPrefix`  
 - **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
+- **v1.5.5**: A2 partial multi-hop / associative (`MultiHopRetrieve`, `ExpandRelatedEntities`, `EntryEntityKeys`)  
 - BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4.*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5.*
 
