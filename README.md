@@ -2,6 +2,20 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
+## v1.5.5 Release
+
+Module: `github.com/iome-sh/memory@v1.5.5` (install: `go get github.com/iome-sh/memory@v1.5.5`).
+
+Includes commits on `main` since `v1.5.4`:
+
+- **`MultiHopRetrieve` / `MultiHopOptions`** (s619 / A2 first slice): multi-hop lite associative retrieval over EntityGraph BFS (`ExpandRelatedEntities`) + entry collect via `TemporalTags` `entity:*`, `Content.Tags`, and `Relations.RelatedConcepts`. Seeds from `SeedEntity` and/or `SeedQuery` search hits. `MaxHops` default **2** (clamp 1..4); `Limit` default **20** after expansion + filters (underfill class). Optional `SessionID` / `AsOf` / tier opts.
+- **`ExpandRelatedEntities`**: BFS from seed over `GetRelatedEntities` (includes seed at hop 0).
+- **`EntryEntityKeys`**: parse entity keys from `entity:` / `subject:` tags and RelatedConcepts.
+- **`AddEntityRelationship`**: ensures `relations/` dir exists before graph write.
+- **Roadmap**: A2 Partial shipped (multi-hop lite — not full Zep / Graphiti KG).
+
+Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
+
 ## v1.5.4 Release
 
 Module: `github.com/iome-sh/memory@v1.5.4` (install: `go get github.com/iome-sh/memory@v1.5.4`).

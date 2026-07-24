@@ -597,8 +597,11 @@ type EntityGraph struct {
 	Entities map[string][]string `json:"entities"`
 }
 
-// AddEntityRelationship adds normalized entity links (H-Mem style)
+// AddEntityRelationship adds normalized entity links (H-Mem style).
+// Ensures BaseDir/relations exists before write (safe if ensureDirs was skipped
+// or the directory was removed).
 func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
+	_ = ps.ensureRelationsDir()
 	graphPath := filepath.Join(ps.BaseDir, "relations", "entity-graph.json")
 	graph := make(map[string][]string)
 	if data, err := os.ReadFile(graphPath); err == nil {
