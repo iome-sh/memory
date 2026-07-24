@@ -2,6 +2,18 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
+## v1.5.6 Release
+
+Module: `github.com/iome-sh/memory@v1.5.6` (install: `go get github.com/iome-sh/memory@v1.5.6`).
+
+Includes commits on `main` since `v1.5.5`:
+
+- **`SupersedeEntityFacts`** (s632 / A3 first slice): close prior open validity windows for an entity key by writing `valid_until:<RFC3339>` (exclusive end, same as `EntryValidAt`). Matches via `EntryEntityKeys` (lower-case trim). Empty key is a no-op. Does **not** delete entries.
+- **`WriteAndSupersede`**: write entry first (stamps `valid_from=now` when unset), then supersede each key **excluding** the new entry ID.
+- **Roadmap**: A3 / K4 Partial shipped (competitive lite supersession — **not** automatic NLP contradiction detection, **not** full Zep dual-clock KG).
+
+Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
+
 ## v1.5.5 Release
 
 Module: `github.com/iome-sh/memory@v1.5.5` (install: `go get github.com/iome-sh/memory@v1.5.5`).
