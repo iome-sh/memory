@@ -2,7 +2,7 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5  
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6  
 **Last Updated**: 2026-07-24
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
@@ -30,8 +30,9 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 | **K1** | **Shipped** (s586 / v1.5.2) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
 | **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
-| **K4** | **Partial shipped** (s616 / v1.5.4) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`); not full temporal KG |
+| **K4** | **Partial shipped** (s616 / v1.5.4; A3 supersession s632 / v1.5.6) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`) + entity-key supersession (`SupersedeEntityFacts`); not full temporal KG |
 | **A2** | **Partial shipped** (s619 / v1.5.5) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags; not full Zep KG |
+| **A3** | **Partial shipped** (s632 / v1.5.6) | Fact supersession lite: close prior open validity windows for an entity key on write; not NLP contradiction / full KG |
 
 ---
 
@@ -216,11 +217,45 @@ This is **bi-temporal lite** (validity window on entries via tags), **not**:
 - Temporal knowledge graph with edge validity
 - Multi-tenant product Memory GA
 
-Residual for later K4 slices (when product demand is explicit):
+### Shipped (s632) — A3 supersession first slice (K4 write path)
+
+When a newer fact for the same **entity key** is written, close prior open validity windows by setting `valid_until` (exclusive end, same semantics as `EntryValidAt`). Entries are not deleted.
+
+```go
+// SupersedeEntityFacts finds entries matching entityKey (EntryEntityKeys /
+// entity: tags) that are still EntryValidAt(asOf), and writes valid_until=asOf.
+// Empty entityKey is a no-op. Returns count of updated entries.
+func (ps *PalaceStore) SupersedeEntityFacts(entityKey string, asOf time.Time) (int, error)
+
+// WriteAndSupersede writes entry first (stamps valid_from=now when unset), then
+// supersedes each key excluding the new entry's ID.
+func (ps *PalaceStore) WriteAndSupersede(entry MemoryEntry, supersedeKeys []string) error
+```
+
+#### Rules
+
+| Concern | Behavior |
+|---------|----------|
+| Entity match | `EntryEntityKeys` contains key after lower-case trim normalization |
+| Skip self | `WriteAndSupersede` excludes the newly written entry ID |
+| Open only | Only entries currently `EntryValidAt(asOf)` are updated |
+| Tag write | Add/replace `valid_until:<RFC3339>`; preserve `valid_from` and other tags |
+| Empty key | No-op (0, nil) |
+
+#### Honesty / non-goals (A3)
+
+This is **competitive lite supersession** (explicit entity keys + validity tags), **not**:
+
+- Automatic NLP contradiction detection
+- Full Zep dual-clock knowledge graph
+- Silent host-wide supersession without caller-supplied keys
+
+Residual for later K4 / A3 slices (when product demand is explicit):
 
 - Temporal edges on relations for KG-style recall
 - Consistency with compaction and fact-augmented ingest beyond host tags
 - Optional indexes if O(n) FS scans become the bottleneck
+- Auto-extract entity keys from new writes (still explicit keys in this slice)
 
 ---
 
@@ -295,7 +330,8 @@ Residual for later A2 slices:
 2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
 3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
 4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; residual: typed edges / path ranking / full Zep KG  
-5. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
+5. **A3** first slice (entity-key fact supersession) — **done** s632 / v1.5.6; residual: auto entity extract / NLP contradiction / full dual-clock KG  
+6. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
 
 ---
 
@@ -308,9 +344,10 @@ Residual for later A2 slices:
 - **v1.5.3**: K2 partial `ListMemoryWithOptions` + `EntryHasTag` / `EntryHasTagPrefix`  
 - **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
 - **v1.5.5**: A2 partial multi-hop / associative (`MultiHopRetrieve`, `ExpandRelatedEntities`, `EntryEntityKeys`)  
+- **v1.5.6**: A3 / K4 partial fact supersession (`SupersedeEntityFacts`, `WriteAndSupersede`)  
 - BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5.*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6.*
 
