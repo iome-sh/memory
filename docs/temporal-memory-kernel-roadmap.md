@@ -2,7 +2,7 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K2 meta index = s1066 / v1.5.7; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6  
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6; A2 hop ranking = s1067 / v1.5.7 continuum  
 **Last Updated**: 2026-08-01
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
@@ -28,10 +28,10 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 |-------|--------|--------|
 | **K0** | **Shipped** | Temporal fields, decay, multi-factor score, `IngestTurn`, hybrid `SearchMemory` |
 | **K1** | **Shipped** (s586 / v1.5.2) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
-| **K2** | **Partial shipped** (s611 / v1.5.3; meta index s1066 / v1.5.7) | `ListMemoryWithOptions` timeline + tag helpers + best-effort in-memory meta index; durable secondary index residual |
+| **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
 | **K4** | **Partial shipped** (s616 / v1.5.4; A3 supersession s632 / v1.5.6) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`) + entity-key supersession (`SupersedeEntityFacts`); not full temporal KG |
-| **A2** | **Partial shipped** (s619 / v1.5.5) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags; not full Zep KG |
+| **A2** | **Partial shipped** (s619 / v1.5.5; hop ranking s1067) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags + hop-distance ranking lite; not full Zep KG |
 | **A3** | **Partial shipped** (s632 / v1.5.6) | Fact supersession lite: close prior open validity windows for an entity key on write; not NLP contradiction / full KG |
 
 ---
@@ -102,9 +102,9 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 
 ---
 
-## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3; meta index s1066 / v1.5.7)
+## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3)
 
-**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Lightweight in-memory meta index for repeated list efficiency (TUI / MCP timeline paths).
+**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Full FS event-time index remains residual.
 
 ### Shipped (s611)
 
@@ -131,34 +131,12 @@ Order of operations: collect candidates → session → time → tag filters →
 
 Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Archival** unless `IncludeArchival`).
 
-### Shipped (s1066) — lightweight event-time meta index
-
-Best-effort **in-memory** `entryMeta` cache on `PalaceStore`:
-
-| Field | Role |
-|-------|------|
-| `ID`, `Tier`, `Path` | Identity + load-on-demand |
-| `EventTime` | Same clock as `entryEventTime` (Timestamp → CreatedAt → LastAccessed) |
-| `SessionID` | Session filter |
-| `Tags` | Union of `TemporalTags` + `Content.Tags` |
-| query haystack | Lowercased Summary/Full/OriginalText for `Query` |
-
-Behavior:
-
-- **Rebuild lazily** when dirty (first list after construct/write)
-- **Invalidate** on `Write` / `WriteLatent` (supersession and other writers that call `Write` inherit invalidation)
-- **Filter on meta → load full JSON only for survivors** (filters still before Limit — underfill class)
-- **`PalaceConfig.DisableMetaIndex`**: force legacy full-scan path for parity tests
-- **`InvalidateMetaIndex` / `MetaIndexLen`**: test/debug hooks
-
 ### Residual / later within K2
 
-- **Durable** secondary index on disk (persist across process restarts)
-- Incremental upsert without full rebuild on every write burst
-- Optional tag inverted index if tag cardinality becomes the bottleneck
-- Wire MultiHop / SearchMemory candidate collect through the same meta cache (optional)
+- Full **event-time index** (avoid O(n) FS scan of tier JSON for every windowed list)
+- Optional secondary indexes for tags if FS cost becomes the bottleneck
 
-**Honesty**: Index is a **best-effort process-local cache**, not a durable store. FS Palace remains source of truth. Correctness must match the non-index scan path. No multi-tenant claims; not product Memory GA.
+**Honesty**: FS Palace remains **O(n)** over tier files for list/search. Index is additive and optional; this slice does not invent multi-tenant or product Memory GA.
 
 ### Non-goals for K2
 
@@ -281,7 +259,7 @@ Residual for later K4 / A3 slices (when product demand is explicit):
 
 ---
 
-## A2 — Multi-hop / associative retrieval — **Partial shipped** (s619 / v1.5.5)
+## A2 — Multi-hop / associative retrieval — **Partial shipped** (s619 / v1.5.5; hop ranking s1067)
 
 **Goal**: Competitive multi-hop lite over the existing EntityGraph (`AddEntityRelationship` / `GetRelatedEntities`) and entry Relations / entity tags — not a full Zep / Graphiti knowledge graph.
 
@@ -289,18 +267,20 @@ Residual for later K4 / A3 slices (when product demand is explicit):
 
 ```go
 type MultiHopOptions struct {
-    SeedEntity      string     // starting entity key (prefer exact graph node keys)
-    SeedQuery       string     // optional: derive seeds from SearchMemoryWithOptions hits
-    MaxHops         int        // default 2; clamp 1..4 (hop 0 = seed)
-    Limit           int        // default 20; AFTER expansion + collect + filters
-    SessionID       string
-    AsOf            *time.Time // optional EntryValidAt filter
-    Tier            *MemoryTier
-    IncludeArchival bool
-    QueryVec        []float32  // pass-through when seeding via SeedQuery
+    SeedEntity        string     // starting entity key (prefer exact graph node keys)
+    SeedQuery         string     // optional: derive seeds from SearchMemoryWithOptions hits
+    MaxHops           int        // default 2; clamp 1..4 (hop 0 = seed)
+    Limit             int        // default 20; AFTER expansion + collect + filters
+    SessionID         string
+    AsOf              *time.Time // optional EntryValidAt filter
+    Tier              *MemoryTier
+    IncludeArchival   bool
+    QueryVec          []float32  // pass-through when seeding via SeedQuery
+    PreferShorterHops *bool      // default true (nil); false = legacy seed-match-first
 }
 
 func (ps *PalaceStore) ExpandRelatedEntities(seed string, maxHops int) []string
+func (ps *PalaceStore) ExpandRelatedEntitiesHops(seed string, maxHops int) map[string]int // entity → min hop
 func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry
 func EntryEntityKeys(e MemoryEntry) []string // entity: / subject: / RelatedConcepts
 ```
@@ -308,28 +288,36 @@ func EntryEntityKeys(e MemoryEntry) []string // entity: / subject: / RelatedConc
 #### Order of operations (`MultiHopRetrieve`)
 
 1. Resolve seeds (`SeedEntity` and/or entity keys from `SeedQuery` search hits via `EntryEntityKeys`)
-2. `ExpandRelatedEntities` BFS for each seed over `GetRelatedEntities` up to `MaxHops`
-3. Collect entries from default tiers matching any expanded entity (`TemporalTags` `entity:*`, `Content.Tags`, `Relations.RelatedConcepts`)
+2. `ExpandRelatedEntitiesHops` BFS for each seed over `GetRelatedEntities` up to `MaxHops` (min hop across seeds)
+3. Collect entries from default tiers matching any expanded entity (`TemporalTags` `entity:*`, `Content.Tags`, `Relations.RelatedConcepts`); assign **min hop** among matched entity keys
 4. Optional `SessionID` + `AsOf` filters **before** Limit (underfill class)
-5. Sort: entries matching **seed** entities first, then event time descending
+5. Sort (default): **lower hop first** (seed = hop 0), then event time descending within hop; opt-out via `PreferShorterHops=false` → legacy seed-match first then event time
 6. Limit
 
 Default tiers when `Tier == nil`: Working + Contextual + Semantic (+ Archival if `IncludeArchival`).
 
 `AddEntityRelationship` ensures `BaseDir/relations` exists before writing the graph file.
 
+### Shipped (s1067 / v1.5.7 continuum) — hop-distance ranking lite
+
+Path-aware ranking lite: prefer shorter BFS hop distance from seed when ordering multi-hop hits. Improves host TUI / MCP multi-hop recall quality without a full path-scoring graph.
+
+- `ExpandRelatedEntitiesHops` returns entity → min hop (seed at 0)
+- Entry hop = min hop among matched expanded entity keys
+- Still **not** typed-edge weights, embedding-guided walks, or Zep/Graphiti path scores
+
 ### Honesty / non-goals (still open)
 
-This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect), **not**:
+This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect + hop-distance sort), **not**:
 
 - Full Zep / Graphiti temporal knowledge graph with typed edges and edge validity
-- Community detection, path ranking, or embedding-guided graph walk
+- Community detection, full path scoring, or embedding-guided graph walk
 - Multi-tenant product Memory GA
 
 Residual for later A2 slices:
 
 - Bidirectional / typed relation edges
-- Path-aware ranking (prefer shorter hops)
+- ~~Path-aware ranking (prefer shorter hops)~~ — **done** s1067 (hop-distance ranking lite; not full path scoring)
 - Indexes if O(n) FS scans + graph BFS become the bottleneck
 
 ---
@@ -349,9 +337,9 @@ Residual for later A2 slices:
 ## Suggested implementation order
 
 1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
-2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; meta index **done** s1066 / v1.5.7; residual: durable secondary index / incremental upsert  
+2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
 3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
-4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; residual: typed edges / path ranking / full Zep KG  
+4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; hop-distance ranking lite **done** s1067; residual: typed edges / full path scoring / full Zep KG  
 5. **A3** first slice (entity-key fact supersession) — **done** s632 / v1.5.6; residual: auto entity extract / NLP contradiction / full dual-clock KG  
 6. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
 
@@ -367,10 +355,10 @@ Residual for later A2 slices:
 - **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
 - **v1.5.5**: A2 partial multi-hop / associative (`MultiHopRetrieve`, `ExpandRelatedEntities`, `EntryEntityKeys`)  
 - **v1.5.6**: A3 / K4 partial fact supersession (`SupersedeEntityFacts`, `WriteAndSupersede`)  
-- **v1.5.7**: K2 residual lightweight event-time meta index for `ListMemoryWithOptions` (s1066)  
+- **v1.5.7 continuum**: A2 residual hop-distance ranking (`ExpandRelatedEntitiesHops`, `PreferShorterHops` default true) — s1067  
 - BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3 + meta index s1066/v1.5.7; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6.*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6; A2 hop ranking s1067 (v1.5.7 continuum).*
 
