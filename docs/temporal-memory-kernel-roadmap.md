@@ -2,8 +2,8 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6  
-**Last Updated**: 2026-07-24
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K2 meta index = s1066 / v1.5.7; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6  
+**Last Updated**: 2026-08-01
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
 
@@ -28,7 +28,7 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 |-------|--------|--------|
 | **K0** | **Shipped** | Temporal fields, decay, multi-factor score, `IngestTurn`, hybrid `SearchMemory` |
 | **K1** | **Shipped** (s586 / v1.5.2) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
-| **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
+| **K2** | **Partial shipped** (s611 / v1.5.3; meta index s1066 / v1.5.7) | `ListMemoryWithOptions` timeline + tag helpers + best-effort in-memory meta index; durable secondary index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
 | **K4** | **Partial shipped** (s616 / v1.5.4; A3 supersession s632 / v1.5.6) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`) + entity-key supersession (`SupersedeEntityFacts`); not full temporal KG |
 | **A2** | **Partial shipped** (s619 / v1.5.5) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags; not full Zep KG |
@@ -102,9 +102,9 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 
 ---
 
-## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3)
+## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3; meta index s1066 / v1.5.7)
 
-**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Full FS event-time index remains residual.
+**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Lightweight in-memory meta index for repeated list efficiency (TUI / MCP timeline paths).
 
 ### Shipped (s611)
 
@@ -131,12 +131,34 @@ Order of operations: collect candidates → session → time → tag filters →
 
 Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Archival** unless `IncludeArchival`).
 
+### Shipped (s1066) — lightweight event-time meta index
+
+Best-effort **in-memory** `entryMeta` cache on `PalaceStore`:
+
+| Field | Role |
+|-------|------|
+| `ID`, `Tier`, `Path` | Identity + load-on-demand |
+| `EventTime` | Same clock as `entryEventTime` (Timestamp → CreatedAt → LastAccessed) |
+| `SessionID` | Session filter |
+| `Tags` | Union of `TemporalTags` + `Content.Tags` |
+| query haystack | Lowercased Summary/Full/OriginalText for `Query` |
+
+Behavior:
+
+- **Rebuild lazily** when dirty (first list after construct/write)
+- **Invalidate** on `Write` / `WriteLatent` (supersession and other writers that call `Write` inherit invalidation)
+- **Filter on meta → load full JSON only for survivors** (filters still before Limit — underfill class)
+- **`PalaceConfig.DisableMetaIndex`**: force legacy full-scan path for parity tests
+- **`InvalidateMetaIndex` / `MetaIndexLen`**: test/debug hooks
+
 ### Residual / later within K2
 
-- Full **event-time index** (avoid O(n) FS scan of tier JSON for every windowed list)
-- Optional secondary indexes for tags if FS cost becomes the bottleneck
+- **Durable** secondary index on disk (persist across process restarts)
+- Incremental upsert without full rebuild on every write burst
+- Optional tag inverted index if tag cardinality becomes the bottleneck
+- Wire MultiHop / SearchMemory candidate collect through the same meta cache (optional)
 
-**Honesty**: FS Palace remains **O(n)** over tier files for list/search. Index is additive and optional; this slice does not invent multi-tenant or product Memory GA.
+**Honesty**: Index is a **best-effort process-local cache**, not a durable store. FS Palace remains source of truth. Correctness must match the non-index scan path. No multi-tenant claims; not product Memory GA.
 
 ### Non-goals for K2
 
@@ -327,7 +349,7 @@ Residual for later A2 slices:
 ## Suggested implementation order
 
 1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
-2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
+2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; meta index **done** s1066 / v1.5.7; residual: durable secondary index / incremental upsert  
 3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
 4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; residual: typed edges / path ranking / full Zep KG  
 5. **A3** first slice (entity-key fact supersession) — **done** s632 / v1.5.6; residual: auto entity extract / NLP contradiction / full dual-clock KG  
@@ -345,9 +367,10 @@ Residual for later A2 slices:
 - **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
 - **v1.5.5**: A2 partial multi-hop / associative (`MultiHopRetrieve`, `ExpandRelatedEntities`, `EntryEntityKeys`)  
 - **v1.5.6**: A3 / K4 partial fact supersession (`SupersedeEntityFacts`, `WriteAndSupersede`)  
+- **v1.5.7**: K2 residual lightweight event-time meta index for `ListMemoryWithOptions` (s1066)  
 - BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6.*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3 + meta index s1066/v1.5.7; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6.*
 

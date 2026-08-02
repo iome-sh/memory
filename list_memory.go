@@ -11,7 +11,10 @@ import (
 // Filters are applied before Limit so windowed/session timelines do not underfill
 // when many out-of-scope entries exist (same underfill class as SearchMemoryWithOptions K1).
 //
-// Complexity: FS Palace remains O(n) over tier JSON files; a full event-time index is residual.
+// Complexity: FS Palace is source of truth. When the best-effort meta index is enabled
+// (default), ListMemoryWithOptions filters on lightweight entryMeta and loads full JSON
+// only for survivors (s1066 / K2 residual). With DisableMetaIndex, falls back to O(n)
+// full entry scan.
 type ListMemoryOptions struct {
 	SessionID string
 	// TimeFrom / TimeTo filter by entry event time (see entryEventTime). Both inclusive when set.
@@ -71,7 +74,7 @@ func EntryHasTagPrefix(e MemoryEntry, prefix string) bool {
 }
 
 // ListMemoryWithOptions returns entries ordered by event time with optional filters applied
-// before Limit (K2 / s611 timeline surface).
+// before Limit (K2 / s611 timeline surface; s1066 meta index when enabled).
 //
 // Order of operations: collect candidates → session → time → tag filters → query substring →
 // sort by entryEventTime → limit.
@@ -81,6 +84,54 @@ func (ps *PalaceStore) ListMemoryWithOptions(opts ListMemoryOptions) []MemoryEnt
 		limit = 50
 	}
 
+	var results []MemoryEntry
+	if ps.Config.DisableMetaIndex {
+		results = ps.listMemoryScan(opts)
+	} else {
+		results = ps.listMemoryViaIndex(opts)
+	}
+
+	// Sort by event time
+	ascending := opts.Ascending
+	sort.SliceStable(results, func(i, j int) bool {
+		ti := entryEventTime(results[i])
+		tj := entryEventTime(results[j])
+		if ascending {
+			if !ti.Equal(tj) {
+				return ti.Before(tj)
+			}
+			// Stable tie-break by ID for determinism
+			return results[i].ID < results[j].ID
+		}
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return results[i].ID < results[j].ID
+	})
+
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return results
+}
+
+// listMemoryViaIndex filters on the best-effort meta index, then loads full entries
+// only for survivors. Rebuilds lazily when dirty.
+func (ps *PalaceStore) listMemoryViaIndex(opts ListMemoryOptions) []MemoryEntry {
+	ps.metaMu.Lock()
+	ps.ensureMetaIndexLocked()
+	// Copy filtered meta under lock so concurrent invalidation cannot race rebuild mid-filter.
+	filtered := filterMetaIndex(ps.metaIndex, opts)
+	// Shallow-copy paths needed for load (meta rows are value copies already).
+	rows := make([]entryMeta, len(filtered))
+	copy(rows, filtered)
+	ps.metaMu.Unlock()
+
+	return ps.loadEntriesFromMeta(rows)
+}
+
+// listMemoryScan is the original O(n) full-JSON path (DisableMetaIndex / parity baseline).
+func (ps *PalaceStore) listMemoryScan(opts ListMemoryOptions) []MemoryEntry {
 	var results []MemoryEntry
 	if opts.Tier != nil {
 		results = ps.ListEntriesInTier(*opts.Tier)
@@ -157,26 +208,5 @@ func (ps *PalaceStore) ListMemoryWithOptions(opts ListMemoryOptions) []MemoryEnt
 		results = filtered
 	}
 
-	// Sort by event time
-	ascending := opts.Ascending
-	sort.SliceStable(results, func(i, j int) bool {
-		ti := entryEventTime(results[i])
-		tj := entryEventTime(results[j])
-		if ascending {
-			if !ti.Equal(tj) {
-				return ti.Before(tj)
-			}
-			// Stable tie-break by ID for determinism
-			return results[i].ID < results[j].ID
-		}
-		if !ti.Equal(tj) {
-			return ti.After(tj)
-		}
-		return results[i].ID < results[j].ID
-	})
-
-	if len(results) > limit {
-		results = results[:limit]
-	}
 	return results
 }
