@@ -116,6 +116,102 @@ func TestMultiHopRetrieve_Hop2EntityFromSeedA(t *testing.T) {
 	}
 }
 
+func TestExpandRelatedEntitiesHops_MinHop(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	// A → B → C; also A → C direct (shorter path to C should win)
+	store.AddEntityRelationship("person:alice", "org:acme")
+	store.AddEntityRelationship("org:acme", "project:widget")
+	store.AddEntityRelationship("person:alice", "project:widget")
+
+	hops := store.ExpandRelatedEntitiesHops("person:alice", 2)
+	if hops == nil {
+		t.Fatal("expected hop map")
+	}
+	if hops["person:alice"] != 0 {
+		t.Fatalf("seed hop: got %d, want 0", hops["person:alice"])
+	}
+	if hops["org:acme"] != 1 {
+		t.Fatalf("1-hop: got %d, want 1", hops["org:acme"])
+	}
+	if hops["project:widget"] != 1 {
+		t.Fatalf("direct edge should yield hop 1, got %d", hops["project:widget"])
+	}
+
+	// Empty seed
+	if out := store.ExpandRelatedEntitiesHops("", 2); out != nil {
+		t.Fatalf("empty seed: got %v, want nil", out)
+	}
+}
+
+func TestMultiHopRetrieve_HopDistanceRanking(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	// Graph: A → B → C
+	store.AddEntityRelationship("person:alice", "org:acme")
+	store.AddEntityRelationship("org:acme", "project:widget")
+
+	base := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	// Deliberately make farther hops newer so legacy event-time sort would invert hop order.
+	entries := []MemoryEntry{
+		{
+			ID: "hop2-newest", Tier: TierContextual, Timestamp: base.Add(3 * time.Hour),
+			TemporalTags: []string{"entity:project:widget"},
+			Content:      MemoryContent{Summary: "2-hop newest"},
+		},
+		{
+			ID: "hop1-mid", Tier: TierContextual, Timestamp: base.Add(2 * time.Hour),
+			TemporalTags: []string{"entity:org:acme"},
+			Content:      MemoryContent{Summary: "1-hop mid"},
+		},
+		{
+			ID: "seed-oldest", Tier: TierContextual, Timestamp: base,
+			TemporalTags: []string{"entity:person:alice"},
+			Content:      MemoryContent{Summary: "seed oldest"},
+		},
+		{
+			ID: "hop1-older", Tier: TierContextual, Timestamp: base.Add(time.Hour),
+			TemporalTags: []string{"entity:org:acme"},
+			Content:      MemoryContent{Summary: "1-hop older"},
+		},
+	}
+	for _, e := range entries {
+		store.Write(e)
+	}
+
+	results := store.MultiHopRetrieve(MultiHopOptions{
+		SeedEntity: "person:alice",
+		MaxHops:    2,
+		Limit:      20,
+	})
+	ids := idsOf(results)
+	wantOrder := []string{"seed-oldest", "hop1-mid", "hop1-older", "hop2-newest"}
+	if len(ids) != len(wantOrder) {
+		t.Fatalf("got %v, want order %v", ids, wantOrder)
+	}
+	for i, want := range wantOrder {
+		if ids[i] != want {
+			t.Fatalf("hop ranking order[%d]=%q, want %q (full=%v)", i, ids[i], want, ids)
+		}
+	}
+
+	// Within same hop, event time desc: hop1-mid (newer) before hop1-older.
+	// PreferShorterHops=false: legacy seed-first then event time (ignores hop1 vs hop2).
+	off := false
+	legacy := store.MultiHopRetrieve(MultiHopOptions{
+		SeedEntity:        "person:alice",
+		MaxHops:           2,
+		Limit:             20,
+		PreferShorterHops: &off,
+	})
+	lids := idsOf(legacy)
+	if lids[0] != "seed-oldest" {
+		t.Fatalf("legacy seed-first: first=%q want seed-oldest; full=%v", lids[0], lids)
+	}
+	// Among non-seed, pure event time: hop2-newest, hop1-mid, hop1-older
+	if lids[1] != "hop2-newest" || lids[2] != "hop1-mid" || lids[3] != "hop1-older" {
+		t.Fatalf("legacy non-seed event-time order: got %v", lids)
+	}
+}
+
 func TestMultiHopRetrieve_LimitAfterExpansion_Underfill(t *testing.T) {
 	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
 	store.AddEntityRelationship("seed:x", "related:y")

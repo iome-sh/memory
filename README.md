@@ -2,18 +2,12 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
-## v1.5.7 Release
+## v1.5.7 continuum (in progress)
 
-Module: `github.com/iome-sh/memory@v1.5.7` (install: `go get github.com/iome-sh/memory@v1.5.7`).
+A2 residual partial advance on the multi-hop path (not a full release tag yet):
 
-Includes commits on `main` since `v1.5.6`:
-
-- **Event-time meta index** (s1066 / K2 residual): best-effort in-memory `entryMeta` cache on `PalaceStore` so `ListMemoryWithOptions` can filter session/time/tag/query **before** loading full JSON for every tier file. Rebuilt lazily when dirty; invalidated on `Write` / `WriteLatent` (and any path that calls `Write`, including supersession). FS Palace remains source of truth.
-- **`PalaceConfig.DisableMetaIndex`**: force the legacy full-scan path (parity tests / debugging).
-- **`InvalidateMetaIndex` / `MetaIndexLen`**: test/debug hooks for index lifecycle.
-- **Roadmap**: K2 residual **partial advance** (lightweight meta index — **not** a durable secondary index, **not** multi-tenant, **not** product Memory GA).
-
-Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
+- **Hop-distance ranking** (s1067 / A2 residual): `MultiHopRetrieve` prefers **shorter BFS hop distance** from seed, then event time descending within the same hop. Seed matches remain hop 0. Implemented via `ExpandRelatedEntitiesHops` (entity → min hop). Optional `PreferShorterHops *bool` defaults **true** (set false to restore legacy seed-match-first sort).
+- **Honesty**: still multi-hop lite — not full Zep/Graphiti path scoring, typed edges, or NLP; not product Memory GA.
 
 ## v1.5.6 Release
 
@@ -33,11 +27,12 @@ Module: `github.com/iome-sh/memory@v1.5.5` (install: `go get github.com/iome-sh/
 
 Includes commits on `main` since `v1.5.4`:
 
-- **`MultiHopRetrieve` / `MultiHopOptions`** (s619 / A2 first slice): multi-hop lite associative retrieval over EntityGraph BFS (`ExpandRelatedEntities`) + entry collect via `TemporalTags` `entity:*`, `Content.Tags`, and `Relations.RelatedConcepts`. Seeds from `SeedEntity` and/or `SeedQuery` search hits. `MaxHops` default **2** (clamp 1..4); `Limit` default **20** after expansion + filters (underfill class). Optional `SessionID` / `AsOf` / tier opts.
+- **`MultiHopRetrieve` / `MultiHopOptions`** (s619 / A2 first slice; hop ranking s1067): multi-hop lite associative retrieval over EntityGraph BFS (`ExpandRelatedEntities` / `ExpandRelatedEntitiesHops`) + entry collect via `TemporalTags` `entity:*`, `Content.Tags`, and `Relations.RelatedConcepts`. Seeds from `SeedEntity` and/or `SeedQuery` search hits. `MaxHops` default **2** (clamp 1..4); `Limit` default **20** after expansion + filters (underfill class). Optional `SessionID` / `AsOf` / tier opts. Default sort: **min hop ascending**, then event time desc (`PreferShorterHops` default true).
 - **`ExpandRelatedEntities`**: BFS from seed over `GetRelatedEntities` (includes seed at hop 0).
+- **`ExpandRelatedEntitiesHops`**: same BFS; returns entity → minimum hop distance (seed = 0).
 - **`EntryEntityKeys`**: parse entity keys from `entity:` / `subject:` tags and RelatedConcepts.
 - **`AddEntityRelationship`**: ensures `relations/` dir exists before graph write.
-- **Roadmap**: A2 Partial shipped (multi-hop lite — not full Zep / Graphiti KG).
+- **Roadmap**: A2 Partial shipped (multi-hop lite — not full Zep / Graphiti KG); hop-distance ranking residual advanced s1067.
 
 Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
 
@@ -255,11 +250,9 @@ timeline := store.ListMemoryWithOptions(memory.ListMemoryOptions{
 | `QueryVec` | Vector semantic ranking when non-empty |
 | `ReRankTemporal` | After keyword/vector path, sort by `CalculateRelevanceScore` descending |
 
-### ListMemoryWithOptions / timeline (s611 + s1066 meta index)
+### ListMemoryWithOptions / timeline (s611)
 
-Event-time ordered listing for session timelines. Filters run **before** Limit (same underfill class as search).
-
-By default, `ListMemoryWithOptions` uses a **best-effort in-memory metadata index** (`entryMeta`: id, tier, event time, session, tags, path, query haystack). The index is rebuilt lazily after writes; FS Palace remains the source of truth. Set `PalaceConfig.DisableMetaIndex` to force the legacy full JSON scan (parity baseline).
+Event-time ordered listing for session timelines. Filters run **before** Limit (same underfill class as search). FS scan is **O(n)**; a full event-time index is residual/later.
 
 | Field | Effect |
 |-------|--------|
