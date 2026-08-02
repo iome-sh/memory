@@ -2,6 +2,19 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
+## v1.5.7 Release
+
+Module: `github.com/iome-sh/memory@v1.5.7` (install: `go get github.com/iome-sh/memory@v1.5.7`).
+
+Includes commits on `main` since `v1.5.6`:
+
+- **Event-time meta index** (s1066 / K2 residual): best-effort in-memory `entryMeta` cache on `PalaceStore` so `ListMemoryWithOptions` can filter session/time/tag/query **before** loading full JSON for every tier file. Rebuilt lazily when dirty; invalidated on `Write` / `WriteLatent` (and any path that calls `Write`, including supersession). FS Palace remains source of truth.
+- **`PalaceConfig.DisableMetaIndex`**: force the legacy full-scan path (parity tests / debugging).
+- **`InvalidateMetaIndex` / `MetaIndexLen`**: test/debug hooks for index lifecycle.
+- **Roadmap**: K2 residual **partial advance** (lightweight meta index — **not** a durable secondary index, **not** multi-tenant, **not** product Memory GA).
+
+Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
+
 ## v1.5.6 Release
 
 Module: `github.com/iome-sh/memory@v1.5.6` (install: `go get github.com/iome-sh/memory@v1.5.6`).
@@ -242,9 +255,11 @@ timeline := store.ListMemoryWithOptions(memory.ListMemoryOptions{
 | `QueryVec` | Vector semantic ranking when non-empty |
 | `ReRankTemporal` | After keyword/vector path, sort by `CalculateRelevanceScore` descending |
 
-### ListMemoryWithOptions / timeline (s611)
+### ListMemoryWithOptions / timeline (s611 + s1066 meta index)
 
-Event-time ordered listing for session timelines. Filters run **before** Limit (same underfill class as search). FS scan is **O(n)**; a full event-time index is residual/later.
+Event-time ordered listing for session timelines. Filters run **before** Limit (same underfill class as search).
+
+By default, `ListMemoryWithOptions` uses a **best-effort in-memory metadata index** (`entryMeta`: id, tier, event time, session, tags, path, query haystack). The index is rebuilt lazily after writes; FS Palace remains the source of truth. Set `PalaceConfig.DisableMetaIndex` to force the legacy full JSON scan (parity baseline).
 
 | Field | Effect |
 |-------|--------|

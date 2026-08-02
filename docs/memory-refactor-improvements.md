@@ -130,7 +130,7 @@ Optional local profile; aion host may prefer embed-worker path. See [`temporal-m
 - Cross-platform builds
 - Comprehensive unit + integration tests
 - H-Mem long-term ideas (entity graph, hybrid retrieval)
-- **K2**: event-time index / timeline helpers + tag query helpers on `PalaceStore`
+- **K2**: timeline helpers + tag query helpers shipped (s611); lightweight in-memory event-time meta index shipped (s1066 / v1.5.7); durable secondary index residual
 - **K4 (later / non-goal now)**: entity validity windows / temporal KG — not scheduled on the current kernel track
 
 ---
@@ -141,7 +141,7 @@ Optional local profile; aion host may prefer embed-worker path. See [`temporal-m
 |-------|--------|-----------|--------|
 | ~~1~~ | ~~Stability + Vector~~ | ~~Decay, multi-factor, vector search, SearchMemory~~ | **Done (K0)** |
 | K1 | Temporal retrieval options | `SearchMemoryWithOptions`, session/time filters, temporal re-rank | s586 peer |
-| K2 | Timeline / tags | Event-time index helper, tag query helpers | Planned |
+| K2 | Timeline / tags | `ListMemoryWithOptions` + meta index (s1066); durable index residual | Partial |
 | 2–3 | Compaction polish + observability | Alpha compaction, structured output, MemoryStats | Ongoing |
 | K3 | Optional dense embed preset | Qwen3-0.6B 1024-d opt-in (not default flip) | Planned |
 | K4 | Temporal KG | Entity validity windows — **non-goal for now** | Later |

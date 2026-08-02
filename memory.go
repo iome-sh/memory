@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -104,6 +105,10 @@ type PalaceConfig struct {
 	CompactionConfig   CompactionConfig
 	EmbeddingFunc      EmbeddingFunc      `json:"-"` // pluggable (Phase 5.1)
 	BatchEmbeddingFunc BatchEmbeddingFunc `json:"-"` // optional ONNX batch path (Phase 5.1)
+	// DisableMetaIndex forces ListMemoryWithOptions to use the full FS scan path
+	// instead of the best-effort in-memory metadata index (K2 residual / s1066).
+	// Default false (index enabled). Useful for parity tests.
+	DisableMetaIndex bool
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -116,6 +121,13 @@ type BatchEmbeddingFunc func(texts []string, dim int) ([][]float32, error)
 type PalaceStore struct {
 	BaseDir string
 	Config  PalaceConfig
+
+	// Best-effort in-memory metadata index for ListMemoryWithOptions (K2 / s1066).
+	// FS Palace remains source of truth; index is rebuilt lazily when dirty.
+	metaMu         sync.Mutex
+	metaIndex      []entryMeta
+	metaIndexDirty bool // true = needs rebuild (starts true until first ensure)
+	metaIndexGen   uint64
 }
 
 // NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3)
@@ -133,8 +145,9 @@ func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 		cfg.EmbeddingFunc = GenerateSimpleEmbedding
 	}
 	ps := &PalaceStore{
-		BaseDir: cfg.BaseDir,
-		Config:  cfg,
+		BaseDir:        cfg.BaseDir,
+		Config:         cfg,
+		metaIndexDirty: true, // rebuild on first list
 	}
 	_ = ps.ensureDirs()
 	return ps
@@ -252,6 +265,8 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 		os.Remove(tmpFile.Name())
 		return fmt.Errorf("rename failed: %w", err)
 	}
+	// Latent buffer is not listed by ListMemory, but keep index lifecycle consistent.
+	ps.invalidateMetaIndex()
 	return nil
 }
 
@@ -294,6 +309,8 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 		os.Remove(tmpFile.Name())
 		return fmt.Errorf("rename failed: %w", err)
 	}
+	// Invalidate best-effort meta index; next ListMemory rebuilds lazily (s1066).
+	ps.invalidateMetaIndex()
 	return nil
 }
 
