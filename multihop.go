@@ -9,12 +9,14 @@ import (
 )
 
 // MultiHopOptions configures associative / multi-hop lite retrieval over the
-// EntityGraph plus entry entity tags (A2 first slice / s619; hop ranking s1067).
+// EntityGraph plus entry entity tags (A2 first slice / s619; hop ranking s1067;
+// residual honesty pin s1278).
 //
 // Honesty: competitive multi-hop lite — BFS over GetRelatedEntities and entry
 // collect via TemporalTags / Content.Tags / RelatedConcepts. Not a full Zep /
 // Graphiti knowledge graph. Hop-distance ranking is path-aware ranking lite
 // (prefer shorter BFS hops), not typed-edge / embedding-guided path scoring.
+// Not full graph RAG; not product Memory GA (kernel-only).
 type MultiHopOptions struct {
 	// SeedEntity is the starting entity key (normalized). Prefer exact graph node keys.
 	SeedEntity string

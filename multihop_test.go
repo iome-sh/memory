@@ -207,8 +207,37 @@ func TestMultiHopRetrieve_HopDistanceRanking(t *testing.T) {
 		t.Fatalf("legacy seed-first: first=%q want seed-oldest; full=%v", lids[0], lids)
 	}
 	// Among non-seed, pure event time: hop2-newest, hop1-mid, hop1-older
+	// (does NOT prefer shorter hops — hop2 can sort before hop1).
 	if lids[1] != "hop2-newest" || lids[2] != "hop1-mid" || lids[3] != "hop1-older" {
 		t.Fatalf("legacy non-seed event-time order: got %v", lids)
+	}
+
+	// Explicit PreferShorterHops=true matches nil default (s1278 residual honesty).
+	on := true
+	explicit := store.MultiHopRetrieve(MultiHopOptions{
+		SeedEntity:        "person:alice",
+		MaxHops:           2,
+		Limit:             20,
+		PreferShorterHops: &on,
+	})
+	eids := idsOf(explicit)
+	for i, want := range wantOrder {
+		if eids[i] != want {
+			t.Fatalf("explicit PreferShorterHops=true order[%d]=%q, want %q (full=%v)", i, eids[i], want, eids)
+		}
+	}
+	// hop0 before hop2 even when hop2 is newest (comparable "quality" via event time alone would invert).
+	seedIdx, hop2Idx := -1, -1
+	for i, id := range eids {
+		if id == "seed-oldest" {
+			seedIdx = i
+		}
+		if id == "hop2-newest" {
+			hop2Idx = i
+		}
+	}
+	if seedIdx < 0 || hop2Idx < 0 || seedIdx >= hop2Idx {
+		t.Fatalf("default/true ranking must place hop0 before hop2; seedIdx=%d hop2Idx=%d full=%v", seedIdx, hop2Idx, eids)
 	}
 }
 
