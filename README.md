@@ -2,12 +2,13 @@
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
 
-## v1.5.7 continuum (in progress)
+## v1.5.7 continuum
 
-A2 residual partial advance on the multi-hop path (not a full release tag yet):
+Module: `github.com/iome-sh/memory@v1.5.7` (install: `go get github.com/iome-sh/memory@v1.5.7`). Tag ships hop-distance ranking + prior K2/K4/A3 lite slices; residual honesty pins continue after the tag without inventing product Memory GA.
 
 - **Hop-distance ranking** (s1067 / A2 residual): `MultiHopRetrieve` prefers **shorter BFS hop distance** from seed, then event time descending within the same hop. Seed matches remain hop 0. Implemented via `ExpandRelatedEntitiesHops` (entity → min hop). Optional `PreferShorterHops *bool` defaults **true** (set false to restore legacy seed-match-first sort).
 - **Residual honesty pin s1278** (closed residual-honest): free-eng pin for hop-distance ranking defaults + non-GA claims — see [`docs/operations/multi-hop-hop-distance-ranking-residual.md`](docs/operations/multi-hop-hop-distance-ranking-residual.md). multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG · **not** product Memory GA · kernel-only.
+- **Residual honesty pin s1297** (closed residual-honest): kernel advanced agent inventory SSOT — MultiHopRetrieve + PreferShorterHops · ListFactsAsOf K4 lite · SupersedeEntityFacts A3 lite · ListMemoryWithOptions K2 timeline · host/TUI peers mention only — see [`docs/operations/advanced-agent-inventory-residual.md`](docs/operations/advanced-agent-inventory-residual.md). Gate: `make residual-gate`. multi-hop lite ≠ full graph RAG · kernel ≠ product Memory GA · dual_write OFF · **no invent GA**.
 - **Honesty**: still multi-hop lite — not full Zep/Graphiti path scoring, typed edges, or NLP; not product Memory GA.
 
 ## v1.5.6 Release

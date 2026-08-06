@@ -1,8 +1,14 @@
 .PHONY: test test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
-	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval
+	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
+	residual-gate
 
 test:
 	go test ./...
+
+# Offline residual honesty pin s1297 — kernel advanced agent inventory (not product Memory GA).
+# Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1
+residual-gate:
+	bash scripts/advanced_agent_inventory_residual_gate.sh
 
 test-onnx:
 	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
