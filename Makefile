@@ -1,13 +1,13 @@
 .PHONY: test test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
-	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate
+	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate
 
 test:
 	go test ./...
 
-# Offline residual honesty pins (s1297 inventory + s1303 K2 event-time index).
-# Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1 · SKIP_K2_EVENT_TIME_INDEX=1
-residual-gate: advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate
+# Offline residual honesty pins (s1297 inventory + s1303 K2 event-time index + s1313 RecMem compaction).
+# Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1 · SKIP_K2_EVENT_TIME_INDEX=1 · SKIP_RECMEM_COMPACTION=1
+residual-gate: advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate
 
 # Offline residual honesty pin s1297 — kernel advanced agent inventory (not product Memory GA).
 advanced-agent-inventory-residual-gate:
@@ -17,6 +17,11 @@ advanced-agent-inventory-residual-gate:
 # (filters before limit shipped · full event-time index residual · not invent index green / Memory GA).
 k2-event-time-index-residual-gate:
 	bash scripts/k2_event_time_index_residual_gate.sh
+
+# Offline residual honesty pin s1313 — RecMem / compaction residual
+# (AutoRecMemCompaction shipped partial · PerformCompaction · CompactionConfig · trigger advisory · HITL TUI · not invent GA token-reduction).
+recmem-compaction-residual-gate:
+	bash scripts/recmem_compaction_residual_gate.sh
 
 test-onnx:
 	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
