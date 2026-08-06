@@ -63,6 +63,7 @@ Residual A2 work still open (not claimed by s1278):
 | **aion s1277** | Host free-eng residual honesty peer (related routes / MCP wire — not this repo) |
 | **TUI** | Related `hop_distance` display on multi-hop related path (host surface; not kernel GA) |
 | **SDK** | `HopDistance` on related hits when wired by host (not claimed here) |
+| **s1297 inventory residual** | Kernel advanced agent inventory honesty pin — see [`advanced-agent-inventory-residual.md`](advanced-agent-inventory-residual.md) (MultiHopRetrieve · PreferShorterHops · ListFactsAsOf · SupersedeEntityFacts · ListMemoryWithOptions; host/TUI peers mention only) |
 
 Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in aion continuum when claimed.
 
