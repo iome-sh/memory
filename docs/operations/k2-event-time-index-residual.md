@@ -77,6 +77,7 @@ Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host 
 | Residual | Role |
 |----------|------|
 | [`advanced-agent-inventory-residual.md`](advanced-agent-inventory-residual.md) | s1297 kernel advanced agent inventory honesty pin (peer · includes ListMemoryWithOptions row) |
+| [`recmem-compaction-residual.md`](recmem-compaction-residual.md) | s1313 RecMem / compaction residual honesty pin (peer · AutoRecMemCompaction partial · trigger advisory · HITL) |
 | [`multi-hop-hop-distance-ranking-residual.md`](multi-hop-hop-distance-ranking-residual.md) | s1278 hop-distance ranking honesty pin (peer) |
 | Host aion dual agent MCP residual | timeline / inventory host wire (mention only · not this repo) |
 | TUI s1296 timeline/compact-status | Host UI peer (mention only) |
