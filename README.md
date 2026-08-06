@@ -7,6 +7,7 @@
 A2 residual partial advance on the multi-hop path (not a full release tag yet):
 
 - **Hop-distance ranking** (s1067 / A2 residual): `MultiHopRetrieve` prefers **shorter BFS hop distance** from seed, then event time descending within the same hop. Seed matches remain hop 0. Implemented via `ExpandRelatedEntitiesHops` (entity → min hop). Optional `PreferShorterHops *bool` defaults **true** (set false to restore legacy seed-match-first sort).
+- **Residual honesty pin s1278** (closed residual-honest): free-eng pin for hop-distance ranking defaults + non-GA claims — see [`docs/operations/multi-hop-hop-distance-ranking-residual.md`](docs/operations/multi-hop-hop-distance-ranking-residual.md). multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG · **not** product Memory GA · kernel-only.
 - **Honesty**: still multi-hop lite — not full Zep/Graphiti path scoring, typed edges, or NLP; not product Memory GA.
 
 ## v1.5.6 Release
@@ -32,7 +33,7 @@ Includes commits on `main` since `v1.5.4`:
 - **`ExpandRelatedEntitiesHops`**: same BFS; returns entity → minimum hop distance (seed = 0).
 - **`EntryEntityKeys`**: parse entity keys from `entity:` / `subject:` tags and RelatedConcepts.
 - **`AddEntityRelationship`**: ensures `relations/` dir exists before graph write.
-- **Roadmap**: A2 Partial shipped (multi-hop lite — not full Zep / Graphiti KG); hop-distance ranking residual advanced s1067.
+- **Roadmap**: A2 Partial shipped (multi-hop lite — not full Zep / Graphiti KG); hop-distance ranking residual advanced s1067; residual honesty pin s1278.
 
 Kernel-only; not product Memory GA. BGE-small-en-v1.5 (384-d) default unchanged (no silent Qwen3 flip).
 

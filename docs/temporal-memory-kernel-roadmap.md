@@ -2,8 +2,8 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6; A2 hop ranking = s1067 / v1.5.7 continuum  
-**Last Updated**: 2026-08-01
+**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6; A2 hop ranking = s1067 / v1.5.7 continuum; hop ranking residual honesty = s1278  
+**Last Updated**: 2026-08-05
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
 
@@ -31,7 +31,7 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 | **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
 | **K4** | **Partial shipped** (s616 / v1.5.4; A3 supersession s632 / v1.5.6) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`) + entity-key supersession (`SupersedeEntityFacts`); not full temporal KG |
-| **A2** | **Partial shipped** (s619 / v1.5.5; hop ranking s1067) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags + hop-distance ranking lite; not full Zep KG |
+| **A2** | **Partial shipped** (s619 / v1.5.5; hop ranking s1067; residual honesty s1278) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags + hop-distance ranking lite; not full Zep KG; not product Memory GA |
 | **A3** | **Partial shipped** (s632 / v1.5.6) | Fact supersession lite: close prior open validity windows for an entity key on write; not NLP contradiction / full KG |
 
 ---
@@ -259,7 +259,7 @@ Residual for later K4 / A3 slices (when product demand is explicit):
 
 ---
 
-## A2 — Multi-hop / associative retrieval — **Partial shipped** (s619 / v1.5.5; hop ranking s1067)
+## A2 — Multi-hop / associative retrieval — **Partial shipped** (s619 / v1.5.5; hop ranking s1067; residual honesty s1278)
 
 **Goal**: Competitive multi-hop lite over the existing EntityGraph (`AddEntityRelationship` / `GetRelatedEntities`) and entry Relations / entity tags — not a full Zep / Graphiti knowledge graph.
 
@@ -306,6 +306,16 @@ Path-aware ranking lite: prefer shorter BFS hop distance from seed when ordering
 - Entry hop = min hop among matched expanded entity keys
 - Still **not** typed-edge weights, embedding-guided walks, or Zep/Graphiti path scores
 
+### Residual honesty pin (s1278) — closed residual-honest
+
+Free eng residual pin for A2 hop-distance ranking honesty (memory serial **s1278**; continuum with aion free eng floor **s1276+** / peer **s1277**). Documents:
+
+- `PreferShorterHops` default **true**; explicit false = legacy seed-match-first (does not prefer shorter hops)
+- multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG · not product Memory GA · kernel-only
+- TUI related `hop_distance` display: host surface mention only
+
+Canonical residual SSOT: [`operations/multi-hop-hop-distance-ranking-residual.md`](./operations/multi-hop-hop-distance-ranking-residual.md).
+
 ### Honesty / non-goals (still open)
 
 This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect + hop-distance sort), **not**:
@@ -317,7 +327,7 @@ This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect
 Residual for later A2 slices:
 
 - Bidirectional / typed relation edges
-- ~~Path-aware ranking (prefer shorter hops)~~ — **done** s1067 (hop-distance ranking lite; not full path scoring)
+- ~~Path-aware ranking (prefer shorter hops)~~ — **done** s1067 (hop-distance ranking lite; not full path scoring); residual honesty **s1278**
 - Indexes if O(n) FS scans + graph BFS become the bottleneck
 
 ---
@@ -339,7 +349,7 @@ Residual for later A2 slices:
 1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
 2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
 3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
-4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; hop-distance ranking lite **done** s1067; residual: typed edges / full path scoring / full Zep KG  
+4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; hop-distance ranking lite **done** s1067; residual honesty pin **s1278**; residual: typed edges / full path scoring / full Zep KG  
 5. **A3** first slice (entity-key fact supersession) — **done** s632 / v1.5.6; residual: auto entity extract / NLP contradiction / full dual-clock KG  
 6. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
 
@@ -355,10 +365,10 @@ Residual for later A2 slices:
 - **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
 - **v1.5.5**: A2 partial multi-hop / associative (`MultiHopRetrieve`, `ExpandRelatedEntities`, `EntryEntityKeys`)  
 - **v1.5.6**: A3 / K4 partial fact supersession (`SupersedeEntityFacts`, `WriteAndSupersede`)  
-- **v1.5.7 continuum**: A2 residual hop-distance ranking (`ExpandRelatedEntitiesHops`, `PreferShorterHops` default true) — s1067  
+- **v1.5.7 continuum**: A2 residual hop-distance ranking (`ExpandRelatedEntitiesHops`, `PreferShorterHops` default true) — s1067; residual honesty pin **s1278**  
 - BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
 
 ---
 
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6; A2 hop ranking s1067 (v1.5.7 continuum).*
+*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6; A2 hop ranking s1067 (v1.5.7 continuum); hop ranking residual honesty s1278.*
 
