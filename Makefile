@@ -2,6 +2,7 @@
 	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
 	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate \
+	public-flip-readiness-gate \
 	clean
 
 COVER ?= coverage.out
@@ -63,6 +64,12 @@ k2-event-time-index-residual-gate:
 # (AutoRecMemCompaction shipped partial · PerformCompaction · CompactionConfig · trigger advisory · HITL TUI · not invent GA token-reduction).
 recmem-compaction-residual-gate:
 	bash scripts/recmem_compaction_residual_gate.sh
+
+# Offline M4 public-flip readiness residual s1467 (not the flip).
+# Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
+# Honesty: still private · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · aion stays private.
+public-flip-readiness-gate:
+	bash scripts/public_flip_readiness_gate.sh
 
 test-onnx:
 	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
