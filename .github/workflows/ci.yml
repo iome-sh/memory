@@ -77,10 +77,24 @@ jobs:
       - name: go test
         run: go test ./... -count=1 -timeout=10m
 
-      # Optional race on pure-Go default path (no mandatory ONNX/ORT). Soft: do not require CGO.
-      - name: go test -race (default pure packages)
+  # Optional race — not required for ci-success (hugot/embedding paths can be slow under -race).
+  test-race:
+    name: test-race
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go test -race
         run: go test ./... -race -count=1 -timeout=15m
-        continue-on-error: true
 
   build:
     name: build
