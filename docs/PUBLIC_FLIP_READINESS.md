@@ -2,7 +2,7 @@
 
 Operator / maintainer checklist for a **deliberate future** public visibility flip of **`github.com/iome-sh/memory`** (Palace kernel). This document is **readiness residual only** — it does **not** flip the repository public, does **not** invent Memory GA, and does **not** complete Option A M4.
 
-**Serial stamp (program continuum):** free eng residual pin **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers **s1468** (mcp) · **s1469** (TUI) · **s1470** (aion residual) mention only · free-floor peer **s1471** · free eng after free-floor peer **s1473+**.
+**Serial stamp (program continuum):** free eng residual pin **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers **s1468** (mcp) · **s1469** (TUI) · **s1470** (aion residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng after free-floor peer **s1473+**.
 
 > **Hard non-claims (read first):** Repository is **still private** until a deliberate maintainer flip. **Residual PASS ≠ public flip**. This pin is **M4 readiness ≠ M4 complete** · **not Memory GA** · **dual_write OFF** (product path elsewhere) · **aion stays private** · **open boxes stay open** · hosted **Palace sunset** until scale · rates ~**$88** / ~**$119** honesty when pricing is mentioned (do not invent freemium Palace SLA here). Do **not** run `gh repo edit --visibility public` from this residual.
 
@@ -44,6 +44,26 @@ make public-flip-readiness-gate
 ```
 
 Gate is **offline greps only** — it does **not** change GitHub visibility, does **not** require network beyond repo files, and **PASS ≠ public flip**. Soft skip via **`SKIP_PUBLIC_FLIP_READINESS=1`** is for local bypass only — soft skip ≠ invent public flip.
+
+## Final pre-flight (s1473 TUI parity)
+
+Closeout checklist for deliberate flip day. Completing this list is still **not** the flip — a human must change visibility.
+
+- [ ] Re-run `make public-flip-readiness-gate` + `make ci` (both green)  
+- [ ] [`OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) **Final TUI-parity audit (s1473)** section green (Partial rows honest: CodeQL, history)  
+- [ ] CONTRIBUTING **Public repository policy** present (forward PR surface after flip)  
+- [ ] Fix GitHub description if it still mentions **sudo-jin** (maintainer: `gh repo edit`)  
+- [ ] Homepage **https://iome.sh**  
+- [ ] Topics: `golang`, `memory`, `rag`, `embeddings`, `qdrant`  
+- [ ] Delete-branch-on-merge enabled  
+- [ ] Enable **Private vulnerability reporting**  
+- [ ] Branch protection: require PR + status check **`ci-success`** (+ branches up to date)  
+- [ ] Enable CodeQL default setup (optional but recommended; not claimed green until enabled)  
+- [ ] Confirm no secrets: `git grep` / history review residual  
+- [ ] Flip visibility **Public** (**deliberate** human act only)  
+- [ ] Then allow **`iomesh-memory-mcp`** flip second (separate deliberate act after its own re-audit)  
+
+**Still private until the deliberate visibility step.** Residual PASS ≠ public flip · not Memory GA · dual_write OFF · aion stays private · kernel first, then MCP.
 
 ## Hard locks (must remain true through flip day)
 
@@ -95,18 +115,20 @@ This residual closes **kernel readiness documentation + offline gate** only. It 
 | [`docs/OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) | Process-bar audit SSOT · re-audit before flip |
 | [`scripts/public_flip_readiness_gate.sh`](../scripts/public_flip_readiness_gate.sh) | Offline readiness greps · `make public-flip-readiness-gate` |
 | s1452 OSS process bar | LICENSE / SECURITY / CI / community docs (still private intentional) |
+| s1473 final TUI-parity audit | CONTRIBUTING public policy · OPEN_SOURCE_AUDIT final matrix · this pre-flight |
 | Future MCP host | `github.com/iome-sh/iomesh-memory-mcp` · flip **after** kernel |
 
-## Audit verdict class (s1467)
+## Audit verdict class (s1467 readiness · s1473 final TUI parity)
 
 | Dimension | Verdict |
 |-----------|---------|
-| M4 public-flip **readiness** docs + offline gate | **Pass** (this residual) |
+| M4 public-flip **readiness** docs + offline gate | **Pass** (s1467 residual) |
+| Final TUI-parity audit + pre-flight checklist | **Pass** (s1473 · still private) |
 | Visibility public flip | **Not done** — **still private** by design |
 | Residual PASS = public flip? | **No** — **residual PASS ≠ public flip** |
 | Memory GA | **No** — **not Memory GA** |
 | dual_write | **OFF** elsewhere |
 | aion | **private** |
-| M4 complete / invent public | **No** — readiness only |
+| M4 complete / invent public | **No** — readiness + final audit only |
 
-**Overall:** Ready to **deliberate** a future public flip after re-audit. **Still private.** Kernel first, then MCP. Residual PASS ≠ public flip · not Memory GA · dual_write OFF · aion stays private · open boxes stay open · Palace sunset · rates ~$88/$119 when rates apply.
+**Overall:** **Ready for deliberate public flip** after final pre-flight (s1473) + human checklist. **Still private.** Kernel first, then MCP. Residual PASS ≠ public flip · not Memory GA · dual_write OFF · aion stays private · open boxes stay open · Palace sunset · rates ~$88/$119 when rates apply.

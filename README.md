@@ -12,6 +12,7 @@
 | [SUPPORT](SUPPORT.md) · [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) | [RELEASING](RELEASING.md) · [CHANGELOG](CHANGELOG.md) |
 | [Open-source audit](docs/OPEN_SOURCE_AUDIT.md) | [Temporal roadmap](docs/temporal-memory-kernel-roadmap.md) |
 | [M4 public-flip readiness](docs/PUBLIC_FLIP_READINESS.md) (s1467) | `make public-flip-readiness-gate` |
+| Final TUI-parity audit (s1473) | [OPEN_SOURCE_AUDIT](docs/OPEN_SOURCE_AUDIT.md) · [PUBLIC_FLIP_READINESS](docs/PUBLIC_FLIP_READINESS.md) |
 
 ### Honesty locks (read first)
 
@@ -23,7 +24,8 @@
 - **Future public MCP host** naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`).
 - **Visibility:** this repository is **still private** until a deliberate public flip ([audit](docs/OPEN_SOURCE_AUDIT.md)). s1452 is the TUI-grade OSS *process* bar only.
 - **M4 readiness (s1467):** checklist + offline gate in [`docs/PUBLIC_FLIP_READINESS.md`](docs/PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Still private.** **Residual PASS ≠ public flip.** Kernel first, then MCP host — readiness ≠ invent public / Memory GA.
-- Program continuum: free eng residual **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468/s1469/s1470 mention only · free-floor peer **s1471** · free eng **s1473+**.
+- **Final TUI-parity audit (s1473):** process bar at iomesh-tui public best-practice parity for a Go **library** module · **still private** · residual PASS ≠ public flip · see [OPEN_SOURCE_AUDIT](docs/OPEN_SOURCE_AUDIT.md) + [PUBLIC_FLIP_READINESS](docs/PUBLIC_FLIP_READINESS.md).
+- Program continuum: free eng residual **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468/s1469/s1470 mention only · free-floor peer **s1471** · free eng **s1473** final audit · free eng **s1473+**.
 
 ```bash
 go get github.com/iome-sh/memory@v1.5.7
