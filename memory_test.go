@@ -99,7 +99,7 @@ func TestPalaceStore_WriteLatent(t *testing.T) {
 		Version:   1,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-		Content: MemoryContent{Summary: "latent fact"},
+		Content:   MemoryContent{Summary: "latent fact"},
 	}
 
 	if err := store.WriteLatent(entry); err != nil {
@@ -167,9 +167,9 @@ func TestSemanticRefine(t *testing.T) {
 	store := NewPalaceStore(tempDir)
 
 	entry := MemoryEntry{
-		ID:      "cluster-entry-1",
-		Type:    "event",
-		Tier:    TierContextual,
+		ID:   "cluster-entry-1",
+		Type: "event",
+		Tier: TierContextual,
 		Content: MemoryContent{
 			Summary: "Meeting with John Doe on 2025-11-17 about project Phoenix.",
 			Full:    "Important meeting with John Doe on 2025-11-17. He mentioned the deadline is strict.",

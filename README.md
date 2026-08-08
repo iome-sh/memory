@@ -1,6 +1,32 @@
 # memory
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/iome-sh/memory.svg)](https://pkg.go.dev/github.com/iome-sh/memory)
+
+**Palace kernel** — hierarchical agent memory as a portable Go module (`github.com/iome-sh/memory`).
+
+| Docs | |
+|------|--|
+| [LICENSE](LICENSE) (MIT) · [NOTICE](NOTICE) | [SECURITY](SECURITY.md) · [CONTRIBUTING](CONTRIBUTING.md) |
+| [SUPPORT](SUPPORT.md) · [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) | [RELEASING](RELEASING.md) · [CHANGELOG](CHANGELOG.md) |
+| [Open-source audit](docs/OPEN_SOURCE_AUDIT.md) | [Temporal roadmap](docs/temporal-memory-kernel-roadmap.md) |
+
+### Honesty locks (read first)
+
+- **Kernel-only** — this package is **not product Memory GA**.
+- **Local-primary** — durable memory lives on the operator’s filesystem (Palace root); not a freemium hosted Palace.
+- **dual_write OFF** on the product path elsewhere (mesh dual-write is not the default install narrative).
+- **Hosted Palace sunset** until deliberate scale — do not invent GA cloud Memory here.
+- **Mesh optional** via public TUI / ops packs; the **aion broker / control plane stays private**.
+- **Future public MCP host** naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`).
+- **Visibility:** this repository is **still private** until a deliberate public flip ([audit](docs/OPEN_SOURCE_AUDIT.md)). s1452 is the TUI-grade OSS *process* bar only.
+- Program continuum: free eng concurrent **s1452+** after free-floor **s1450** · peer residual aion s1454 mention only · does not rewrite free-floor **s1455**.
+
+```bash
+go get github.com/iome-sh/memory@v1.5.7
+make ci   # fmt-check · vet · test · govulncheck · build
+```
 
 ## v1.5.7 continuum
 
@@ -289,12 +315,14 @@ _ = vs.CreateCollection(768) // or CreateSparseCollection()
 
 ## Development & Testing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide and [SECURITY.md](SECURITY.md) for the threat model.
+
 ### Prerequisites
 
-- Go 1.22 or later
-- **Podman** (or Docker) — required for full Qdrant integration testing
-  - The test suite includes `startTemporaryQdrant()` which automatically starts a temporary Qdrant container via Podman when available.
-  - Unit tests run without Podman/Qdrant (they test the disabled graceful path).
+- Go version from `go.mod` (CI uses `GOTOOLCHAIN=auto`)
+- **Podman** (or Docker) — optional; full Qdrant integration only
+  - The test suite includes `startTemporaryQdrant()` which starts a temporary Qdrant container via Podman when available.
+  - Unit tests run without Podman/Qdrant (graceful disabled path).
 - Git
 
 ### Setup
@@ -303,16 +331,16 @@ _ = vs.CreateCollection(768) // or CreateSparseCollection()
 git clone https://github.com/iome-sh/memory.git
 cd memory
 go mod download
+make check   # fmt-check + vet + test
+# or: make ci  # + govulncheck + build
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests (unit + optional Qdrant integration if Podman is present)
-go test -v ./...
-
-# Run with race detector
-go test -race ./...
+make test
+make test-race          # optional
+make residual-gate      # offline residual honesty pins
 
 # Specific package
 go test -v ./... -run TestPalaceStore
@@ -337,9 +365,10 @@ curl http://localhost:6333/collections
 ### Building & Linting
 
 ```bash
-go build ./...
-go fmt ./...
-go vet ./...
+make fmt-check
+make vet
+make build
+make vuln    # govulncheck
 ```
 
 ## Benchmarking with LongMemEval

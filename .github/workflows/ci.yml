@@ -1,11 +1,15 @@
 # CI for github.com/iome-sh/memory (Palace kernel).
-# Unit tests run on every PR/push; heavy LongMemEval/ONNX remain optional (dispatch).
+# Required gate: lint · test · build · govulncheck · ci-success.
+# Heavy LongMemEval/ONNX remain optional (workflow_dispatch only).
 name: ci
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
   push:
     branches: [main]
-  pull_request:
+  merge_group:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -18,10 +22,44 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  GOTOOLCHAIN: auto
+
 jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Module verify
+        run: |
+          go mod download
+          go mod verify
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed on:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
   test:
     name: test
     runs-on: ubuntu-latest
@@ -36,20 +74,93 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: go mod verify
-        run: go mod verify
-
-      - name: go vet
-        run: go vet ./...
-
       - name: go test
-        run: go test ./... -count=1
+        run: go test ./... -count=1 -timeout=10m
+
+  # Optional race — not required for ci-success (hugot/embedding paths can be slow under -race).
+  test-race:
+    name: test-race
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go test -race
+        run: go test ./... -race -count=1 -timeout=15m
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
 
       - name: go build packages
         run: |
           go build ./...
           go build -o /tmp/longmemeval-bench ./cmd/longmemeval-bench
           go build -o /tmp/longmemeval-server ./cmd/longmemeval-server
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  # Aggregate gate for branch protection (single required check name).
+  ci-success:
+    name: ci-success
+    if: always()
+    needs: [lint, test, build, govulncheck]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        run: |
+          echo "lint=${{ needs.lint.result }}"
+          echo "test=${{ needs.test.result }}"
+          echo "build=${{ needs.build.result }}"
+          echo "govulncheck=${{ needs.govulncheck.result }}"
+          for r in \
+            "${{ needs.lint.result }}" \
+            "${{ needs.test.result }}" \
+            "${{ needs.build.result }}" \
+            "${{ needs.govulncheck.result }}"
+          do
+            if [ "$r" != "success" ]; then
+              echo "::error::CI gate failed (got $r)"
+              exit 1
+            fi
+          done
+          echo "All required CI jobs passed."
 
   # Optional heavy gates — workflow_dispatch only (models/network).
   longmemeval:
