@@ -9,7 +9,7 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality, hon
 - Product path elsewhere: **dual_write OFF** by default; hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
 - Future public MCP host naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`); private aion broker stays private  
 
-This repository may remain **private** until a deliberate visibility flip. Do not assume public contribution workflows until that flip lands.
+This repository may remain **private** until a deliberate visibility flip. Do not assume public contribution workflows until that flip lands. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
 
 ## Development setup
 
@@ -30,6 +30,7 @@ make cover
 make vuln
 make ci          # fmt-check + vet + test + vuln + build (local gate)
 make residual-gate   # offline residual honesty pins (s1297 / s1303 / s1313)
+make public-flip-readiness-gate   # offline M4 readiness residual (still private)
 ```
 
 Heavy optional gates (models / network; not required for PR CI):
@@ -77,15 +78,34 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 - Local-primary · dual_write OFF product path (elsewhere)  
 - Hosted Palace sunset · mesh optional  
 - Residual PASS ≠ live dogfood / invent GA  
+- Residual PASS ≠ public flip  
 - Future MCP host name: **iomesh-memory-mcp**  
+
+## Issues & discussions
+
+- Bugs / features: use [issue templates](https://github.com/iome-sh/memory/issues/new/choose)  
+- Support channels: [SUPPORT.md](SUPPORT.md)  
+- Security: private advisory path only — see [SECURITY.md](SECURITY.md)  
+
+## Public repository policy
+
+This policy is **forward-looking** for after a deliberate public flip (the repo may still be private today). Keep private program material out of the tree and PR surface:
+
+- Do **not** put private SR&ED / aion ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG **after public flip**  
+- Do **not** reference private monorepos (**aion**), internal pending-todos paths, or unpublished stage URLs  
+- Prefer public names: **`github.com/iome-sh/memory`**, product host **`iomesh-memory-mcp`**, public TUI **`iomesh-tui`**  
+- While **still private**, continuum serials in residual docs are OK; after flip, strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
+- Do **not** invent product Memory GA, freemium hosted Palace SLA, or dual_write-on product narrative  
+- Binary/package names operators actually run (e.g. **iomesh-memory-mcp**) may appear when documenting install/wire-up; do **not** document “clone the private monorepo” build paths  
 
 ## Pull requests
 
 - Clear description of *what* and *why*  
 - Link related issues when applicable  
-- Ensure CI is green (`ci-success` when branch protection requires it)  
-- Do not commit palace data, API keys, `.env`, or real user memory  
+- Ensure CI is green — aggregate status check **`ci-success`**  
+- Do not commit palace data, API keys, `.env`, secrets, or real user memory  
 - Update [CHANGELOG.md](CHANGELOG.md) **Unreleased** for user-visible API changes  
+- Follow **Public repository policy** above (no private ledger serials or monorepo paths on the forward PR surface after public flip)  
 
 ### CI on PR and merge
 
@@ -98,7 +118,13 @@ GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) r
 | `merge_group` | GitHub merge queue (if enabled) |
 | `workflow_dispatch` | manual re-run; optional LongMemEval/ONNX |
 
-Jobs: **lint** · **test** · **build** · **govulncheck** · **ci-success** (aggregate). Optional **longmemeval** only on dispatch.
+Jobs: **lint** · **test** · **build** · **govulncheck** · **ci-success** (aggregate gate). Optional **longmemeval** only on dispatch.
+
+Recommended branch protection on `main`:
+
+1. Require a pull request before merging  
+2. Require status checks to pass: **`ci-success`**  
+3. Require branches to be up to date before merging  
 
 Local parity:
 

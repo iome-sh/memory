@@ -9,18 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Final private→public flip audit closeout (s1473): TUI-parity process bar for this Go **library** module — CONTRIBUTING public repository policy · Issues & discussions · CI/branch-protection table · `OPEN_SOURCE_AUDIT` final TUI-parity matrix · `PUBLIC_FLIP_READINESS` final pre-flight checklist · RELEASING library/no-GoReleaser note — **still private** · **residual PASS ≠ public flip** · does **not** flip visibility · kernel first then `iomesh-memory-mcp`.
 - M4 public-flip **readiness** residual (s1467): `docs/PUBLIC_FLIP_READINESS.md` operator checklist · `scripts/public_flip_readiness_gate.sh` · `make public-flip-readiness-gate` — **still private** · **residual PASS ≠ public flip** · kernel first then `iomesh-memory-mcp` · does **not** flip visibility.
 - TUI-grade open-source process bar (s1452): LICENSE (MIT), NOTICE, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT, RELEASING, OPEN_SOURCE_AUDIT, GitHub PR/issue templates, Dependabot, CI lint/govulncheck/ci-success, `make ci` — **repository remains private** until a deliberate visibility flip.
 
 ### Changed
 
-- `docs/OPEN_SOURCE_AUDIT.md` continuum stamp to s1467 readiness (still private intentional Pass); links `PUBLIC_FLIP_READINESS.md`.
+- `docs/OPEN_SOURCE_AUDIT.md` continuum stamp to s1473 final TUI-parity audit (still private intentional Pass); links `PUBLIC_FLIP_READINESS.md`.
 - Go toolchain pin `go 1.26.5`; transitive security bumps (`google.golang.org/grpc`, `golang.org/x/{crypto,text,image}`) so `govulncheck ./...` is clean on called symbols.
 - gofmt across package for CI `gofmt -l` gate.
 
 ### Honesty
 
-- Kernel-only · not product Memory GA · local-primary · dual_write OFF product path · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private · residual PASS ≠ public flip · M4 readiness ≠ invent public.
+- Kernel-only · not product Memory GA · local-primary · dual_write OFF product path · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private · residual PASS ≠ public flip · M4 readiness ≠ invent public · s1473 final audit ≠ public flip.
 
 ## [1.5.7] — 2026-07
 

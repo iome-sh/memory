@@ -54,7 +54,7 @@ git push origin vX.Y.Z
 
 | Path | Notes |
 |------|--------|
-| Go module tag | Primary consumer path |
+| Go module tag | **Primary consumer path** |
 | `go get` | `go get github.com/iome-sh/memory@vX.Y.Z` |
 | CI `build` job | packages + longmemeval cmd binaries smoke-build |
 
@@ -62,6 +62,14 @@ git push origin vX.Y.Z
 make build
 go get github.com/iome-sh/memory@v1.5.7
 ```
+
+### Library module (no GoReleaser required)
+
+This package is a **Go library module**. The primary release artifact is an **annotated git tag** plus consumers running `go get github.com/iome-sh/memory@vX.Y.Z`.
+
+- **GoReleaser is not required** here (unlike binary products **iomesh-tui** / **iomesh-memory-mcp**, which ship cross-built archives).  
+- Optional: `gh release create vX.Y.Z` (or `gh release edit`) for human-readable notes from CHANGELOG — notes only, not binary assets.  
+- Optional longmemeval / helper cmd binaries may be built in CI for smoke; they are not the module’s public product surface.
 
 ## Honesty
 
