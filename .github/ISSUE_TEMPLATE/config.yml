@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/iome-sh/memory/security/advisories/new
+    about: Report security issues privately (do not open a public issue).
+  - name: Documentation & residual honesty
+    url: https://github.com/iome-sh/memory/tree/main/docs
+    about: Read the kernel roadmap and residual honesty pins before filing a feature request.

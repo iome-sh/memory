@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a kernel API or docs enhancement
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve for importers of github.com/iome-sh/memory?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: High-level approach (not a full design doc).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope notes
+      options:
+        - label: Fits local-primary kernel trust model (not multi-tenant hosted Palace)
+        - label: Does not invent product Memory GA / freemium hosted palace
+        - label: I am willing to help implement / test

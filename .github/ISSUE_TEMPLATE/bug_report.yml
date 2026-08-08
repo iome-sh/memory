@@ -1,0 +1,64 @@
+name: Bug report
+description: Something is broken or unexpected in the memory kernel
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. **Do not include API keys, palace contents, or private monorepo paths.**
+        Security issues → private advisory or security@iome.sh (see SECURITY.md).
+        This package is **kernel-only** — not product Memory GA support.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong in one or two sentences?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal Go snippet or steps (redact secrets and user memory text).
+      placeholder: |
+        1. store := memory.NewPalaceStore(tmp)
+        2. store.Write(...)
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Module version / commit
+      description: e.g. v1.5.7 or `git rev-parse --short HEAD`
+    validations:
+      required: true
+  - type: input
+    id: go
+    attributes:
+      label: Go version
+      placeholder: go1.26.0
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I ran `make check` (or CI) and this still reproduces
+        - label: I redacted secrets and palace contents from logs pasted here
+        - label: This is about the kernel library, not a request to invent hosted Memory GA

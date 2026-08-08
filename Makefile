@@ -1,9 +1,50 @@
-.PHONY: test test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
+.PHONY: all build test test-race cover vet fmt fmt-check tidy vuln check ci \
+	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
-	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate
+	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate \
+	clean
+
+COVER ?= coverage.out
+
+all: check build
 
 test:
-	go test ./...
+	go test ./... -count=1
+
+test-race:
+	go test ./... -race -count=1
+
+cover:
+	go test ./... -coverprofile=$(COVER) -covermode=atomic
+	go tool cover -func=$(COVER) | tail -20
+
+vet:
+	go vet ./...
+
+fmt:
+	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
+
+fmt-check:
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then echo "$$unformatted"; exit 1; fi
+
+tidy:
+	go mod tidy
+	go mod verify
+
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+build:
+	go build ./...
+	go build -o bin/longmemeval-bench ./cmd/longmemeval-bench
+	go build -o bin/longmemeval-server ./cmd/longmemeval-server
+
+check: fmt-check vet test
+
+# Mirrors GitHub Actions required gate (fmt + vet + test + vuln + build).
+# Race/cover are optional locally (CGO/Qdrant soft paths); CI may run race on pure packages later.
+ci: fmt-check vet test vuln build
 
 # Offline residual honesty pins (s1297 inventory + s1303 K2 event-time index + s1313 RecMem compaction).
 # Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1 · SKIP_K2_EVENT_TIME_INDEX=1 · SKIP_RECMEM_COMPACTION=1
@@ -56,16 +97,19 @@ longmemeval-bench-full:
 
 longmemeval-qa-generate:
 	python3 scripts/longmemeval_qa_generate.py \
-		--dataset $${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json} \
-		--output $${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
-		--workers $${LONGMEMEVAL_QA_WORKERS:-4} \
-		$$(if [ -n "$${LONGMEMEVAL_QA_LIMIT:-}" ] && [ "$${LONGMEMEVAL_QA_LIMIT}" != "0" ]; then echo --limit $${LONGMEMEVAL_QA_LIMIT}; fi)
+	--dataset $${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json} \
+	--output $${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
+	--workers $${LONGMEMEVAL_QA_WORKERS:-4} \
+	$$(if [ -n "$${LONGMEMEVAL_QA_LIMIT:-}" ] && [ "$${LONGMEMEVAL_QA_LIMIT}" != "0" ]; then echo --limit $${LONGMEMEVAL_QA_LIMIT}; fi)
 
 longmemeval-judge:
 	bash scripts/longmemeval_judge.sh \
-		$${LONGMEMEVAL_JUDGE_MODEL:-gpt-4o-mini} \
-		$${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
-		$${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json}
+	$${LONGMEMEVAL_JUDGE_MODEL:-gpt-4o-mini} \
+	$${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
+	$${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json}
 
 longmemeval-full-eval:
 	bash scripts/longmemeval_full_eval.sh
+
+clean:
+	rm -rf bin/ $(COVER) coverage.html

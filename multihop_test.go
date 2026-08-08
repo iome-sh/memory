@@ -68,7 +68,7 @@ func TestMultiHopRetrieve_Hop2EntityFromSeedA(t *testing.T) {
 		// RelatedConcepts path
 		{
 			ID: "via-concepts", Tier: TierContextual, Timestamp: base.Add(4 * time.Hour),
-			Content: MemoryContent{Summary: "concept-linked widget"},
+			Content:   MemoryContent{Summary: "concept-linked widget"},
 			Relations: MemoryRelations{RelatedConcepts: []string{"project:widget"}},
 		},
 	}
@@ -410,12 +410,12 @@ func TestEntryEntityKeys(t *testing.T) {
 	}
 	keys := EntryEntityKeys(e)
 	want := map[string]bool{
-		"person:alice":      true,
+		"person:alice":        true,
 		"entity:person:alice": true,
-		"subject:auth":      true,
-		"org:acme":          true,
-		"entity:org:acme":   true,
-		"project:widget":    true,
+		"subject:auth":        true,
+		"org:acme":            true,
+		"entity:org:acme":     true,
+		"project:widget":      true,
 	}
 	for _, k := range keys {
 		if !want[k] {

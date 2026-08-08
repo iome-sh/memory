@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/knights-analytics/hugot"
 	"github.com/iome-sh/memory"
+	"github.com/knights-analytics/hugot"
 )
 
 func TestFlexAnswer_UnmarshalJSON(t *testing.T) {

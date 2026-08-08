@@ -33,12 +33,12 @@ type CompactionConfig struct {
 	DataCount int     `json:"data_count"` // critical recurrence count (default 5)
 	// LongMemEval production hardening
 	ProtectHighScoreFacts bool    `json:"protect_high_score_facts"` // default true
-	FactScoreThreshold    float64 `json:"fact_score_threshold"`   // default 0.90
+	FactScoreThreshold    float64 `json:"fact_score_threshold"`     // default 0.90
 }
 
 var DefaultCompactionConfig = CompactionConfig{
 	Tier2Strategy:         StrategyPatternExtraction,
-	Tier3Strategy:        StrategyCorePrinciple,
+	Tier3Strategy:         StrategyCorePrinciple,
 	TemporalWindowSize:    12,
 	SimilarityThreshold:   0.75,
 	DataSim:               0.7,
@@ -325,7 +325,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		payload := map[string]interface{}{
 			"type":      "summary",
 			"compacted": true,
-			}
+		}
 		_ = vectorCb(newID, vec, payload)
 	}
 
@@ -388,7 +388,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		payload := map[string]interface{}{
 			"type":      "core_principle",
 			"compacted": true,
-			}
+		}
 		_ = vectorCb(newID, vec, payload)
 	}
 
@@ -458,7 +458,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		vec := GenerateSimpleEmbedding(merged, 768)
 		payload := map[string]interface{}{
 			"type": "merged",
-			}
+		}
 		_ = vectorCb(newID, vec, payload)
 	}
 

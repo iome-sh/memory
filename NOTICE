@@ -1,0 +1,39 @@
+memory (Palace kernel)
+Copyright 2026 IOMesh Technology Ltd.
+
+This product is licensed under the MIT License — see LICENSE.
+Website: https://iome.sh
+
+This repository is the **local-primary hierarchical agent memory kernel**
+(`github.com/iome-sh/memory`). It is **not** product Memory GA, not a hosted
+Palace service, and not the mesh broker / control plane.
+
+Third-party acknowledgements
+---------------------------
+
+- Open-source Go dependencies are declared in go.mod / go.sum and retain their
+  respective licenses (run `go list -m all` and consult module LICENSE files).
+
+- Direct dependencies (see go.mod):
+
+  - github.com/knights-analytics/hugot — ONNX embedding backends (GoMLX pure-Go
+    default; optional ORT/CUDA/CoreML paths). Upstream licenses apply.
+  - github.com/qdrant/go-client — optional Qdrant vector store client.
+  - github.com/google/uuid — UUID helpers.
+  - github.com/nrednav/cuid2 — CUID2 identifiers for memory entries.
+
+- Optional / transitive native stacks used when building with `-tags ORT` or
+  when loading hugot models:
+
+  - ONNX Runtime (`yalue/onnxruntime_go` and related) — optional native runtime
+    for faster inference; not required for default pure-Go GoMLX path.
+  - tokenizers / GoMLX / Hugging Face model download helpers (transitive via
+    hugot) — retain upstream licenses.
+  - Pretrained models (e.g. BGE-small-en-v1.5 exports) are **not** redistributed
+    in this repository by default; operators download models separately and
+    must respect each model's license.
+
+- LongMemEval benchmark assets and scripts reference the LongMemEval project
+  (ICLR 2025 / xiaowu0162) for evaluation only; no claim of affiliation.
+
+- Contributor Covenant (Code of Conduct) text adapted under CC BY 4.0.
