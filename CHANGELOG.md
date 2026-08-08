@@ -9,16 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M4 public-flip **readiness** residual (s1467): `docs/PUBLIC_FLIP_READINESS.md` operator checklist · `scripts/public_flip_readiness_gate.sh` · `make public-flip-readiness-gate` — **still private** · **residual PASS ≠ public flip** · kernel first then `iomesh-memory-mcp` · does **not** flip visibility.
 - TUI-grade open-source process bar (s1452): LICENSE (MIT), NOTICE, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT, RELEASING, OPEN_SOURCE_AUDIT, GitHub PR/issue templates, Dependabot, CI lint/govulncheck/ci-success, `make ci` — **repository remains private** until a deliberate visibility flip.
 
 ### Changed
 
+- `docs/OPEN_SOURCE_AUDIT.md` continuum stamp to s1467 readiness (still private intentional Pass); links `PUBLIC_FLIP_READINESS.md`.
 - Go toolchain pin `go 1.26.5`; transitive security bumps (`google.golang.org/grpc`, `golang.org/x/{crypto,text,image}`) so `govulncheck ./...` is clean on called symbols.
 - gofmt across package for CI `gofmt -l` gate.
 
 ### Honesty
 
-- Kernel-only · not product Memory GA · local-primary · dual_write OFF product path · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private.
+- Kernel-only · not product Memory GA · local-primary · dual_write OFF product path · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private · residual PASS ≠ public flip · M4 readiness ≠ invent public.
 
 ## [1.5.7] — 2026-07
 
