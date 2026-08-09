@@ -50,6 +50,77 @@ git push origin vX.Y.Z
 - Prefer **patch/minor** within the current `v1.5.x` line for additive temporal/kernel APIs  
 - Document breaking changes explicitly in CHANGELOG  
 
+## Support / version policy (E5)
+
+**Serial stamp:** free eng residual tip **s1499** (E5 support / version policy for the public Go library) · free eng concurrent **s1499+** · peer host **iomesh-memory-mcp** (mention only).
+
+Clear support window for **`github.com/iome-sh/memory`** so integrators know what is maintained. This advances Edge Memory GA candidacy **E5** documentation without inventing product GA or forever-green release machinery.
+
+### What is supported
+
+| Surface | Policy |
+|---------|--------|
+| **Latest tagged release** | Latest annotated `vX.Y.Z` on `main` is the primary supported module version |
+| **Current minor line** | Security and critical fixes land on the **current** minor line (today: `v1.5.x`) when feasible |
+| **`main` tip** | Development tip; CI-gated, but **not** a production pin — may move without a tag |
+| **Older minor lines** | Best-effort only until an EOL note appears in [SECURITY.md](SECURITY.md) |
+
+See [SECURITY.md](SECURITY.md) **Supported versions** for the security-fix matrix maintainers keep current when publishing a new minor.
+
+### Production pin (consumers)
+
+Prefer **semver tags** in production `go.mod` — do **not** rely on floating `@main` alone:
+
+```bash
+# Preferred: pin a release tag
+go get github.com/iome-sh/memory@vX.Y.Z
+
+# After tidy, go.mod / go.sum lock the module graph
+go mod tidy
+```
+
+| Practice | Why |
+|----------|-----|
+| Pin `vX.Y.Z` (or a known commit SHA) | Reproducible builds; known support surface |
+| Avoid production-only `@main` / `@latest` without a follow-up pin | Tip moves; not a support contract |
+| Record `go.sum` hashes in VCS | Integrity via the public module proxy checksum DB |
+
+### Verification (library path — not cosign binaries)
+
+This package is a **Go library**. Consumers verify via the **standard Go toolchain**, not binary cosign:
+
+```bash
+go get github.com/iome-sh/memory@vX.Y.Z
+go mod download github.com/iome-sh/memory@vX.Y.Z
+# go.sum records h1:… hashes; sum.golang.org attests public module contents when using the default proxy
+```
+
+- **No `GOPRIVATE` / PAT** required for this public module.  
+- Cosign / SBOM / GoReleaser apply to **binary peers** (`iomesh-memory-mcp`, `iomesh-tui`) — not to this library surface. See [M5 signing / release matrix](#m5-signing--release-matrix-s1491-residual-tip) above.  
+- Host release matrix for the MCP binary lives in the peer’s `RELEASING.md` (mention only; do not invent peer forever-green from this tip).
+
+### Security-supported versions
+
+When cutting a **new minor** (or deliberately EOL-ing an old line):
+
+1. Update [SECURITY.md](SECURITY.md) **Supported versions** table  
+2. Prefer security patches on the **current** minor line (`vX.Y.z`)  
+3. Document any EOL of prior minors in CHANGELOG + SECURITY  
+
+Reporting: private Security Advisory or **security@iome.sh** — see [SECURITY.md](SECURITY.md). Day-to-day usage questions: [SUPPORT.md](SUPPORT.md) / GitHub Issues.
+
+### What this tip does **not** mean
+
+| Non-claim | Honesty |
+|-----------|---------|
+| tip ≠ invent **Edge Memory GA** | Support policy docs only; product declaration is a separate human close |
+| tip ≠ invent **bare Memory GA** | Kernel library support ≠ sold “Memory GA” |
+| tip ≠ invent **forever-green signed releases** | Tags + `go get` / `go.sum` / proxy; no invent cosign-on-library or always-green peer GoReleaser |
+| tip ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
+| tip ≠ invent **live dogfood** | No invent operator dogfood green from docs |
+| tip ≠ invent **aion public** | aion / control plane stay private |
+| Docs-only tip | **No release tag invented** by this residual |
+
 ## Artifacts
 
 | Path | Notes |
@@ -128,4 +199,4 @@ Binary edge hosts that *consume* this library ship their **own** release packagi
 
 ## Honesty
 
-Tags describe the **kernel library**, not product Memory GA. Hosted Palace sunset and dual_write product defaults live outside this module. Residual honesty pins (including **s1491** M5 signing/matrix) may land after a tag without inventing GA, cosign-on-library, or forever-green peer releases. **Public MIT** · dual_write **OFF** product path · aion private · open boxes stay open.
+Tags describe the **kernel library**, not product Memory GA. Hosted Palace sunset and dual_write product defaults live outside this module. Residual honesty pins (including **s1491** M5 signing/matrix and **s1499** support / version policy) may land after a tag without inventing GA, cosign-on-library, forever-green peer releases, or Edge Memory GA. **Public MIT** · dual_write **OFF** product path · aion private · open boxes stay open · docs tips invent **no** release tag.
