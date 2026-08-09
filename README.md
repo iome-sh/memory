@@ -22,19 +22,21 @@
 - **Hosted Palace sunset** until deliberate scale — do not invent GA cloud Memory here.
 - **Mesh optional** via public TUI / ops packs; the **aion broker / control plane stays private**.
 - **Future public MCP host** naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`).
-- **Visibility:** this repository is **still private** until a deliberate public flip ([audit](docs/OPEN_SOURCE_AUDIT.md)). s1452 is the TUI-grade OSS *process* bar only.
-- **M4 readiness (s1467):** checklist + offline gate in [`docs/PUBLIC_FLIP_READINESS.md`](docs/PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Still private.** **Residual PASS ≠ public flip.** Kernel first, then MCP host — readiness ≠ invent public / Memory GA.
-- **Final TUI-parity audit (s1473):** process bar at iomesh-tui public best-practice parity for a Go **library** module · **still private** · residual PASS ≠ public flip · see [OPEN_SOURCE_AUDIT](docs/OPEN_SOURCE_AUDIT.md) + [PUBLIC_FLIP_READINESS](docs/PUBLIC_FLIP_READINESS.md).
+- **Visibility:** this repository is **public** (MIT). Kernel-only · **not Memory GA** · dual_write OFF on product path elsewhere · aion broker stays private. **No `GOPRIVATE` / PAT required** for `go get github.com/iome-sh/memory`.
+- **M4 flip:** kernel is **public**; product MCP host is `github.com/iome-sh/iomesh-memory-mcp` (also public). Residual checklist retained in [`docs/PUBLIC_FLIP_READINESS.md`](docs/PUBLIC_FLIP_READINESS.md). **Residual PASS ≠ invent Memory GA.**
+- **Final TUI-parity audit (s1473):** process bar at iomesh-tui public best-practice parity for a Go **library** module · **public** · residual PASS ≠ invent Memory GA · see [OPEN_SOURCE_AUDIT](docs/OPEN_SOURCE_AUDIT.md).
 - Program continuum: free eng residual **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468/s1469/s1470 mention only · free-floor peer **s1471** · free eng **s1473** final audit · free eng **s1473+**.
 
 ```bash
-go get github.com/iome-sh/memory@v1.5.7
+go get github.com/iome-sh/memory@main   # or @vX.Y.Z when tagged
+# No GOPRIVATE required
 make ci   # fmt-check · vet · test · govulncheck · build
 ```
 
 ## v1.5.7 continuum
 
-Module: `github.com/iome-sh/memory@v1.5.7` (install: `go get github.com/iome-sh/memory@v1.5.7`). Tag ships hop-distance ranking + prior K2/K4/A3 lite slices; residual honesty pins continue after the tag without inventing product Memory GA.
+Module: `github.com/iome-sh/memory@v1.5.7` (install: `go get github.com/iome-sh/memory@main   # or @vX.Y.Z when tagged
+# No GOPRIVATE required`). Tag ships hop-distance ranking + prior K2/K4/A3 lite slices; residual honesty pins continue after the tag without inventing product Memory GA.
 
 - **Hop-distance ranking** (s1067 / A2 residual): `MultiHopRetrieve` prefers **shorter BFS hop distance** from seed, then event time descending within the same hop. Seed matches remain hop 0. Implemented via `ExpandRelatedEntitiesHops` (entity → min hop). Optional `PreferShorterHops *bool` defaults **true** (set false to restore legacy seed-match-first sort).
 - **Residual honesty pin s1278** (closed residual-honest): free-eng pin for hop-distance ranking defaults + non-GA claims — see [`docs/operations/multi-hop-hop-distance-ranking-residual.md`](docs/operations/multi-hop-hop-distance-ranking-residual.md). multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG · **not** product Memory GA · kernel-only.
