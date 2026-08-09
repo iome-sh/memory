@@ -13,6 +13,7 @@
 | [Open-source audit](docs/OPEN_SOURCE_AUDIT.md) | [Temporal roadmap](docs/temporal-memory-kernel-roadmap.md) |
 | [M4 public-flip readiness](docs/PUBLIC_FLIP_READINESS.md) (s1467) | `make public-flip-readiness-gate` |
 | Final TUI-parity audit (s1473) | [OPEN_SOURCE_AUDIT](docs/OPEN_SOURCE_AUDIT.md) · [PUBLIC_FLIP_READINESS](docs/PUBLIC_FLIP_READINESS.md) |
+| M5 signing / release matrix (s1491) | [RELEASING.md](RELEASING.md#m5-signing--release-matrix-s1491-residual-tip) (library tag + `go.sum` / proxy; binary peers cosign mention only) |
 
 ### Honesty locks (read first)
 
@@ -25,7 +26,8 @@
 - **Visibility:** this repository is **public** (MIT). Kernel-only · **not Memory GA** · dual_write OFF on product path elsewhere · aion broker stays private. **No `GOPRIVATE` / PAT required** for `go get github.com/iome-sh/memory`.
 - **M4 flip:** kernel is **public**; product MCP host is `github.com/iome-sh/iomesh-memory-mcp` (also public). Residual checklist retained in [`docs/PUBLIC_FLIP_READINESS.md`](docs/PUBLIC_FLIP_READINESS.md). **Residual PASS ≠ invent Memory GA.**
 - **Final TUI-parity audit (s1473):** process bar at iomesh-tui public best-practice parity for a Go **library** module · **public** · residual PASS ≠ invent Memory GA · see [OPEN_SOURCE_AUDIT](docs/OPEN_SOURCE_AUDIT.md).
-- Program continuum: free eng residual **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468/s1469/s1470 mention only · free-floor peer **s1471** · free eng **s1473** final audit · free eng **s1473+**.
+- **M5 signing / release matrix (s1491):** library primary artifact = annotated semver tag; consumers verify via `go get` / `go.sum` / proxy checksum DB — **not** cosign on this module. Binary peers (iomesh-tui / iomesh-memory-mcp) use GoReleaser + SBOM + keyless cosign (**mention only** · residual PASS ≠ invent peer releases forever-green). See [RELEASING.md](RELEASING.md#m5-signing--release-matrix-s1491-residual-tip). residual PASS ≠ invent M5 complete · ≠ invent Memory GA · dual_write OFF · aion private.
+- Program continuum: free eng residual **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468/s1469/s1470 mention only · free-floor peer **s1471** · free eng **s1473** final audit · free eng **s1473+** · free eng residual **s1491** (M5 signing/matrix tip) · free eng **s1491+**.
 
 ```bash
 go get github.com/iome-sh/memory@main   # or @vX.Y.Z when tagged

@@ -55,7 +55,7 @@ Checklist for bringing **github.com/iome-sh/memory** (Palace kernel) to the same
 | SECURITY | Present |
 | SUPPORT | Present |
 | CHANGELOG | Present |
-| RELEASING | Present (library module · no GoReleaser required s1473) |
+| RELEASING | Present (library module · no GoReleaser required s1473 · M5 signing/matrix residual s1491) |
 | PR template | Present |
 | Issue templates (bug/feature) + security contact link | Present |
 | CI (lint/gofmt, test, build, govulncheck, ci-success) | Present |
@@ -94,7 +94,8 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 - **CodeQL:** not claimed green. Enable default setup on or after deliberate public flip (recommended).  
 - **History serials:** residual docs may still stamp continuum serials while private; CONTRIBUTING public repository policy governs the **forward** PR surface after flip.  
 - **Repo description / topics / homepage / delete-branch-on-merge:** maintainer GitHub settings — see [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) final pre-flight. Description must not claim `sudo-jin` module path.  
-- **GoReleaser:** N/A for this library; primary artifact is annotated git tag + `go get` (see [RELEASING.md](../RELEASING.md)). Binary products (iomesh-tui / iomesh-memory-mcp) differ.
+- **GoReleaser:** N/A for this library; primary artifact is annotated git tag + `go get` (see [RELEASING.md](../RELEASING.md)). Binary products (iomesh-tui / iomesh-memory-mcp) differ.  
+- **M5 signing / matrix (s1491):** library consumers verify via `go.sum` / module proxy checksum DB — **not** cosign on this package. Peer binary cosign/SBOM is mention-only; residual PASS ≠ invent M5 complete · ≠ invent cosign-on-library · ≠ invent Memory GA (see [RELEASING.md](../RELEASING.md#m5-signing--release-matrix-s1491-residual-tip)).
 
 ## Residual risks (Fail / Partial notes)
 
