@@ -10,7 +10,7 @@ Checklist for bringing **github.com/iome-sh/memory** (Palace kernel) to the same
 
 | Check | Status |
 |-------|--------|
-| Repository visibility | **Still private** — do **not** flip public on this serial. Deliberate future flip only after re-audit + [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). |
+| Repository visibility | **Public** (MIT) — flipped deliberately. Deliberate future flip only after re-audit + [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). |
 | Private vulnerability reporting path documented | Pass (SECURITY.md · security@iome.sh · advisory) |
 | No accidental “we are public Memory GA” claims | Pass (honesty locks below) |
 | Residual PASS ≠ public flip | Pass (s1467 readiness pin · s1473 final audit) |
@@ -100,7 +100,7 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 
 | Risk | Rating | Notes |
 |------|--------|-------|
-| Visibility still private | **Pass (intentional)** | s1452 process bar · s1467 readiness · s1473 final audit — none flips public |
+| Visibility public | **Pass** (deliberate flip) | s1452 process bar · s1467 readiness · s1473 final audit — none flips public |
 | Multi-tenant isolation | N/A / residual | Not a design goal of local FS palace |
 | Model supply chain | Residual | Operators download models; not vendored by default |
 | Concurrent writers on shared root | Residual | Documented; not multi-tenant safe |
@@ -138,9 +138,17 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 | Process bar vs iomesh-tui | **Pass** (artifacts + CI spirit + public policy · s1473) |
 | M4 public-flip **readiness** docs + offline gate | **Pass** (s1467 · still private) |
 | Final TUI-parity audit matrix | **Pass** (s1473 · Partial rows honest: CodeQL, history serials) |
-| Visibility public-ready flip | **Not done** — still private by design |
+| Visibility public flip | **Done** |
 | Product honesty | **Pass** |
 | Security docs | **Pass** |
 | Live dogfood / rates | N/A — residual PASS ≠ dogfood; rates ~$88/$119 when pricing mentioned elsewhere; no freemium Palace invent |
 
 **Overall:** **Ready for deliberate public flip** after maintainer checklist in [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). Repository is **still private** until a human flips visibility. **Residual PASS ≠ public flip.** Kernel first, then MCP. **not Memory GA** · dual_write OFF · aion stays private · open boxes stay open · Palace sunset.
+
+
+## Public import
+
+```bash
+# No PAT / GOPRIVATE:
+go get github.com/iome-sh/memory@main
+```

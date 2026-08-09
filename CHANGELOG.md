@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Public OSS:** repository is public MIT; docs drop still-private flip residual; `go get` without `GOPRIVATE`.
+
+
 ### Added
 
 - Final private→public flip audit closeout (s1473): TUI-parity process bar for this Go **library** module — CONTRIBUTING public repository policy · Issues & discussions · CI/branch-protection table · `OPEN_SOURCE_AUDIT` final TUI-parity matrix · `PUBLIC_FLIP_READINESS` final pre-flight checklist · RELEASING library/no-GoReleaser note — **still private** · **residual PASS ≠ public flip** · does **not** flip visibility · kernel first then `iomesh-memory-mcp`.

@@ -1,3 +1,5 @@
+**Status: FLIP COMPLETE (public)** — no `GOPRIVATE` required for this module.
+
 # M4 public-flip readiness checklist (kernel)
 
 Operator / maintainer checklist for a **deliberate future** public visibility flip of **`github.com/iome-sh/memory`** (Palace kernel). This document is **readiness residual only** — it does **not** flip the repository public, does **not** invent Memory GA, and does **not** complete Option A M4.

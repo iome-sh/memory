@@ -9,7 +9,7 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality, hon
 - Product path elsewhere: **dual_write OFF** by default; hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
 - Future public MCP host naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`); private aion broker stays private  
 
-This repository may remain **private** until a deliberate visibility flip. Do not assume public contribution workflows until that flip lands. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
+This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
 
 ## Development setup
 
