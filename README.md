@@ -187,11 +187,11 @@ Full dataset / judge flows need extra deps and keys; see comments in `Makefile` 
 | Document | Description |
 |----------|-------------|
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
-| [RELEASING.md](RELEASING.md) | How maintainers tag module versions |
-| [SECURITY.md](SECURITY.md) | Security policy |
+| [RELEASING.md](RELEASING.md) | How maintainers tag module versions; **support / version policy** for consumers |
+| [SECURITY.md](SECURITY.md) | Security policy and supported-versions table |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
-| [SUPPORT.md](SUPPORT.md) | How to get help |
+| [SUPPORT.md](SUPPORT.md) | How to get help; scope (library kernel) and related host |
 | [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (K0–K4 style) |
 | [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | OSS process checklist |
 
