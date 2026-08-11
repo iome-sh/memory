@@ -202,6 +202,7 @@ Full dataset / judge flows need extra deps and keys; see comments in `Makefile` 
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Lean MCP host binary for this kernel |
 | [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Multi-provider agent TUI/CLI (optional mesh hooks) |
 | [iomesh-client-sdk-go](https://github.com/iome-sh/iomesh-client-sdk-go) | Official Go client for I/O Mesh |
+| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client for I/O Mesh (**Beta** / pre-1.0 — not invent 1.0 / live PyPI GA) |
 
 This module is a **library** (tags for `go get`). Binary packaging, SBOM, and cosign apply to host tools such as `iomesh-memory-mcp` — see [RELEASING.md](RELEASING.md).
 
