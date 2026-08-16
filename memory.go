@@ -1050,6 +1050,7 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 }
 
 // SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
+// Products get SessionID / Timestamp from the parent and valid_from when unset.
 func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 	if len(cluster) == 0 {
 		return nil
@@ -1058,7 +1059,7 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 	for _, entry := range cluster {
 		facts := ExtractAtomicFacts(entry)
 		for _, factText := range facts {
-			now := time.Now()
+			now := time.Now().UTC()
 			factID := GenerateMemoryID()
 
 			factEntry := MemoryEntry{
@@ -1082,6 +1083,7 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 					UsageCount:  1,
 				},
 			}
+			applyParentSessionAndValidFrom(&factEntry, entry, now)
 
 			if err := ps.Write(factEntry); err != nil {
 				return fmt.Errorf("failed to write semantic fact: %w", err)

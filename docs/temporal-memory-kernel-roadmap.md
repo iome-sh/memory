@@ -253,7 +253,7 @@ This is **competitive lite supersession** (explicit entity keys + validity tags)
 Residual for later K4 / A3 slices (when product demand is explicit):
 
 - Temporal edges on relations for KG-style recall
-- Compaction consistency with validity tags (fact-augmented ingest now stamps `valid_from` on `IngestTurn` children and surfaces Write errors; not dual-clock ingest)
+- Compaction consistency with validity tags (ingest children stamped; compaction products now stamped; not dual-clock ingest)
 - Optional indexes if O(n) FS scans become the bottleneck
 - Auto-extract entity keys from new writes (still explicit keys in this slice)
 

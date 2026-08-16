@@ -1,6 +1,9 @@
 package memory
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -81,5 +84,87 @@ func TestVerifyAction_RejectUnknownAndMissingIDs(t *testing.T) {
 				t.Fatalf("verifyAction(%+v) = %v, want %v", tc.act, got, tc.ok)
 			}
 		})
+	}
+}
+
+func TestHandleSummarize_StampsValidFrom(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	ts := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
+	if err := store.Write(MemoryEntry{
+		ID:        "p1",
+		Type:      "note",
+		Tier:      TierContextual,
+		Version:   1,
+		CreatedAt: ts,
+		UpdatedAt: ts,
+		SessionID: "sess-compact",
+		Timestamp: ts,
+		Content:   MemoryContent{Summary: "sprint note p1", Full: "sprint planning notes p1"},
+		Metrics:   MemoryMetrics{ScoreImpact: 0.5},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writeCompactionNote(t, store, "p2")
+
+	if err := store.handleSummarize([]string{"p1", "p2"}, TierContextual, DefaultCompactionConfig, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	var product MemoryEntry
+	found := false
+	for _, e := range store.ListEntriesInTier(TierContextual) {
+		if e.Type == "summary" {
+			product = e
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected summary product in contextual tier")
+	}
+	if product.SessionID != "sess-compact" {
+		t.Fatalf("SessionID = %q, want sess-compact", product.SessionID)
+	}
+	if !product.Timestamp.Equal(ts) {
+		t.Fatalf("Timestamp = %v, want %v", product.Timestamp, ts)
+	}
+	if product.Provenance.SourceStep != "compaction" {
+		t.Fatalf("SourceStep = %q", product.Provenance.SourceStep)
+	}
+	if !hasValidFromTag(product) {
+		t.Fatalf("missing valid_from tags=%v", product.TemporalTags)
+	}
+	from, until := ParseValidityWindow(product)
+	if from == nil {
+		t.Fatalf("ParseValidityWindow from=nil tags=%v", product.TemporalTags)
+	}
+	if until != nil {
+		t.Fatalf("did not expect valid_until tags=%v", product.TemporalTags)
+	}
+	now := time.Now().UTC()
+	if !EntryValidAt(product, now) {
+		t.Fatalf("EntryValidAt(now) false from=%v", from)
+	}
+	if !EntryValidAt(product, time.Time{}) {
+		t.Fatal("EntryValidAt(zero→now) false")
+	}
+}
+
+func TestHandleSummarize_WriteError(t *testing.T) {
+	base := t.TempDir()
+	store := NewPalaceStore(base)
+	writeCompactionNote(t, store, "p1")
+	ctxDir := filepath.Join(base, "tier-2-contextual")
+	if err := os.Chmod(ctxDir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(ctxDir, 0755) })
+
+	err := store.handleSummarize([]string{"p1"}, TierContextual, DefaultCompactionConfig, nil)
+	if err == nil {
+		t.Fatal("expected summary Write error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to write summary") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
