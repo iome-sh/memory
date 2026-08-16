@@ -138,7 +138,7 @@ results := store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOpt
 | `Limit` | Cap results (default 10 for search) |
 | `Tier` | Optional tier filter |
 | `QueryVec` | Dense re-rank when non-empty; keyword token hits stay ahead of `Limit` |
-| `ReRankTemporal` | Sort by multi-factor relevance after keyword/vector path |
+| `ReRankTemporal` | Sort by relevance after keyword/vector path; keyword hits stay ahead of `Limit` |
 
 ### Timeline list
 

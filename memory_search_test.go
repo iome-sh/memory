@@ -281,6 +281,121 @@ func TestSearchMemoryWithOptions_HashQueryVecKeepsKeywordHit(t *testing.T) {
 	}
 }
 
+func TestSearchMemoryWithOptions_HaystackOriginalTextOnly(t *testing.T) {
+	assertHaystackFieldHit(t, "obsidian-cinder-7714", MemoryEntry{
+		ID:           "hit",
+		Tier:         TierContextual,
+		OriginalText: "raw turn obsidian-cinder-7714",
+		Content:      MemoryContent{Summary: "lab turn", Full: "no unique token here"},
+	})
+}
+
+func TestSearchMemoryWithOptions_HaystackKeyphrasesOnly(t *testing.T) {
+	assertHaystackFieldHit(t, "quartz-harbor-3391", MemoryEntry{
+		ID:         "hit",
+		Tier:       TierContextual,
+		Keyphrases: []string{"quartz-harbor-3391", "session note"},
+		Content:    MemoryContent{Summary: "lab turn", Full: "no unique token here"},
+	})
+}
+
+func TestSearchMemoryWithOptions_HaystackExtractedFactsOnly(t *testing.T) {
+	assertHaystackFieldHit(t, "basalt-xenon-5502", MemoryEntry{
+		ID:             "hit",
+		Tier:           TierContextual,
+		ExtractedFacts: []string{"user mentioned basalt-xenon-5502"},
+		Content:        MemoryContent{Summary: "lab turn", Full: "no unique token here"},
+	})
+}
+
+func assertHaystackFieldHit(t *testing.T, needle string, hit MemoryEntry) {
+	t.Helper()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	if err := store.Write(hit); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		e := MemoryEntry{
+			ID:   "d" + string(rune('a'+i)),
+			Tier: TierContextual,
+			Content: MemoryContent{
+				Summary: "unrelated distractor checklist " + string(rune('a'+i)),
+				Full:    "no overlap with the needle token",
+			},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	keywordOnly := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{Limit: 5})
+	if !entryHasID(keywordOnly, "hit") {
+		t.Fatalf("keyword path missed haystack-only hit; ids=%v", idsOf(keywordOnly))
+	}
+
+	vec := GenerateSimpleEmbedding(needle, DefaultHashEmbeddingDim)
+	got := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{
+		Limit:    5,
+		QueryVec: vec,
+	})
+	if len(got) > 5 {
+		t.Fatalf("Limit 5 not applied; ids=%v", idsOf(got))
+	}
+	if !entryHasID(got, "hit") {
+		t.Fatalf("hash QueryVec dropped haystack-only keyword hit; ids=%v", idsOf(got))
+	}
+	if got[0].ID != "hit" {
+		t.Fatalf("keyword hit should rank first under hash QueryVec, got %v", idsOf(got))
+	}
+}
+
+func TestSearchMemoryWithOptions_ReRankTemporalKeepsKeywordHit(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	now := time.Now()
+	const needle = "zircon-lantern-4829"
+	if err := store.Write(MemoryEntry{
+		ID:           "hit",
+		Tier:         TierContextual,
+		LastAccessed: now.Add(-200 * time.Hour),
+		OriginalText: "raw turn " + needle,
+		Content:      MemoryContent{Summary: "lab turn", Full: "no unique token here"},
+		Metrics:      MemoryMetrics{ScoreImpact: 0.05, UsageCount: 0},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		e := MemoryEntry{
+			ID:           "d" + string(rune('a'+i)),
+			Tier:         TierContextual,
+			LastAccessed: now,
+			Content: MemoryContent{
+				Summary: "unrelated distractor checklist " + string(rune('a'+i)),
+				Full:    "no overlap with the needle token",
+			},
+			Metrics: MemoryMetrics{ScoreImpact: 0.99, UsageCount: 8},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	vec := GenerateSimpleEmbedding(needle, DefaultHashEmbeddingDim)
+	got := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{
+		Limit:          5,
+		QueryVec:       vec,
+		ReRankTemporal: true,
+	})
+	if len(got) > 5 {
+		t.Fatalf("Limit 5 not applied; ids=%v", idsOf(got))
+	}
+	if !entryHasID(got, "hit") {
+		t.Fatalf("ReRankTemporal dropped keyword hit past Limit; ids=%v", idsOf(got))
+	}
+	if got[0].ID != "hit" {
+		t.Fatalf("keyword hit should stay first under ReRankTemporal, got %v", idsOf(got))
+	}
+}
+
 func TestKeywordTokens_HyphenNeedle(t *testing.T) {
 	got := keywordTokens("zircon-lantern-4829")
 	want := []string{"zircon", "lantern", "4829"}

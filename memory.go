@@ -434,6 +434,19 @@ func keywordTokens(query string) []string {
 	return tokens
 }
 
+// entryKeywordHaystack is the text the keyword tokenizer searches.
+// Summary + Full + OriginalText match ListMemoryWithOptions / ListFactsAsOf;
+// Keyphrases + ExtractedFacts are filled by IngestTurn and were previously invisible.
+func entryKeywordHaystack(e MemoryEntry) string {
+	return strings.Join([]string{
+		e.Content.Summary,
+		e.Content.Full,
+		e.OriginalText,
+		strings.Join(e.Keyphrases, " "),
+		strings.Join(e.ExtractedFacts, " "),
+	}, " ")
+}
+
 func filterEntriesByKeywords(entries []MemoryEntry, query string) []MemoryEntry {
 	tokens := keywordTokens(query)
 	if len(tokens) == 0 {
@@ -441,9 +454,9 @@ func filterEntriesByKeywords(entries []MemoryEntry, query string) []MemoryEntry 
 	}
 	var filtered []MemoryEntry
 	for _, e := range entries {
-		contentLower := strings.ToLower(e.Content.Summary + " " + e.Content.Full)
+		hay := strings.ToLower(entryKeywordHaystack(e))
 		for _, w := range tokens {
-			if strings.Contains(contentLower, w) {
+			if strings.Contains(hay, w) {
 				filtered = append(filtered, e)
 				break
 			}
@@ -452,30 +465,37 @@ func filterEntriesByKeywords(entries []MemoryEntry, query string) []MemoryEntry 
 	return filtered
 }
 
-// mergeKeywordHitsBeforeVector puts literal keyword hits first (vector-ordered
-// within each group) so hash QueryVec cannot hide a token match past Limit.
-func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []MemoryEntry) []MemoryEntry {
+// keepKeywordHitsFirst partitions results so literal keyword hits stay ahead of
+// non-hits (order within each group is preserved). Used so QueryVec cosine and
+// ReRankTemporal cannot hide a token match past Limit.
+func keepKeywordHitsFirst(results []MemoryEntry, keywordHits []MemoryEntry) []MemoryEntry {
 	if len(keywordHits) == 0 {
-		out := make([]MemoryEntry, len(scored))
-		for i, s := range scored {
-			out[i] = s.entry
-		}
-		return out
+		return results
 	}
 	hit := make(map[string]struct{}, len(keywordHits))
 	for _, e := range keywordHits {
 		hit[e.ID] = struct{}{}
 	}
 	head := make([]MemoryEntry, 0, len(keywordHits))
-	tail := make([]MemoryEntry, 0, len(scored))
-	for _, s := range scored {
-		if _, ok := hit[s.entry.ID]; ok {
-			head = append(head, s.entry)
+	tail := make([]MemoryEntry, 0, len(results))
+	for _, e := range results {
+		if _, ok := hit[e.ID]; ok {
+			head = append(head, e)
 		} else {
-			tail = append(tail, s.entry)
+			tail = append(tail, e)
 		}
 	}
 	return append(head, tail...)
+}
+
+// mergeKeywordHitsBeforeVector puts literal keyword hits first (vector-ordered
+// within each group) so hash QueryVec cannot hide a token match past Limit.
+func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []MemoryEntry) []MemoryEntry {
+	out := make([]MemoryEntry, len(scored))
+	for i, s := range scored {
+		out[i] = s.entry
+	}
+	return keepKeywordHitsFirst(out, keywordHits)
 }
 
 // SearchMemoryOptions configures hybrid retrieval with optional session, time-window,
@@ -499,7 +519,8 @@ type SearchMemoryOptions struct {
 	// non-hits so hash embeddings cannot drop a literal match past Limit.
 	QueryVec []float32
 	// ReRankTemporal, when true, sorts results by CalculateRelevanceScore descending
-	// after the keyword/vector path (before Limit).
+	// after the keyword/vector path (before Limit). Keyword hits stay ahead of
+	// non-hits so temporal re-rank cannot drop a literal match past Limit.
 	ReRankTemporal bool
 }
 
@@ -599,11 +620,13 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = keywordHits
 	}
 
-	// Optional temporal re-rank after keyword/vector path
+	// Optional temporal re-rank after keyword/vector path. Re-rank globally,
+	// then restore keyword-first so Limit cannot drop a literal hit.
 	if opts.ReRankTemporal {
 		sort.SliceStable(results, func(i, j int) bool {
 			return CalculateRelevanceScore(results[i]) > CalculateRelevanceScore(results[j])
 		})
+		results = keepKeywordHitsFirst(results, keywordHits)
 	}
 
 	// Limit
@@ -801,7 +824,7 @@ func CalculateRelevanceScore(entry MemoryEntry) float64 {
 func MultiFactorScore(entry MemoryEntry, queryVec []float32) float64 {
 	var semantic float64
 	if len(queryVec) > 0 {
-		entryVec := GenerateSimpleEmbedding(entry.Content.Summary+" "+entry.Content.Full, len(queryVec))
+		entryVec := GenerateSimpleEmbedding(entryKeywordHaystack(entry), len(queryVec))
 		semantic = CosineSimilarity(entryVec, queryVec)
 	} else {
 		semantic = entry.Metrics.ScoreImpact
