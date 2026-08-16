@@ -132,6 +132,9 @@ type PalaceStore struct {
 	metaIndex      []entryMeta
 	metaIndexDirty bool // true = needs rebuild (starts true until first ensure)
 	metaIndexGen   uint64
+
+	// lastCompaction is set when PerformCompaction runs on a non-empty tier (in-process).
+	lastCompaction time.Time
 }
 
 // NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3)
@@ -353,7 +356,7 @@ func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 
 // GetStats returns observability metrics (Phase 1.2)
 func (ps *PalaceStore) GetStats() MemoryStats {
-	stats := MemoryStats{}
+	stats := MemoryStats{LastCompaction: ps.lastCompaction}
 
 	for _, tier := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
 		dir := ps.getTierDir(tier)

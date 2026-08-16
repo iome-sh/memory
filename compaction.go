@@ -130,7 +130,8 @@ func (ps *PalaceStore) PerformCompaction(
 	actions := parseCompactionActions(raw)
 
 	for _, act := range actions {
-		if !ps.verifyAction(act) {
+		act.Action = strings.ToUpper(strings.TrimSpace(act.Action))
+		if !ps.verifyAction(act, targetTier) {
 			continue
 		}
 		switch act.Action {
@@ -144,6 +145,7 @@ func (ps *PalaceStore) PerformCompaction(
 			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
 		}
 	}
+	ps.lastCompaction = time.Now()
 }
 
 // averageEmbedding for alpha check
@@ -167,10 +169,26 @@ func averageEmbedding(entries []MemoryEntry) []float32 {
 	return avg
 }
 
-// verifyAction adds basic sanity check for structured output
-func (ps *PalaceStore) verifyAction(act CompactionAction) bool {
-	if act.Action == "" || len(act.TargetIDs) == 0 {
+// verifyAction rejects unknown actions and missing / blank / unknown target IDs.
+func (ps *PalaceStore) verifyAction(act CompactionAction, tier MemoryTier) bool {
+	minIDs := 1
+	switch strings.ToUpper(strings.TrimSpace(act.Action)) {
+	case "SUMMARIZE", "CREATE_CORE_PRINCIPLE", "ARCHIVE":
+	case "MERGE":
+		minIDs = 2
+	default:
 		return false
+	}
+	if len(act.TargetIDs) < minIDs {
+		return false
+	}
+	for _, id := range act.TargetIDs {
+		if strings.TrimSpace(id) == "" {
+			return false
+		}
+		if _, found := ps.Load(id, tier); !found {
+			return false
+		}
 	}
 	return true
 }

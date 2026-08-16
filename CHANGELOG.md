@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Compaction last-stamp + verify:** `PerformCompaction` sets `MemoryStats.LastCompaction` when a pass actually runs (non-empty target tier). `GetStats` reports the in-process stamp. `verifyAction` rejects unknown actions and missing/blank/unknown target IDs (allowlist: `SUMMARIZE`, `CREATE_CORE_PRINCIPLE`, `ARCHIVE`, `MERGE`; `MERGE` needs two IDs). Kernel-only · not Memory GA · host `memory_trigger_compact` stays advisory · RecMem leftover stays residual · not incremental/btree index green.
+
+### Changed
 - Go toolchain pin `go 1.26.6` so CI `govulncheck` is clean on stdlib GO-2026-5972 / GO-2026-5026 (fixed in go1.26.6).
 
 ### Added
