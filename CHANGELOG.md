@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **LongMemEval harness dates (#51):** `cmd/longmemeval-bench` and `cmd/longmemeval-server` parse official cleaned `haystack_dates` (`2006/01/02 (Mon) 15:04`) as well as RFC3339. In-repo subset includes one official-format date so smoke cannot regress to RFC3339-only. Harness-only · not PalaceStore API · not Memory GA.
+
+### Added
+- **LongMemEval-V2 loader + Insert/Query adapter (#52):** `internal/longmemeval` loads official `questions.jsonl` + `trajectories.jsonl` + `haystacks/lme_v2_<tier>.json` without vendoring the 7GB snapshot. `PalaceMemory` maps text steps into `IngestTurn` / `SearchMemory`. `cmd/longmemeval-v2-bench` is optional. Images later. Hash default. dual_write OFF. Not a leaderboard submit. Not Memory GA.
+
+### Changed
+- **Overlap vs official scores (#53):** README, `scripts/longmemeval_recall_bench.sh`, and bench stderr state that printed `recall` is judge-free top-k gold-answer string overlap — not official V1 gpt-4o QA and not V2 LAFS. Hash overlap is not a leaderboard number.
+
+### Fixed
 - **Compaction / SemanticRefine products (K4 leftover):** stamp `valid_from:<RFC3339>` when unset, copy `SessionID` and `Timestamp` (when set) from the first parent, and return product `Write` errors instead of discarding them. Ingest children stamped · compaction products now stamped · bi-temporal lite · not dual-clock KG · not NLP extract · not Memory GA · not incremental/btree index green.
 
 ### Changed

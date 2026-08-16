@@ -1,6 +1,6 @@
 .PHONY: all build test test-race cover vet fmt fmt-check tidy vuln check ci \
 	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
-	longmemeval-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
+	longmemeval-bench longmemeval-v2-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
 	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate \
 	public-flip-readiness-gate \
 	clean
@@ -40,6 +40,7 @@ build:
 	go build ./...
 	go build -o bin/longmemeval-bench ./cmd/longmemeval-bench
 	go build -o bin/longmemeval-server ./cmd/longmemeval-server
+	go build -o bin/longmemeval-v2-bench ./cmd/longmemeval-v2-bench
 
 check: fmt-check vet test
 
@@ -98,6 +99,10 @@ download-dataset:
 
 longmemeval-bench:
 	bash scripts/longmemeval_recall_bench.sh
+
+longmemeval-v2-bench:
+	go test -count=1 ./internal/longmemeval/...
+	go run ./cmd/longmemeval-v2-bench -data-root testdata/longmemeval_v2_subset -tier small
 
 longmemeval-bench-full:
 	LONGMEMEVAL_DATASET=data/longmemeval_oracle.json bash scripts/longmemeval_recall_bench.sh

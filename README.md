@@ -172,15 +172,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor guide and [SECURITY.m
 
 ### LongMemEval tooling (optional)
 
-Offline recall smoke/bench (no OpenAI):
+Offline overlap smoke/bench (no OpenAI). Printed `aggregate recall` is **top-k gold-answer string overlap** (judge-free). It is **not** official V1 `evaluate_qa.py` + gpt-4o accuracy and **not** V2 LAFS Gain. Hash embeddings are the no-dep default; do not publish hash overlap as a leaderboard number. dual_write stays OFF. Not Memory GA.
 
 ```bash
 make longmemeval-smoke
 make longmemeval-recall-gate
 make longmemeval-bench
+make longmemeval-v2-bench   # official V2 file layout; does not vendor the 7GB snapshot
 ```
 
-Full dataset / judge flows need extra deps and keys; see comments in `Makefile` and `scripts/`.
+Official V1 scored QA: `make longmemeval-judge` (needs `OPENAI_API_KEY`). Official V2 scored runs use the upstream harness with a fixed Qwen3.5-9B reader and GPT-5.2 judge — this kernel only loads V2 files and exposes Insert/Query. Full dataset / judge flows need extra deps and keys; see comments in `Makefile` and `scripts/`.
+
+Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC3339.
 
 ## Documentation
 

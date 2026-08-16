@@ -38,6 +38,26 @@ func TestFlexAnswer_UnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestEvalInstance_OfficialHaystackDate(t *testing.T) {
+	t.Parallel()
+	inst := LongMemEvalInstance{
+		QuestionID:    "official-date",
+		Question:      "When did I adopt Max?",
+		Answer:        FlexAnswer("March"),
+		HaystackDates: []string{"2023/04/10 (Mon) 17:50"},
+		HaystackSessions: [][]HaystackTurn{
+			{{Role: "user", Content: "I adopted Max on a Monday afternoon."}},
+		},
+	}
+	qr, err := evalInstance(inst, memory.GenerateSimpleEmbedding, nil, memory.DefaultHashEmbeddingDim, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if qr.QuestionID != "official-date" {
+		t.Fatalf("id = %q", qr.QuestionID)
+	}
+}
+
 func TestLoadDataset_NumericAnswer(t *testing.T) {
 	t.Parallel()
 	raw := `[{"question_id":"x","question":"How many?","answer":3,"haystack_sessions":[[{"role":"user","content":"I have 3 cats"}]]}]`

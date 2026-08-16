@@ -1,0 +1,1 @@
+{"id":"traj-admin-gear","domain":"web","states":[{"action":"click Admin gear","thought":"Need the staging password reset","text":"Use staging-reset from the admin gear on the settings page."}]}

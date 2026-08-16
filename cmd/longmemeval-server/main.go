@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/iome-sh/memory"
+	"github.com/iome-sh/memory/internal/longmemeval"
 )
 
 // LongMemEvalServer - Production harness for LongMemEval-S / LongMemEval-M
@@ -163,7 +164,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		ts := now
 		if t.Timestamp != "" {
-			if parsed, err := time.Parse(time.RFC3339, t.Timestamp); err == nil {
+			if parsed, ok := longmemeval.ParseTime(t.Timestamp); ok {
 				ts = parsed
 			}
 		}
@@ -326,7 +327,7 @@ func classifyTemporalIntent(query string) (bool, time.Time, time.Time) {
 }
 
 func parseTime(s string) time.Time {
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
+	if t, ok := longmemeval.ParseTime(s); ok {
 		return t
 	}
 	return time.Time{}
