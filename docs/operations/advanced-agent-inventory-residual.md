@@ -27,7 +27,7 @@ Host/TUI peers are **mention only** — not claimed as this repo's product GA pa
 | **`MultiHopRetrieve` + `PreferShorterHops`** | s1067 / s1278 · A2 multi-hop lite | Shorter BFS hop then event time · multi-hop lite ≠ full graph RAG · not full Zep/Graphiti path scoring |
 | **`ListFactsAsOf` / `EntryValidAt`** | s616 · K4 bi-temporal lite | Host-written `valid_from` / `valid_until` · bi-temporal lite ≠ dual-clock Graphiti |
 | **`SupersedeEntityFacts`** | s632 · A3 lite | Closes `valid_until` for entity keys · A3 lite ≠ NLP contradiction · not GA |
-| **`ListMemoryWithOptions`** | s611 / s1066 · K2 timeline | Filters apply **before** Limit · meta index partial · full FS event-time index residual |
+| **`ListMemoryWithOptions`** | s611 / s1066 / #44 · K2 timeline | Filters apply **before** Limit · meta index + durable snapshot · incremental event-time index residual |
 
 ### Shipped signatures (reference)
 

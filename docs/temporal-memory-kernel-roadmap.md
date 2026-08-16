@@ -104,7 +104,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 
 ## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3)
 
-**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Full FS event-time index remains residual.
+**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Durable snapshot shipped (#44); incremental/btree event-time index residual.
 
 ### Shipped (s611)
 
@@ -133,10 +133,10 @@ Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Arc
 
 ### Residual / later within K2
 
-- Full **event-time index** (avoid O(n) FS scan of tier JSON for every windowed list)
+- Incremental / btree **event-time index residual** (avoid O(n) rebuild walk after every dirty write)
 - Optional secondary indexes for tags if FS cost becomes the bottleneck
 
-**Honesty**: FS Palace remains **O(n)** over tier files for list/search. Index is additive and optional; this slice does not invent multi-tenant or product Memory GA.
+**Honesty**: FS Palace remains source of truth. Durable snapshot is best-effort and optional; rebuild-on-dirty is still **O(n)**. This slice does not invent multi-tenant or product Memory GA.
 
 ### Non-goals for K2
 
@@ -347,7 +347,8 @@ Residual for later A2 slices:
 ## Suggested implementation order
 
 1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
-2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; residual: full FS event-time index when scans become the bottleneck  
+2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; durable snapshot **done** #44; residual: incremental/btree event-time index residual  
+
 3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
 4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; hop-distance ranking lite **done** s1067; residual honesty pin **s1278**; residual: typed edges / full path scoring / full Zep KG  
 5. **A3** first slice (entity-key fact supersession) — **done** s632 / v1.5.6; residual: auto entity extract / NLP contradiction / full dual-clock KG  

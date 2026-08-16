@@ -109,6 +109,10 @@ type PalaceConfig struct {
 	// instead of the best-effort in-memory metadata index (K2 residual / s1066).
 	// Default false (index enabled). Useful for parity tests.
 	DisableMetaIndex bool
+	// DisableDurableIndex skips load/save of indexes/event-time.json.
+	// The in-memory meta index still runs unless DisableMetaIndex is set.
+	// Default false (durable snapshot enabled). FS Palace remains source of truth.
+	DisableDurableIndex bool
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -169,6 +173,7 @@ func (ps *PalaceStore) ensureDirs() error {
 		filepath.Join(ps.BaseDir, "tier-4-semantic"), // RecMem Phase 3 - high fidelity atomic facts
 		filepath.Join(ps.BaseDir, "versions", "memory-entries"),
 		filepath.Join(ps.BaseDir, "relations"),
+		filepath.Join(ps.BaseDir, "indexes"),
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {

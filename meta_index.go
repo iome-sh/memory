@@ -112,6 +112,9 @@ func (ps *PalaceStore) ensureMetaIndexLocked() {
 	if !ps.metaIndexDirty && ps.metaIndex != nil {
 		return
 	}
+	if ps.tryLoadDurableMetaLocked() {
+		return
+	}
 	ps.rebuildMetaIndexLocked()
 }
 
@@ -153,6 +156,7 @@ func (ps *PalaceStore) rebuildMetaIndexLocked() {
 	ps.metaIndex = meta
 	ps.metaIndexDirty = false
 	ps.metaIndexGen++
+	ps.persistDurableMetaLocked()
 }
 
 // metaHasTag reports exact tag match on entryMeta.Tags.
