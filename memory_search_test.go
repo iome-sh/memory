@@ -265,6 +265,9 @@ func TestSearchMemoryWithOptions_HashQueryVecKeepsKeywordHit(t *testing.T) {
 		Limit:    5,
 		QueryVec: vec,
 	})
+	if len(got) > 5 {
+		t.Fatalf("Limit 5 not applied; ids=%v", idsOf(got))
+	}
 	if !entryHasID(got, "hit") {
 		t.Fatalf("hash QueryVec dropped keyword hit; ids=%v", idsOf(got))
 	}
@@ -275,6 +278,19 @@ func TestSearchMemoryWithOptions_HashQueryVecKeepsKeywordHit(t *testing.T) {
 	keywordOnly := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{Limit: 5})
 	if !entryHasID(keywordOnly, "hit") {
 		t.Fatalf("keyword path missed hit; ids=%v", idsOf(keywordOnly))
+	}
+}
+
+func TestKeywordTokens_HyphenNeedle(t *testing.T) {
+	got := keywordTokens("zircon-lantern-4829")
+	want := []string{"zircon", "lantern", "4829"}
+	if len(got) != len(want) {
+		t.Fatalf("tokens=%v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("tokens=%v want %v", got, want)
+		}
 	}
 }
 
