@@ -21,6 +21,7 @@ JSON_REPORT="${LONGMEMEVAL_JSON_REPORT:-}"
 QUIET="${LONGMEMEVAL_QUIET:-}"
 
 echo "longmemeval recall bench: dataset=${DATASET} topk=${TOPK} min-recall=${MIN_RECALL}" >&2
+echo "longmemeval recall bench: printed recall = top-k gold-answer string overlap (judge-free). Not official V1 gpt-4o QA. Not V2 LAFS." >&2
 if [[ "${LIMIT}" == "0" && "${DATASET}" == *oracle* ]]; then
   echo "longmemeval recall bench: full oracle run (~500 questions, ~3-5 min ONNX); progress on stderr" >&2
 fi

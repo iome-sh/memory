@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/iome-sh/memory"
+	"github.com/iome-sh/memory/internal/longmemeval"
 )
 
 // FlexAnswer unmarshals LongMemEval answers that may be JSON strings or numbers.
@@ -142,6 +143,9 @@ func main() {
 			AvgQuestionMs  float64 `json:"avg_question_ms"`
 			EmbedCallsNote string  `json:"embed_calls_note"`
 			MinRecall      float64 `json:"min_recall"`
+			Metric         string  `json:"metric"`
+			NotOfficialV1  bool    `json:"not_official_v1_gpt4o"`
+			NotOfficialV2  bool    `json:"not_official_v2_lafs"`
 		}{
 			Total:          report.Total,
 			Hits:           report.Hits,
@@ -150,6 +154,9 @@ func main() {
 			AvgQuestionMs:  report.AvgQuestionMs,
 			EmbedCallsNote: report.EmbedCallsNote,
 			MinRecall:      *minRecall,
+			Metric:         "topk_answer_overlap",
+			NotOfficialV1:  true,
+			NotOfficialV2:  true,
 		}
 		data, marshalErr := json.MarshalIndent(payload, "", "  ")
 		if marshalErr != nil {
@@ -180,6 +187,7 @@ func main() {
 
 	fmt.Printf("aggregate recall: %d/%d = %.2f (min-recall=%.2f, total=%s, avg=%.1fms/q)\n",
 		report.Hits, report.Total, report.Recall, *minRecall, report.TotalDuration.Round(time.Millisecond), report.AvgQuestionMs)
+	fmt.Fprintln(os.Stderr, "note: printed recall is top-k gold-answer string overlap (judge-free). Not official V1 gpt-4o QA. Not V2 LAFS. Hash embeddings are the no-dep default; do not publish as a leaderboard number.")
 
 	if report.Recall < *minRecall {
 		os.Exit(1)
@@ -319,7 +327,7 @@ func evalInstance(inst LongMemEvalInstance, embedFn memory.EmbeddingFunc, batchF
 
 		var sessionTS time.Time
 		if sessIdx < len(inst.HaystackDates) && inst.HaystackDates[sessIdx] != "" {
-			if parsed, parseErr := time.Parse(time.RFC3339, inst.HaystackDates[sessIdx]); parseErr == nil {
+			if parsed, ok := longmemeval.ParseTime(inst.HaystackDates[sessIdx]); ok {
 				sessionTS = parsed
 			}
 		}
