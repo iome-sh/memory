@@ -259,7 +259,8 @@ func TestSearchMemoryWithOptions_HashQueryVecKeepsKeywordHit(t *testing.T) {
 		}
 	}
 
-	vec := GenerateSimpleEmbedding(needle, 384)
+	// Host lean hash path uses DefaultHashEmbeddingDim (768), not 384.
+	vec := GenerateSimpleEmbedding(needle, DefaultHashEmbeddingDim)
 	got := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{
 		Limit:    5,
 		QueryVec: vec,
