@@ -951,6 +951,7 @@ func extractKeyphrases(text string) []string {
 }
 
 // IngestTurn is the primary production entry point for LongMemEval benchmark and ego online session processing.
+// Fact-augmented children (type turn_fact) get valid_from stamped when unset; child Write errors are returned.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
@@ -1000,7 +1001,7 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 		if strings.TrimSpace(factText) == "" {
 			continue
 		}
-		now := time.Now()
+		now := time.Now().UTC()
 		factID := GenerateMemoryID()
 
 		factEntry := MemoryEntry{
@@ -1027,8 +1028,14 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 				UsageCount:  1,
 			},
 		}
+		// K4 leftover: fact children participate in EntryValidAt without host tags.
+		if !hasValidFromTag(factEntry) {
+			factEntry.TemporalTags = append(factEntry.TemporalTags, validFromTagPrefix+now.Format(time.RFC3339))
+		}
 
-		_ = ps.Write(factEntry)
+		if err := ps.Write(factEntry); err != nil {
+			return fmt.Errorf("failed to write turn fact: %w", err)
+		}
 	}
 
 	return nil
