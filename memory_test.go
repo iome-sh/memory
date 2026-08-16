@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -187,5 +189,84 @@ func TestSemanticRefine(t *testing.T) {
 	stats := store.GetStats()
 	if stats.SemanticCount == 0 {
 		t.Error("expected at least one semantic fact to be created")
+	}
+}
+
+func TestSemanticRefine_StampsValidFrom(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	ts := time.Now().UTC().Add(-3 * time.Hour).Truncate(time.Second)
+	entry := MemoryEntry{
+		ID:        "cluster-entry-vf",
+		Type:      "event",
+		Tier:      TierContextual,
+		SessionID: "sess-refine",
+		Timestamp: ts,
+		Content: MemoryContent{
+			Summary: "Meeting with John Doe on 2025-11-17 about project Phoenix.",
+			Full:    "Important meeting with John Doe on 2025-11-17. He mentioned the deadline is strict.",
+		},
+	}
+	if err := store.SemanticRefine([]MemoryEntry{entry}); err != nil {
+		t.Fatal(err)
+	}
+
+	facts := store.ListEntriesInTier(TierSemantic)
+	if len(facts) == 0 {
+		t.Fatal("expected at least one atomic fact")
+	}
+	now := time.Now().UTC()
+	for _, f := range facts {
+		if f.Type != "atomic_fact" {
+			t.Fatalf("type = %q, want atomic_fact", f.Type)
+		}
+		if f.SessionID != "sess-refine" || f.Provenance.SourceStep != "semantic_refine" {
+			t.Fatalf("unexpected fact metadata: %+v", f)
+		}
+		if !f.Timestamp.Equal(ts) {
+			t.Fatalf("Timestamp = %v, want %v", f.Timestamp, ts)
+		}
+		if !hasValidFromTag(f) {
+			t.Fatalf("missing valid_from on %s tags=%v", f.ID, f.TemporalTags)
+		}
+		from, until := ParseValidityWindow(f)
+		if from == nil {
+			t.Fatalf("ParseValidityWindow from=nil on %s tags=%v", f.ID, f.TemporalTags)
+		}
+		if until != nil {
+			t.Fatalf("did not expect valid_until on new fact %s tags=%v", f.ID, f.TemporalTags)
+		}
+		if !EntryValidAt(f, now) {
+			t.Fatalf("EntryValidAt(now) false for %s from=%v", f.ID, from)
+		}
+		if !EntryValidAt(f, time.Time{}) {
+			t.Fatalf("EntryValidAt(zero→now) false for %s", f.ID)
+		}
+	}
+}
+
+func TestSemanticRefine_FactWriteError(t *testing.T) {
+	base := t.TempDir()
+	store := NewPalaceStore(base)
+	semDir := filepath.Join(base, "tier-4-semantic")
+	if err := os.Chmod(semDir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(semDir, 0755) })
+
+	err := store.SemanticRefine([]MemoryEntry{{
+		ID:   "cluster-write-err",
+		Type: "event",
+		Content: MemoryContent{
+			Full: "I graduated from MIT. I live in Seattle now.",
+		},
+	}})
+	if err == nil {
+		t.Fatal("expected semantic fact Write error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to write semantic fact") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := store.ListEntriesInTier(TierSemantic); len(got) != 0 {
+		t.Fatalf("semantic facts after failed write = %d, want 0", len(got))
 	}
 }

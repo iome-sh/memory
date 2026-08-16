@@ -114,6 +114,27 @@ func hasValidFromTag(e MemoryEntry) bool {
 	return false
 }
 
+// applyParentSessionAndValidFrom copies SessionID and Timestamp (when set) from
+// parent, then stamps valid_from:<RFC3339> when unset. Used by compaction
+// products and SemanticRefine so EntryValidAt sees the write without host tags.
+func applyParentSessionAndValidFrom(product *MemoryEntry, parent MemoryEntry, now time.Time) {
+	if product == nil {
+		return
+	}
+	product.SessionID = parent.SessionID
+	if !parent.Timestamp.IsZero() {
+		product.Timestamp = parent.Timestamp
+	}
+	if !hasValidFromTag(*product) {
+		if now.IsZero() {
+			now = time.Now().UTC()
+		} else {
+			now = now.UTC()
+		}
+		product.TemporalTags = append(product.TemporalTags, validFromTagPrefix+now.Format(time.RFC3339))
+	}
+}
+
 // setValidUntilTag sets (or replaces) the valid_until TemporalTag, preserving
 // all other tags including valid_from. Multiple prior valid_until tags collapse
 // to a single replacement.

@@ -68,15 +68,16 @@ func isProtectedFactEntry(entry MemoryEntry, cfg CompactionConfig) bool {
 
 // PerformCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints.
 // Now respects LongMemEval fact protection and turn granularity.
+// Product Write errors from SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE are returned.
 func (ps *PalaceStore) PerformCompaction(
 	targetTier MemoryTier,
 	cfg CompactionConfig,
 	generateFn func(prompt string) string,
 	vectorCallback VectorStoreCallback,
-) {
+) error {
 	entries := ps.ListEntriesInTier(targetTier)
 	if len(entries) == 0 {
-		return
+		return nil
 	}
 
 	// Separate protected facts from candidates
@@ -134,18 +135,24 @@ func (ps *PalaceStore) PerformCompaction(
 		if !ps.verifyAction(act, targetTier) {
 			continue
 		}
+		var err error
 		switch act.Action {
 		case "SUMMARIZE":
-			ps.handleSummarize(act.TargetIDs, targetTier, cfg, vectorCallback)
+			err = ps.handleSummarize(act.TargetIDs, targetTier, cfg, vectorCallback)
 		case "CREATE_CORE_PRINCIPLE":
-			ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg, vectorCallback)
+			err = ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg, vectorCallback)
 		case "ARCHIVE":
 			ps.handleArchive(act.TargetIDs, targetTier, cfg)
 		case "MERGE":
-			ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
+			err = ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
+		}
+		if err != nil {
+			ps.lastCompaction = time.Now()
+			return err
 		}
 	}
 	ps.lastCompaction = time.Now()
+	return nil
 }
 
 // averageEmbedding for alpha check
@@ -288,12 +295,13 @@ func parseCompactionActions(output string) []CompactionAction {
 	return actions
 }
 
-func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) {
+func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) error {
 	if len(ids) == 0 {
-		return
+		return nil
 	}
 	var contents []string
 	var parents []string
+	var firstParent MemoryEntry
 	var totalScore float64
 
 	for _, id := range ids {
@@ -301,19 +309,22 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 			if isProtectedFactEntry(entry, cfg) {
 				continue // never summarize protected facts
 			}
+			if len(parents) == 0 {
+				firstParent = entry
+			}
 			contents = append(contents, entry.Content.Full)
 			parents = append(parents, id)
 			totalScore += entry.Metrics.ScoreImpact
 		}
 	}
 	if len(contents) == 0 {
-		return
+		return nil
 	}
 
 	combined := strings.Join(contents, "\n\n---\n\n")
 	condensed := truncate(combined, 500)
 
-	now := time.Now()
+	now := time.Now().UTC()
 	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
 		ID:        newID,
@@ -336,7 +347,10 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 			UsageCount:  1,
 		},
 	}
-	ps.Write(newEntry)
+	applyParentSessionAndValidFrom(&newEntry, firstParent, now)
+	if err := ps.Write(newEntry); err != nil {
+		return fmt.Errorf("failed to write summary: %w", err)
+	}
 
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(condensed, 768)
@@ -351,18 +365,22 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		if entry, ok := ps.Load(id, tier); ok {
 			if !isProtectedFactEntry(entry, cfg) {
 				entry.Tier = TierArchival
-				ps.Write(entry)
+				if err := ps.Write(entry); err != nil {
+					return fmt.Errorf("failed to archive summarized entry: %w", err)
+				}
 			}
 		}
 	}
+	return nil
 }
 
-func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) {
+func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) error {
 	if len(ids) == 0 {
-		return
+		return nil
 	}
 	var contents []string
 	var parents []string
+	var firstParent MemoryEntry
 	var totalScore float64
 
 	for _, id := range ids {
@@ -370,19 +388,22 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 			if isProtectedFactEntry(entry, cfg) {
 				continue
 			}
+			if len(parents) == 0 {
+				firstParent = entry
+			}
 			contents = append(contents, entry.Content.Full)
 			parents = append(parents, id)
 			totalScore += entry.Metrics.ScoreImpact
 		}
 	}
 	if len(contents) == 0 {
-		return
+		return nil
 	}
 
 	combined := strings.Join(contents, "\n\n")
 	principle := truncate(combined, 400)
 
-	now := time.Now()
+	now := time.Now().UTC()
 	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
 		ID:        newID,
@@ -399,7 +420,10 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		Provenance: MemoryProvenance{SourceStep: "compaction", ParentIDs: parents},
 		Metrics:    MemoryMetrics{ScoreImpact: totalScore/float64(len(parents)) + 1.0, UsageCount: 1},
 	}
-	ps.Write(newEntry)
+	applyParentSessionAndValidFrom(&newEntry, firstParent, now)
+	if err := ps.Write(newEntry); err != nil {
+		return fmt.Errorf("failed to write core principle: %w", err)
+	}
 
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(principle, 768)
@@ -414,10 +438,13 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		if entry, ok := ps.Load(id, tier); ok {
 			if !isProtectedFactEntry(entry, cfg) {
 				entry.Tier = TierArchival
-				ps.Write(entry)
+				if err := ps.Write(entry); err != nil {
+					return fmt.Errorf("failed to archive core-principle source: %w", err)
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier, cfg CompactionConfig) {
@@ -432,12 +459,13 @@ func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier, cfg Compacti
 	}
 }
 
-func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) {
+func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) error {
 	if len(ids) < 2 {
-		return
+		return nil
 	}
 	var contents []string
 	var parents []string
+	var firstParent MemoryEntry
 	var totalScore float64
 
 	for _, id := range ids {
@@ -445,19 +473,22 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 			if isProtectedFactEntry(entry, cfg) {
 				continue // do not merge protected facts
 			}
+			if len(parents) == 0 {
+				firstParent = entry
+			}
 			contents = append(contents, entry.Content.Full)
 			parents = append(parents, id)
 			totalScore += entry.Metrics.ScoreImpact
 		}
 	}
 	if len(contents) == 0 {
-		return
+		return nil
 	}
 
 	combined := strings.Join(contents, "\n\n---\n\n")
 	merged := truncate(combined, 500)
 
-	now := time.Now()
+	now := time.Now().UTC()
 	newID := GenerateMemoryID()
 	newEntry := MemoryEntry{
 		ID:         newID,
@@ -470,7 +501,10 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		Provenance: MemoryProvenance{SourceStep: "compaction", ParentIDs: parents},
 		Metrics:    MemoryMetrics{ScoreImpact: totalScore / float64(len(parents)), UsageCount: 1},
 	}
-	ps.Write(newEntry)
+	applyParentSessionAndValidFrom(&newEntry, firstParent, now)
+	if err := ps.Write(newEntry); err != nil {
+		return fmt.Errorf("failed to write merge: %w", err)
+	}
 
 	if vectorCb != nil {
 		vec := GenerateSimpleEmbedding(merged, 768)
@@ -484,10 +518,13 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		if entry, ok := ps.Load(id, tier); ok {
 			if !isProtectedFactEntry(entry, cfg) {
 				entry.Tier = TierArchival
-				ps.Write(entry)
+				if err := ps.Write(entry); err != nil {
+					return fmt.Errorf("failed to archive merged entry: %w", err)
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func truncate(s string, max int) string {
@@ -541,8 +578,12 @@ func (ps *PalaceStore) AutoRecMemCompaction(generateFn func(prompt string) strin
 	clusters := clusterBySimilarity(sub, cfg.DataSim)
 	for _, cluster := range clusters {
 		if shouldTriggerPhaseTransition(cluster, cfg) {
-			ps.PerformCompaction(TierContextual, cfg, generateFn, vectorCb)
-			_ = ps.SemanticRefine(cluster)
+			if err := ps.PerformCompaction(TierContextual, cfg, generateFn, vectorCb); err != nil {
+				return
+			}
+			if err := ps.SemanticRefine(cluster); err != nil {
+				return
+			}
 		}
 	}
 }
