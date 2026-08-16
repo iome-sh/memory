@@ -421,6 +421,63 @@ func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn Embeddin
 	return scored
 }
 
+func keywordTokens(query string) []string {
+	raw := strings.FieldsFunc(strings.ToLower(query), func(r rune) bool {
+		return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
+	})
+	var tokens []string
+	for _, w := range raw {
+		if len(w) >= 3 {
+			tokens = append(tokens, w)
+		}
+	}
+	return tokens
+}
+
+func filterEntriesByKeywords(entries []MemoryEntry, query string) []MemoryEntry {
+	tokens := keywordTokens(query)
+	if len(tokens) == 0 {
+		return nil
+	}
+	var filtered []MemoryEntry
+	for _, e := range entries {
+		contentLower := strings.ToLower(e.Content.Summary + " " + e.Content.Full)
+		for _, w := range tokens {
+			if strings.Contains(contentLower, w) {
+				filtered = append(filtered, e)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+// mergeKeywordHitsBeforeVector puts literal keyword hits first (vector-ordered
+// within each group) so hash QueryVec cannot hide a token match past Limit.
+func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []MemoryEntry) []MemoryEntry {
+	if len(keywordHits) == 0 {
+		out := make([]MemoryEntry, len(scored))
+		for i, s := range scored {
+			out[i] = s.entry
+		}
+		return out
+	}
+	hit := make(map[string]struct{}, len(keywordHits))
+	for _, e := range keywordHits {
+		hit[e.ID] = struct{}{}
+	}
+	head := make([]MemoryEntry, 0, len(keywordHits))
+	tail := make([]MemoryEntry, 0, len(scored))
+	for _, s := range scored {
+		if _, ok := hit[s.entry.ID]; ok {
+			head = append(head, s.entry)
+		} else {
+			tail = append(tail, s.entry)
+		}
+	}
+	return append(head, tail...)
+}
+
 // SearchMemoryOptions configures hybrid retrieval with optional session, time-window,
 // as-of validity, and temporal re-ranking filters (s586 temporal retrieval; s616 AsOf).
 type SearchMemoryOptions struct {
@@ -437,7 +494,9 @@ type SearchMemoryOptions struct {
 	Limit int
 	// Tier, when non-nil, restricts candidates to that tier.
 	Tier *MemoryTier
-	// QueryVec enables vector semantic ranking when non-empty.
+	// QueryVec, when non-empty, ranks candidates by cosine similarity.
+	// Keyword hits (if the query has tokens of length >= 3) are kept ahead of
+	// non-hits so hash embeddings cannot drop a literal match past Limit.
 	QueryVec []float32
 	// ReRankTemporal, when true, sorts results by CalculateRelevanceScore descending
 	// after the keyword/vector path (before Limit).
@@ -522,7 +581,10 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = filtered
 	}
 
-	// Vector semantic path: rank all candidates when a query embedding is supplied (ONNX recall).
+	// Hybrid: keyword hits first (literal recall), then vector rank for the rest.
+	// QueryVec alone used to skip the keyword path; hash embeddings made that
+	// ranking noise and could drop an exact token past Limit (#45).
+	keywordHits := filterEntriesByKeywords(results, query)
 	if len(opts.QueryVec) > 0 {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
@@ -532,35 +594,9 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		sort.Slice(scored, func(i, j int) bool {
 			return scored[i].score > scored[j].score
 		})
-		results = make([]MemoryEntry, len(scored))
-		for i, s := range scored {
-			results[i] = s.entry
-		}
+		results = mergeKeywordHitsBeforeVector(scored, keywordHits)
 	} else {
-		// Keyword filter when no query vector (hash fallback path).
-		queryLower := strings.ToLower(query)
-		queryWords := strings.FieldsFunc(queryLower, func(r rune) bool {
-			return !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'))
-		})
-
-		var filtered []MemoryEntry
-		for _, e := range results {
-			contentLower := strings.ToLower(e.Content.Summary + " " + e.Content.Full)
-			match := false
-			for _, w := range queryWords {
-				if len(w) < 3 {
-					continue // skip very short words
-				}
-				if strings.Contains(contentLower, w) {
-					match = true
-					break
-				}
-			}
-			if match {
-				filtered = append(filtered, e)
-			}
-		}
-		results = filtered
+		results = keywordHits
 	}
 
 	// Optional temporal re-rank after keyword/vector path

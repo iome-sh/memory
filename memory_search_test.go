@@ -232,6 +232,60 @@ func TestSearchMemory_WrapperParityEmptyOpts(t *testing.T) {
 	}
 }
 
+func TestSearchMemoryWithOptions_HashQueryVecKeepsKeywordHit(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	const needle = "zircon-lantern-4829"
+	if err := store.Write(MemoryEntry{
+		ID:   "hit",
+		Tier: TierContextual,
+		Content: MemoryContent{
+			Summary: "lab note " + needle,
+			Full:    "synthetic unique token for hash-embedding recall",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		e := MemoryEntry{
+			ID:   "d" + string(rune('a'+i)),
+			Tier: TierContextual,
+			Content: MemoryContent{
+				Summary: "unrelated distractor checklist " + string(rune('a'+i)),
+				Full:    "no overlap with the needle token",
+			},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	vec := GenerateSimpleEmbedding(needle, 384)
+	got := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{
+		Limit:    5,
+		QueryVec: vec,
+	})
+	if !entryHasID(got, "hit") {
+		t.Fatalf("hash QueryVec dropped keyword hit; ids=%v", idsOf(got))
+	}
+	if got[0].ID != "hit" {
+		t.Fatalf("keyword hit should rank first under hash QueryVec, got %v", idsOf(got))
+	}
+
+	keywordOnly := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{Limit: 5})
+	if !entryHasID(keywordOnly, "hit") {
+		t.Fatalf("keyword path missed hit; ids=%v", idsOf(keywordOnly))
+	}
+}
+
+func entryHasID(entries []MemoryEntry, id string) bool {
+	for _, e := range entries {
+		if e.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func idsOf(entries []MemoryEntry) []string {
 	ids := make([]string, len(entries))
 	for i, e := range entries {
