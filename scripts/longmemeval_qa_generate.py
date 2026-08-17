@@ -26,10 +26,16 @@ import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import requests
 from tqdm import tqdm
+
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from longmemeval_sample import apply_limit, type_histogram  # noqa: E402
 
 try:
     import openai
@@ -104,14 +110,35 @@ def ingest_history(session: requests.Session, conv_id: str, history: List[Dict[s
     r.raise_for_status()
 
 
-def retrieve_memories(session: requests.Session, query: str, k: int) -> List[Dict[str, Any]]:
-    payload = {"query": query, "limit": k}
+def retrieve_memories(
+    session: requests.Session,
+    query: str,
+    k: int,
+    session_id: str = "",
+) -> List[Dict[str, Any]]:
+    payload: Dict[str, Any] = {"query": query, "limit": k}
+    if session_id:
+        payload["session_id"] = session_id
     r = session.post(f"{SERVER_URL}/retrieve", json=payload, timeout=60)
     r.raise_for_status()
     return r.json().get("memories", [])
 
 
-def generate_answer(question: str, memories: List[Dict[str, Any]]) -> str:
+def server_embed_mode(session: requests.Session) -> str:
+    try:
+        r = session.get(f"{SERVER_URL}/health", timeout=5)
+        if r.status_code == 200:
+            return str(r.json().get("embed_mode") or "unknown")
+    except Exception:
+        pass
+    return "unknown"
+
+
+def generate_answer(
+    question: str,
+    memories: List[Dict[str, Any]],
+    question_date: str = "",
+) -> str:
     """Single OpenAI call: extract key facts from memories and answer the question."""
     if not memories:
         context = "No relevant memories retrieved."
@@ -120,14 +147,26 @@ def generate_answer(question: str, memories: List[Dict[str, Any]]) -> str:
         for m in memories[:15]:
             full = m.get("full") or m.get("summary") or ""
             score = m.get("score", 0.0)
-            lines.append(f"[score={score:.2f}] {full}")
+            ts = m.get("timestamp") or ""
+            sid = m.get("session_id") or ""
+            prefix = f"[score={score:.2f}"
+            if ts:
+                prefix += f" t={ts}"
+            if sid:
+                prefix += f" session={sid}"
+            lines.append(f"{prefix}] {full}")
         context = "\n".join(lines)
+
+    date_line = ""
+    if question_date:
+        date_line = f"Question date (use this as 'now' for temporal items): {question_date}\n\n"
 
     prompt = (
         "You are a helpful assistant with access to long-term personal memories.\n"
         "Read the retrieved memory snippets below. Extract relevant facts and answer "
         "the question as accurately as possible. If memories contain partial information, "
         "synthesize the best answer; only abstain if the information is truly absent.\n\n"
+        f"{date_line}"
         f"Memories:\n{context}\n\n"
         f"Question: {question}\n\n"
         "Answer:"
@@ -142,20 +181,37 @@ def generate_answer(question: str, memories: List[Dict[str, Any]]) -> str:
     return (resp.choices[0].message.content or "").strip()
 
 
-def process_example(example: Dict[str, Any], retrieve_k: int) -> Optional[Tuple[str, str]]:
+def snippet_from_memory(m: Dict[str, Any], max_len: int = 400) -> Dict[str, Any]:
+    text = (m.get("full") or m.get("summary") or "")[:max_len]
+    return {
+        "id": m.get("id") or "",
+        "session_id": m.get("session_id") or "",
+        "timestamp": m.get("timestamp") or "",
+        "text": text,
+    }
+
+
+def process_example(example: Dict[str, Any], retrieve_k: int) -> Optional[Dict[str, Any]]:
     qid = example.get("question_id") or example.get("id") or example.get("qid")
     question = example.get("question") or example.get("query")
     if not qid or not question:
         return None
 
     conv_id = str(example.get("conv_id") or example.get("conversation_id") or qid)
+    question_date = str(example.get("question_date") or "")
     history = haystack_history(example)
 
     session = requests.Session()
     ingest_history(session, conv_id, history)
-    memories = retrieve_memories(session, question, retrieve_k)
-    answer = generate_answer(question, memories)
-    return str(qid), answer
+    memories = retrieve_memories(session, question, retrieve_k, session_id=conv_id)
+    answer = generate_answer(question, memories, question_date=question_date)
+    return {
+        "question_id": str(qid),
+        "hypothesis": answer,
+        "question_date": question_date,
+        "question_type": str(example.get("question_type") or ""),
+        "retrieve": [snippet_from_memory(m) for m in memories[:15]],
+    }
 
 
 def main() -> None:
@@ -163,8 +219,18 @@ def main() -> None:
     parser.add_argument("--dataset", required=True, help="Path to longmemeval_oracle.json or similar")
     parser.add_argument("--output", default="hypotheses.jsonl", help="Output hypotheses JSONL")
     parser.add_argument("--limit", type=int, default=0, help="Max examples (0 = all)")
+    parser.add_argument(
+        "--sample",
+        choices=("prefix", "mixed"),
+        default="prefix",
+        help="prefix = first-N (official V1 start is temporal-only); mixed = stratified by question_type",
+    )
     parser.add_argument("--workers", type=int, default=4, help="Parallel OpenAI+HTTP workers")
-    parser.add_argument("--server", default=SERVER_URL, help="LongMemEval server base URL")
+    parser.add_argument(
+        "--server",
+        default=os.environ.get("LONGMEMEVAL_SERVER", "http://localhost:8765"),
+        help="LongMemEval server base URL",
+    )
     args = parser.parse_args()
 
     global SERVER_URL
@@ -185,10 +251,14 @@ def main() -> None:
         sys.exit(1)
 
     examples = load_dataset(args.dataset)
-    if args.limit > 0:
-        examples = examples[: args.limit]
+    examples = apply_limit(examples, args.limit, args.sample, warn=lambda m: print(m, file=sys.stderr))
+    hist = type_histogram(examples)
+    print(f"slice n={len(examples)} sample={args.sample} types={hist}", file=sys.stderr)
 
-    hypotheses: List[Dict[str, str]] = []
+    embed_mode = server_embed_mode(probe)
+    print(f"embed_mode={embed_mode}", file=sys.stderr)
+
+    hypotheses: List[Dict[str, Any]] = []
     errors = 0
 
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
@@ -204,7 +274,8 @@ def main() -> None:
                 if result is None:
                     errors += 1
                     continue
-                hypotheses.append({"question_id": result[0], "hypothesis": result[1]})
+                result["embed_mode"] = embed_mode
+                hypotheses.append(result)
             except Exception as e:
                 errors += 1
                 print(f"error for {qid}: {e}", file=sys.stderr)
@@ -215,6 +286,11 @@ def main() -> None:
             f.write(json.dumps(h, ensure_ascii=False) + "\n")
 
     print(f"Wrote {len(hypotheses)} hypotheses to {args.output} ({errors} errors)")
+    print(
+        "Official V1 Accuracy needs evaluate_qa.py. This file is not V2 LAFS. "
+        "Prefix --limit is not mixed V1.",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

@@ -183,6 +183,10 @@ make longmemeval-v2-bench   # official V2 file layout; does not vendor the 7GB s
 
 Official V1 scored QA: `make longmemeval-judge` (needs `OPENAI_API_KEY`). Official V2 scored runs use the upstream harness with a fixed Qwen3.5-9B reader and GPT-5.2 judge — this kernel only loads V2 files and exposes Insert/Query. Full dataset / judge flows need extra deps and keys; see comments in `Makefile` and `scripts/`.
 
+`--limit N` on `scripts/longmemeval_qa_generate.py` is **dataset prefix order**. Official V1 starts with `temporal-reasoning`, so a small n is not a mixed V1 score. Use `--sample mixed` (or `LONGMEMEVAL_QA_SAMPLE=mixed`) for a stratified slice and print the type histogram. Prefix-n is not overall V1. overlap ≠ gpt-4o ≠ V2 LAFS.
+
+`/retrieve` accepts `session_id` (official generate passes `conv_id` / `question_id`). Shared-palace QA without it is other-session dominated. Hypothesis JSONL keeps `question_date`, retrieve snippets, and `embed_mode` for audit. Hash default. Not a leaderboard submit. Not Memory GA.
+
 Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC3339.
 
 ## Documentation

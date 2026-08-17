@@ -15,10 +15,16 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any, Dict, List
 
 import requests
 from tqdm import tqdm
+
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from longmemeval_sample import apply_limit, type_histogram  # noqa: E402
 
 try:
     import openai
@@ -55,8 +61,10 @@ def ingest_history(conv_id: str, history: List[Dict[str, Any]]):
     r.raise_for_status()
 
 
-def retrieve_memories(query: str, k: int = 40) -> List[Dict[str, Any]]:
-    payload = {"query": query, "limit": k}
+def retrieve_memories(query: str, k: int = 40, session_id: str = "") -> List[Dict[str, Any]]:
+    payload: Dict[str, Any] = {"query": query, "limit": k}
+    if session_id:
+        payload["session_id"] = session_id
     r = requests.post(f"{SERVER_URL}/retrieve", json=payload, timeout=30)
     r.raise_for_status()
     return r.json().get("memories", [])
@@ -81,18 +89,21 @@ def summarize_memories(memories: List[Dict[str, Any]]) -> str:
     return resp.choices[0].message.content.strip()
 
 
-def generate_answer(question: str, memories: List[Dict[str, Any]]) -> str:
+def generate_answer(question: str, memories: List[Dict[str, Any]], question_date: str = "") -> str:
     """Use OpenAI to answer using retrieved memories as context."""
     # Improved context_text prioritizing full + tags + scores (line ~68 area)
     context_text = "\n".join(
-        f"[Score: {m.get('score', 0.0):.2f}] ID: {m.get('id', 'N/A')} Full: {m.get('full', m.get('summary', ''))} Tags: {m.get('tags', [])}"
+        f"[Score: {m.get('score', 0.0):.2f} t={m.get('timestamp', '')} session={m.get('session_id', '')}] "
+        f"ID: {m.get('id', 'N/A')} Full: {m.get('full', m.get('summary', ''))} Tags: {m.get('tags', [])}"
         for m in memories
     )
     summary = summarize_memories(memories)
+    date_line = f"Question date (use this as 'now' for temporal items): {question_date}\n\n" if question_date else ""
     prompt = (
         "You are a helpful assistant with access to long-term memory. "
         "Use the provided memories and summary to answer the question as accurately as possible. "
         "If the memories contain partial information, synthesize the most accurate answer possible; only abstain if truly absent.\n\n"
+        f"{date_line}"
         f"Memories:\n{context_text}\n\nSummary of Key Facts:\n{summary}\n\nQuestion: {question}\n\nAnswer:"
     )
     client = openai.OpenAI()
@@ -173,6 +184,12 @@ def main():
     parser.add_argument("--output", default="hypotheses.jsonl", help="Output hypothesis file")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of examples (0 = all)")
     parser.add_argument(
+        "--sample",
+        choices=("prefix", "mixed"),
+        default="prefix",
+        help="prefix = first-N (V1 start is temporal-only); mixed = stratified by question_type",
+    )
+    parser.add_argument(
         "--recall-only",
         action="store_true",
         help="Skip OpenAI answer generation; ingest+retrieve and print recall stats only",
@@ -185,8 +202,8 @@ def main():
         sys.exit(1)
 
     examples = load_dataset(args.dataset)
-    if args.limit > 0:
-        examples = examples[: args.limit]
+    examples = apply_limit(examples, args.limit, args.sample, warn=lambda m: print(m, file=sys.stderr))
+    print(f"slice n={len(examples)} sample={args.sample} types={type_histogram(examples)}", file=sys.stderr)
 
     hypotheses = []
     recall_hits = 0
@@ -209,7 +226,7 @@ def main():
             print(f"Ingest error for {qid}: {e}", file=sys.stderr)
             continue
 
-        memories = retrieve_memories(question, k=max(args.topk, 40))
+        memories = retrieve_memories(question, k=max(args.topk, 40), session_id=str(conv_id))
 
         if args.recall_only:
             recall_total += 1
@@ -221,7 +238,7 @@ def main():
             continue
 
         try:
-            answer = generate_answer(question, memories)
+            answer = generate_answer(question, memories, question_date=str(ex.get("question_date") or ""))
         except Exception as e:
             print(f"Generation error for {qid}: {e}", file=sys.stderr)
             answer = "[ERROR]"

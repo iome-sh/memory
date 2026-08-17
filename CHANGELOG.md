@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **LongMemEval `/retrieve` session scope (#55):** official generate/orchestrator pass `session_id`. Shared-palace QA without it is other-session dominated. Kernel `SearchMemoryOptions.SessionID` already existed. Harness-only · not Memory GA.
+- **Keyword OR-any-token flood (#56):** keyword hits still select on any token ≥3, but are ranked by distinct-token overlap before Limit so hash top-k cannot bury a unique gold phrase under incidental `when`/`did`/`last` matches. Kernel-only · not Memory GA.
+
+### Added
+- **Official QA `question_date` + retrieve snippets (#57):** generate prompt includes question date and per-hit timestamps/session ids. Hypothesis JSONL persists snippets + `embed_mode`. Not a substitute for session-scoped retrieve.
+- **Mixed-type LongMemEval slice (#58):** `--sample mixed` / `LONGMEMEVAL_QA_SAMPLE=mixed` stratifies by `question_type`. Default `--limit N` warns that prefix-n is temporal-first, not overall V1. overlap ≠ gpt-4o ≠ V2 LAFS.
+
+### Fixed
 - **LongMemEval harness dates (#51):** `cmd/longmemeval-bench` and `cmd/longmemeval-server` parse official cleaned `haystack_dates` (`2006/01/02 (Mon) 15:04`) as well as RFC3339. In-repo subset includes one official-format date so smoke cannot regress to RFC3339-only. Harness-only · not PalaceStore API · not Memory GA.
 
 ### Added

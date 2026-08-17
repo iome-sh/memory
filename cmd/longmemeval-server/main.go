@@ -42,6 +42,7 @@ type MemoryHit struct {
 	Score     float64 `json:"score,omitempty"`
 	Timestamp string  `json:"timestamp,omitempty"`
 	TurnID    string  `json:"turn_id,omitempty"`
+	SessionID string  `json:"session_id,omitempty"`
 }
 
 // LongMemEval official answer format (JSONL line)
@@ -68,8 +69,9 @@ type IngestRequest struct {
 }
 
 type RetrieveRequest struct {
-	Query string `json:"query"`
-	Limit int    `json:"limit"`
+	Query     string `json:"query"`
+	Limit     int    `json:"limit"`
+	SessionID string `json:"session_id,omitempty"`
 }
 
 type RetrieveResponse struct {
@@ -131,7 +133,8 @@ func main() {
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{
-			"status": "ok",
+			"status":     "ok",
+			"embed_mode": embedMode(),
 			"features": map[string]any{
 				"turn_granularity":  *flagEnableTurnGranularity,
 				"time_aware":        *flagEnableTimeAware,
@@ -211,6 +214,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	if req.Limit <= 0 {
 		req.Limit = 50
 	}
+	sessionID := strings.TrimSpace(req.SessionID)
 
 	// Time-aware expansion (when enabled)
 	filter := map[string]interface{}{}
@@ -232,6 +236,9 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		vecResults, _ := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, filter, true)
 		for _, vr := range vecResults {
 			if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {
+				if sessionID != "" && entry.SessionID != sessionID {
+					continue
+				}
 				if !seen[entry.ID] {
 					seen[entry.ID] = true
 					combined = append(combined, entry)
@@ -240,9 +247,15 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// File-based hybrid (semantic ONNX re-rank when embedding func is wired, else keyword)
+	// File-based hybrid. Official QA must pass session_id so a shared palace
+	// is not other-session dominated (#55). Overlap-ranked keyword hits keep
+	// gold phrases ahead of OR-any-token flood (#56).
 	queryVec := globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
-	keywordResults := globalStore.SearchMemory(req.Query, nil, req.Limit*3, queryVec)
+	keywordResults := globalStore.SearchMemoryWithOptions(req.Query, memory.SearchMemoryOptions{
+		SessionID: sessionID,
+		Limit:     req.Limit,
+		QueryVec:  queryVec,
+	})
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -250,8 +263,9 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fact augmentation level filtering
-	if *flagFactAugLevel >= 1 {
+	// Fact augmentation: session-scoped only. Unscoped dump of TierSemantic
+	// re-introduces other-session domination on official shared-palace runs.
+	if *flagFactAugLevel >= 1 && sessionID == "" {
 		semantic := globalStore.ListEntriesInTier(memory.TierSemantic)
 		for _, e := range semantic {
 			if !seen[e.ID] {
@@ -267,16 +281,28 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 
 	hits := make([]MemoryHit, 0, len(combined))
 	for _, e := range combined {
+		ts := ""
+		if !e.Timestamp.IsZero() {
+			ts = e.Timestamp.Format(time.RFC3339)
+		}
 		hits = append(hits, MemoryHit{
 			ID:        e.ID,
 			Summary:   e.Content.Summary,
 			Full:      e.Content.Full,
-			Timestamp: e.Timestamp.Format(time.RFC3339),
+			Timestamp: ts,
 			TurnID:    e.TurnID,
+			SessionID: e.SessionID,
 		})
 	}
 
 	json.NewEncoder(w).Encode(RetrieveResponse{Memories: hits})
+}
+
+func embedMode() string {
+	if strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath)) != "" && embeddingDim == memory.MiniLMEmbeddingDim {
+		return "onnx"
+	}
+	return "hash"
 }
 
 func handleSynthesize(w http.ResponseWriter, r *http.Request) {
