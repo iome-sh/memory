@@ -112,7 +112,8 @@ longmemeval-qa-generate:
 	--dataset $${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json} \
 	--output $${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
 	--workers $${LONGMEMEVAL_QA_WORKERS:-4} \
-	$$(if [ -n "$${LONGMEMEVAL_QA_LIMIT:-}" ] && [ "$${LONGMEMEVAL_QA_LIMIT}" != "0" ]; then echo --limit $${LONGMEMEVAL_QA_LIMIT}; fi)
+	$$(if [ -n "$${LONGMEMEVAL_QA_LIMIT:-}" ] && [ "$${LONGMEMEVAL_QA_LIMIT}" != "0" ]; then echo --limit $${LONGMEMEVAL_QA_LIMIT}; fi) \
+	$$(if [ -n "$${LONGMEMEVAL_QA_SAMPLE:-}" ]; then echo --sample $${LONGMEMEVAL_QA_SAMPLE}; fi)
 
 longmemeval-judge:
 	bash scripts/longmemeval_judge.sh \

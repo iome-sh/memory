@@ -396,6 +396,57 @@ func TestSearchMemoryWithOptions_ReRankTemporalKeepsKeywordHit(t *testing.T) {
 	}
 }
 
+func TestSearchMemoryWithOptions_KeywordOverlapOutranksIncidentalOR(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	if err := store.Write(MemoryEntry{
+		ID:        "gold",
+		Tier:      TierContextual,
+		SessionID: "sess-gold",
+		Content: MemoryContent{
+			Summary: "cleaned white Adidas sneakers",
+			Full:    "I last cleaned my white Adidas sneakers on Sunday.",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 24; i++ {
+		e := MemoryEntry{
+			ID:        "d" + string(rune('a'+i%26)) + string(rune('0'+i/26)),
+			Tier:      TierContextual,
+			SessionID: "sess-noise",
+			Content: MemoryContent{
+				Summary: "when did I last check the inbox",
+				Full:    "when did I last update the weekly notes " + string(rune('a'+i%26)),
+			},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	q := "when did I last clean my white Adidas sneakers"
+	vec := GenerateSimpleEmbedding(q, DefaultHashEmbeddingDim)
+	got := store.SearchMemoryWithOptions(q, SearchMemoryOptions{
+		Limit:    15,
+		QueryVec: vec,
+	})
+	if !entryHasID(got, "gold") {
+		t.Fatalf("OR-any-token + hash top-k buried gold; ids=%v", idsOf(got))
+	}
+	if got[0].ID != "gold" {
+		t.Fatalf("gold phrase should outrank incidental when/did/last hits, got %v", idsOf(got))
+	}
+
+	scoped := store.SearchMemoryWithOptions(q, SearchMemoryOptions{
+		SessionID: "sess-gold",
+		Limit:     15,
+		QueryVec:  vec,
+	})
+	if !entryHasID(scoped, "gold") {
+		t.Fatalf("session-scoped retrieve missed gold; ids=%v", idsOf(scoped))
+	}
+}
+
 func TestKeywordTokens_HyphenNeedle(t *testing.T) {
 	got := keywordTokens("zircon-lantern-4829")
 	want := []string{"zircon", "lantern", "4829"}

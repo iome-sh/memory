@@ -462,34 +462,79 @@ func filterEntriesByKeywords(entries []MemoryEntry, query string) []MemoryEntry 
 	}
 	var filtered []MemoryEntry
 	for _, e := range entries {
-		hay := strings.ToLower(entryKeywordHaystack(e))
-		for _, w := range tokens {
-			if strings.Contains(hay, w) {
-				filtered = append(filtered, e)
-				break
-			}
+		if keywordOverlapCount(e, tokens) > 0 {
+			filtered = append(filtered, e)
 		}
 	}
 	return filtered
 }
 
+// keywordOverlapCount is how many distinct query tokens (len≥3) appear in the haystack.
+// OR-any-token still *selects* hits; this score ranks unique gold phrases above
+// incidental 3-letter matches so hash top-k cannot bury needles (#56).
+func keywordOverlapCount(e MemoryEntry, tokens []string) int {
+	if len(tokens) == 0 {
+		return 0
+	}
+	hay := strings.ToLower(entryKeywordHaystack(e))
+	n := 0
+	for _, w := range tokens {
+		if strings.Contains(hay, w) {
+			n++
+		}
+	}
+	return n
+}
+
+func rankKeywordHitsByOverlap(hits []MemoryEntry, query string) []MemoryEntry {
+	tokens := keywordTokens(query)
+	if len(hits) < 2 || len(tokens) == 0 {
+		return hits
+	}
+	type scored struct {
+		e MemoryEntry
+		n int
+	}
+	tmp := make([]scored, len(hits))
+	for i, e := range hits {
+		tmp[i] = scored{e: e, n: keywordOverlapCount(e, tokens)}
+	}
+	sort.SliceStable(tmp, func(i, j int) bool {
+		return tmp[i].n > tmp[j].n
+	})
+	out := make([]MemoryEntry, len(tmp))
+	for i, s := range tmp {
+		out[i] = s.e
+	}
+	return out
+}
+
 // keepKeywordHitsFirst partitions results so literal keyword hits stay ahead of
-// non-hits (order within each group is preserved). Used so QueryVec cosine and
-// ReRankTemporal cannot hide a token match past Limit.
+// non-hits. Head order follows keywordHits (overlap-ranked). Tail follows results.
+// QueryVec cosine and ReRankTemporal cannot hide a token match past Limit.
 func keepKeywordHitsFirst(results []MemoryEntry, keywordHits []MemoryEntry) []MemoryEntry {
 	if len(keywordHits) == 0 {
 		return results
 	}
-	hit := make(map[string]struct{}, len(keywordHits))
-	for _, e := range keywordHits {
-		hit[e.ID] = struct{}{}
+	present := make(map[string]struct{}, len(results))
+	for _, e := range results {
+		present[e.ID] = struct{}{}
 	}
+	hit := make(map[string]struct{}, len(keywordHits))
 	head := make([]MemoryEntry, 0, len(keywordHits))
+	for _, e := range keywordHits {
+		if _, ok := present[e.ID]; !ok {
+			continue
+		}
+		if _, dup := hit[e.ID]; dup {
+			continue
+		}
+		hit[e.ID] = struct{}{}
+		head = append(head, e)
+	}
 	tail := make([]MemoryEntry, 0, len(results))
 	for _, e := range results {
-		if _, ok := hit[e.ID]; ok {
-			head = append(head, e)
-		} else {
+		if _, ok := hit[e.ID]; !ok {
 			tail = append(tail, e)
 		}
 	}
@@ -613,7 +658,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 	// Hybrid: keyword hits first (literal recall), then vector rank for the rest.
 	// QueryVec alone used to skip the keyword path; hash embeddings made that
 	// ranking noise and could drop an exact token past Limit (#45).
-	keywordHits := filterEntriesByKeywords(results, query)
+	keywordHits := rankKeywordHitsByOverlap(filterEntriesByKeywords(results, query), query)
 	if len(opts.QueryVec) > 0 {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
