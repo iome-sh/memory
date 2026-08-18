@@ -322,6 +322,33 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	return nil
 }
 
+// writeLeavingTier writes entry to its current Tier directory, then removes
+// id.json from fromTier when that directory is different. Compaction archive,
+// working-tier evict, and promote use this so a tier change is a move, not a copy.
+func (ps *PalaceStore) writeLeavingTier(entry MemoryEntry, fromTier MemoryTier) error {
+	if err := ps.Write(entry); err != nil {
+		return err
+	}
+	if fromTier == 0 || fromTier == entry.Tier {
+		return nil
+	}
+	return ps.unlinkTierFile(entry.ID, fromTier)
+}
+
+// unlinkTierFile removes id.json from a tier directory. Missing files are ignored.
+func (ps *PalaceStore) unlinkTierFile(id string, tier MemoryTier) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+	path := filepath.Join(ps.getTierDir(tier), id+".json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("unlink %s from tier %d: %w", id, tier, err)
+	}
+	ps.invalidateMetaIndex()
+	return nil
+}
+
 // archiveToVersions archives the entry as a versioned snapshot
 func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 	versionsDir := filepath.Join(ps.BaseDir, "versions", "memory-entries", entry.ID)
@@ -704,8 +731,12 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 
 	for i := 0; i < len(working)-maxCount; i++ {
 		if time.Since(working[i].CreatedAt).Hours() > float64(maxAgeHours) {
+			from := working[i].Tier
+			if from == 0 {
+				from = TierWorking
+			}
 			working[i].Tier = TierContextual
-			ps.Write(working[i])
+			_ = ps.writeLeavingTier(working[i], from)
 		}
 	}
 }
@@ -715,8 +746,12 @@ func (ps *PalaceStore) PromoteToContextual(threshold float64) {
 	working := ps.ListEntriesInTier(TierWorking)
 	for _, e := range working {
 		if CalculateRelevanceScore(e) > threshold {
+			from := e.Tier
+			if from == 0 {
+				from = TierWorking
+			}
 			e.Tier = TierContextual
-			ps.Write(e)
+			_ = ps.writeLeavingTier(e, from)
 		}
 	}
 }

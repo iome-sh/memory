@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Tier-change persist (compaction / evict / promote):** ARCHIVE, summarize/merge/core-principle source archive, `EvictWorkingTier`, and `PromoteToContextual` now unlink the source-tier JSON after a successful write to the destination tier. A tier change is a move, not a silent copy. `handleArchive` returns Write/unlink errors (same persist class as product Write errors). Kernel-only · not Memory GA · dual_write N/A · not incremental/btree index green.
+
+### Fixed
 - **LongMemEval `/retrieve` session scope (#55):** official generate/orchestrator pass `session_id`. Shared-palace QA without it is other-session dominated. Kernel `SearchMemoryOptions.SessionID` already existed. Harness-only · not Memory GA.
 - **Keyword OR-any-token flood (#56):** keyword hits still select on any token ≥3, but are ranked by distinct-token overlap before Limit so hash top-k cannot bury a unique gold phrase under incidental `when`/`did`/`last` matches. Kernel-only · not Memory GA.
 

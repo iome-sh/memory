@@ -148,6 +148,78 @@ func TestHandleSummarize_StampsValidFrom(t *testing.T) {
 	if !EntryValidAt(product, time.Time{}) {
 		t.Fatal("EntryValidAt(zero→now) false")
 	}
+	if _, ok := store.Load("p1", TierContextual); ok {
+		t.Fatal("summarized source p1 still in contextual")
+	}
+	if _, ok := store.Load("p2", TierContextual); ok {
+		t.Fatal("summarized source p2 still in contextual")
+	}
+	if _, ok := store.Load("p1", TierArchival); !ok {
+		t.Fatal("expected p1 in archival after summarize")
+	}
+}
+
+func TestHandleArchive_UnlinksSourceTier(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	writeCompactionNote(t, store, "keep-1")
+
+	if err := store.handleArchive([]string{"keep-1"}, TierContextual, DefaultCompactionConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := store.Load("keep-1", TierContextual); ok {
+		t.Fatal("source JSON still in contextual after ARCHIVE")
+	}
+	got, ok := store.Load("keep-1", TierArchival)
+	if !ok {
+		t.Fatal("expected archival copy after ARCHIVE")
+	}
+	if got.Tier != TierArchival {
+		t.Fatalf("Tier = %d, want archival", got.Tier)
+	}
+
+	listed := store.ListMemoryWithOptions(ListMemoryOptions{Query: "sprint note keep-1"})
+	for _, e := range listed {
+		if e.ID == "keep-1" {
+			t.Fatal("archived entry still in default ListMemory (archival excluded)")
+		}
+	}
+	withArchival := store.ListMemoryWithOptions(ListMemoryOptions{Query: "sprint note keep-1", IncludeArchival: true})
+	found := false
+	for _, e := range withArchival {
+		if e.ID == "keep-1" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected archived entry when IncludeArchival is set")
+	}
+}
+
+func TestHandleArchive_WriteError(t *testing.T) {
+	base := t.TempDir()
+	store := NewPalaceStore(base)
+	writeCompactionNote(t, store, "keep-1")
+	archDir := filepath.Join(base, "tier-3-archival")
+	if err := os.Chmod(archDir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(archDir, 0755) })
+
+	err := store.handleArchive([]string{"keep-1"}, TierContextual, DefaultCompactionConfig)
+	if err == nil {
+		t.Fatal("expected archive Write error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to archive entry") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := store.Load("keep-1", TierContextual); !ok {
+		t.Fatal("source should remain in contextual when archive Write fails")
+	}
+	if _, ok := store.Load("keep-1", TierArchival); ok {
+		t.Fatal("did not expect archival file after failed Write")
+	}
 }
 
 func TestHandleSummarize_WriteError(t *testing.T) {
