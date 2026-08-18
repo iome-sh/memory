@@ -153,7 +153,7 @@ timeline := store.ListMemoryWithOptions(memory.ListMemoryOptions{
 })
 ```
 
-Filters apply **before** `Limit`. Default limit is **50** when ≤ 0. Listing uses a best-effort in-memory meta index plus an optional durable snapshot (`indexes/event-time.json`) so a new process does not re-parse every tier JSON when the stamp matches. FS Palace remains source of truth. `DisableMetaIndex` / `DisableDurableIndex` opt out. Incremental btree/tag indexes remain residual.
+Filters apply **before** `Limit`. Default limit is **50** when ≤ 0. Listing uses a best-effort in-memory meta index plus an optional durable snapshot (`indexes/event-time.json`). A clean index is patched on `Write` / unlink instead of walking every tier JSON; a new process skips re-parse when the stamp matches. FS Palace remains source of truth. `DisableMetaIndex` / `DisableDurableIndex` opt out. Btree/tag secondary indexes remain residual.
 
 Full reference: [pkg.go.dev/github.com/iome-sh/memory](https://pkg.go.dev/github.com/iome-sh/memory).
 

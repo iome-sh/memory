@@ -13,8 +13,9 @@ import (
 //
 // Complexity: FS Palace is source of truth. When the best-effort meta index is enabled
 // (default), ListMemoryWithOptions filters on lightweight entryMeta and loads full JSON
-// only for survivors (s1066). A durable snapshot at indexes/event-time.json (#44)
-// avoids re-parsing every tier JSON on a fresh process when the stamp matches.
+// only for survivors (s1066). Write/unlink patches a clean index in place (#63).
+// A durable snapshot at indexes/event-time.json (#44) avoids re-parsing every tier
+// JSON on a fresh process when the stamp matches.
 // With DisableMetaIndex, falls back to O(n) full entry scan.
 type ListMemoryOptions struct {
 	SessionID string
@@ -117,7 +118,7 @@ func (ps *PalaceStore) ListMemoryWithOptions(opts ListMemoryOptions) []MemoryEnt
 }
 
 // listMemoryViaIndex filters on the best-effort meta index, then loads full entries
-// only for survivors. Rebuilds lazily when dirty.
+// only for survivors. Rebuilds lazily when dirty; Write/unlink patches when clean.
 func (ps *PalaceStore) listMemoryViaIndex(opts ListMemoryOptions) []MemoryEntry {
 	ps.metaMu.Lock()
 	ps.ensureMetaIndexLocked()

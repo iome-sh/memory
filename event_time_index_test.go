@@ -120,6 +120,50 @@ func TestDurableEventTimeIndex_CorruptFileFallsBack(t *testing.T) {
 	}
 }
 
+func TestDurableEventTimeIndex_IncrementalWritePersists(t *testing.T) {
+	baseDir := t.TempDir()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	if err := store.Write(MemoryEntry{
+		ID: "first", Tier: TierContextual,
+		Timestamp: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		Content:   MemoryContent{Summary: "first"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	if err := store.Write(MemoryEntry{
+		ID: "second", Tier: TierContextual,
+		Timestamp: time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC),
+		Content:   MemoryContent{Summary: "second"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if store.MetaIndexLen() != 2 {
+		t.Fatalf("incremental stamp dirty; len=%d", store.MetaIndexLen())
+	}
+
+	raw, err := os.ReadFile(filepath.Join(baseDir, "indexes", "event-time.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snap durableEventTimeIndex
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		t.Fatalf("durable after incremental write: %v", err)
+	}
+	if snap.JSONCount != 2 {
+		t.Fatalf("durable JSONCount=%d want 2", snap.JSONCount)
+	}
+
+	reopened := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	got := reopened.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	if !listHasID(got, "first") || !listHasID(got, "second") {
+		t.Fatalf("fresh process should load patched snapshot; got %v", idsOf(got))
+	}
+	if reopened.MetaIndexRebuilds() != 0 {
+		t.Fatalf("fresh process rebuilt (%d); stamp should match incremental persist", reopened.MetaIndexRebuilds())
+	}
+}
+
 func listHasID(entries []MemoryEntry, id string) bool {
 	for _, e := range entries {
 		if e.ID == id {

@@ -133,11 +133,12 @@ type PalaceStore struct {
 	Config  PalaceConfig
 
 	// Best-effort in-memory metadata index for ListMemoryWithOptions (K2 / s1066).
-	// FS Palace remains source of truth; index is rebuilt lazily when dirty.
-	metaMu         sync.Mutex
-	metaIndex      []entryMeta
-	metaIndexDirty bool // true = needs rebuild (starts true until first ensure)
-	metaIndexGen   uint64
+	// FS Palace remains source of truth. Write/unlink patches when clean; else rebuild lazily.
+	metaMu            sync.Mutex
+	metaIndex         []entryMeta
+	metaIndexDirty    bool // true = needs rebuild (starts true until first ensure)
+	metaIndexGen      uint64
+	metaIndexRebuilds uint64 // full tier-JSON walks only (tests / observability)
 
 	// lastCompaction is set when PerformCompaction runs on a non-empty tier (in-process).
 	lastCompaction time.Time
@@ -285,8 +286,7 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 		os.Remove(tmpFile.Name())
 		return fmt.Errorf("rename failed: %w", err)
 	}
-	// Latent buffer is not listed by ListMemory, but keep index lifecycle consistent.
-	ps.invalidateMetaIndex()
+	// Latent buffer is not listed by ListMemory; leave the listed-tier meta index as-is.
 	return nil
 }
 
@@ -336,8 +336,8 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 		os.Remove(tmpFile.Name())
 		return fmt.Errorf("rename failed: %w", err)
 	}
-	// Invalidate best-effort meta index; next ListMemory rebuilds lazily (s1066).
-	ps.invalidateMetaIndex()
+	// Patch a clean meta index in place; stay dirty if unbuilt (s1066 / #63).
+	ps.upsertMetaIndex(entry, path)
 	return nil
 }
 

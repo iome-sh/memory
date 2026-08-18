@@ -106,7 +106,7 @@ func TestListMemoryMetaIndex_ParityWithScan(t *testing.T) {
 	}
 }
 
-func TestListMemoryMetaIndex_InvalidationAfterWrite(t *testing.T) {
+func TestListMemoryMetaIndex_IncrementalWriteNoRebuild(t *testing.T) {
 	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
 	base := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 
@@ -125,8 +125,12 @@ func TestListMemoryMetaIndex_InvalidationAfterWrite(t *testing.T) {
 	if n := store.MetaIndexLen(); n != 1 {
 		t.Fatalf("MetaIndexLen after list = %d, want 1", n)
 	}
+	rebuilds := store.MetaIndexRebuilds()
+	if rebuilds == 0 {
+		t.Fatal("first ListMemoryWithOptions should full-rebuild an unbuilt index")
+	}
 
-	// Write must invalidate; next list must see the new entry.
+	// Write patches in place; List must see the new entry without a rebuild walk.
 	e2 := MemoryEntry{
 		ID: "second", Tier: TierContextual, SessionID: "s",
 		Timestamp: base.Add(time.Hour), Content: MemoryContent{Summary: "second entry"},
@@ -134,9 +138,11 @@ func TestListMemoryMetaIndex_InvalidationAfterWrite(t *testing.T) {
 	if err := store.Write(e2); err != nil {
 		t.Fatal(err)
 	}
-	// Dirty: MetaIndexLen reports 0 until rebuild.
-	if n := store.MetaIndexLen(); n != 0 {
-		t.Fatalf("MetaIndexLen after Write should be 0 (dirty), got %d", n)
+	if n := store.MetaIndexLen(); n != 2 {
+		t.Fatalf("MetaIndexLen after Write should stay clean (len 2), got %d", n)
+	}
+	if got := store.MetaIndexRebuilds(); got != rebuilds {
+		t.Fatalf("Write must not full-rebuild; rebuilds %d → %d", rebuilds, got)
 	}
 
 	r2 := store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
@@ -144,10 +150,13 @@ func TestListMemoryMetaIndex_InvalidationAfterWrite(t *testing.T) {
 		t.Fatalf("after second write len = %d, want 2; got %v", len(r2), idsOf(r2))
 	}
 	if r2[0].ID != "second" || r2[1].ID != "first" {
-		t.Fatalf("newest-first after invalidation: got %v, want [second first]", idsOf(r2))
+		t.Fatalf("newest-first after incremental write: got %v, want [second first]", idsOf(r2))
+	}
+	if got := store.MetaIndexRebuilds(); got != rebuilds {
+		t.Fatalf("List after incremental Write must not rebuild; rebuilds %d → %d", rebuilds, got)
 	}
 	if n := store.MetaIndexLen(); n != 2 {
-		t.Fatalf("MetaIndexLen after rebuild = %d, want 2", n)
+		t.Fatalf("MetaIndexLen after list = %d, want 2", n)
 	}
 }
 
@@ -175,7 +184,7 @@ func TestListMemoryMetaIndex_InvalidateHook(t *testing.T) {
 	}
 }
 
-func TestListMemoryMetaIndex_WriteLatentDoesNotListButInvalidates(t *testing.T) {
+func TestListMemoryMetaIndex_WriteLatentDoesNotListOrDirty(t *testing.T) {
 	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
 	base := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
 	if err := store.Write(MemoryEntry{
@@ -188,19 +197,106 @@ func TestListMemoryMetaIndex_WriteLatentDoesNotListButInvalidates(t *testing.T) 
 	if store.MetaIndexLen() != 1 {
 		t.Fatal("expected index len 1")
 	}
+	rebuilds := store.MetaIndexRebuilds()
 	if err := store.WriteLatent(MemoryEntry{
 		ID: "latent", Tier: TierWorking, Timestamp: base.Add(time.Hour),
 		Content: MemoryContent{Summary: "latent only"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if store.MetaIndexLen() != 0 {
-		t.Fatal("WriteLatent should dirty the meta index")
+	if store.MetaIndexLen() != 1 {
+		t.Fatal("WriteLatent must not dirty the listed-tier meta index")
+	}
+	if got := store.MetaIndexRebuilds(); got != rebuilds {
+		t.Fatalf("WriteLatent must not rebuild; rebuilds %d → %d", rebuilds, got)
 	}
 	got := store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
 	// Latent is not in tier dirs used by ListMemory.
 	if len(got) != 1 || got[0].ID != "visible" {
 		t.Fatalf("latent must not appear in ListMemory: got %v", idsOf(got))
+	}
+	if store.MetaIndexRebuilds() != rebuilds {
+		t.Fatal("List after WriteLatent must not rebuild")
+	}
+}
+
+func TestListMemoryMetaIndex_IncrementalOverwrite(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	base := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
+	if err := store.Write(MemoryEntry{
+		ID: "same", Tier: TierContextual, Timestamp: base,
+		Content: MemoryContent{Summary: "alpha notes"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 5})
+	rebuilds := store.MetaIndexRebuilds()
+
+	if err := store.Write(MemoryEntry{
+		ID: "same", Tier: TierContextual, Timestamp: base.Add(time.Hour),
+		Content: MemoryContent{Summary: "beta notes", Tags: []string{"subject:billing"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if store.MetaIndexLen() != 1 {
+		t.Fatalf("overwrite should replace in place, len=%d", store.MetaIndexLen())
+	}
+	if store.MetaIndexRebuilds() != rebuilds {
+		t.Fatal("overwrite must not full-rebuild")
+	}
+
+	got := store.ListMemoryWithOptions(ListMemoryOptions{Query: "beta", Limit: 5})
+	if len(got) != 1 || got[0].ID != "same" {
+		t.Fatalf("query after overwrite: got %v", idsOf(got))
+	}
+	tagged := store.ListMemoryWithOptions(ListMemoryOptions{Tag: "subject:billing", Limit: 5})
+	if len(tagged) != 1 || tagged[0].ID != "same" {
+		t.Fatalf("tag after overwrite: got %v", idsOf(tagged))
+	}
+	if store.MetaIndexRebuilds() != rebuilds {
+		t.Fatal("List after overwrite must not rebuild")
+	}
+}
+
+func TestListMemoryMetaIndex_IncrementalUnlink(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	base := time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
+	for _, e := range []MemoryEntry{
+		{ID: "keep", Tier: TierContextual, Timestamp: base, Content: MemoryContent{Summary: "keep me"}},
+		{ID: "drop", Tier: TierContextual, Timestamp: base.Add(time.Hour), Content: MemoryContent{Summary: "drop me"}},
+	} {
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	if store.MetaIndexLen() != 2 {
+		t.Fatalf("warm len=%d want 2", store.MetaIndexLen())
+	}
+	rebuilds := store.MetaIndexRebuilds()
+
+	if err := store.unlinkEntry("drop", TierContextual); err != nil {
+		t.Fatal(err)
+	}
+	if n := store.MetaIndexLen(); n != 1 {
+		t.Fatalf("MetaIndexLen after unlink = %d, want 1", n)
+	}
+	if store.MetaIndexRebuilds() != rebuilds {
+		t.Fatal("unlink must not full-rebuild")
+	}
+
+	got := store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	if len(got) != 1 || got[0].ID != "keep" {
+		t.Fatalf("after unlink: got %v, want [keep]", idsOf(got))
+	}
+	if store.MetaIndexRebuilds() != rebuilds {
+		t.Fatal("List after unlink must not rebuild")
+	}
+
+	scan := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: store.BaseDir, DisableMetaIndex: true})
+	want := scan.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	if !sameIDsInOrder(got, want) {
+		t.Fatalf("unlink parity: index=%v scan=%v", idsOf(got), idsOf(want))
 	}
 }
 
