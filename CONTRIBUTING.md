@@ -6,10 +6,10 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality, hon
 
 - **Local-primary memory kernel** — hierarchical Palace FS, hybrid search, temporal lite, optional Qdrant, optional ONNX embeddings  
 - **Kernel-only** — **not product Memory GA**  
-- Product path elsewhere: **dual_write OFF** by default; hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
+- Product path elsewhere: **dual_write OFF** by default (host policy, **not** a kernel product flag); hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
 - Future public MCP host naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`); private aion broker stays private  
 
-This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
+This repository is **public** (MIT). **Public MIT ≠ Memory GA.** Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
 
 ## Development setup
 
@@ -30,7 +30,7 @@ make cover
 make vuln
 make ci          # fmt-check + vet + test + vuln + build (local gate)
 make residual-gate   # offline residual honesty pins (s1297 / s1303 / s1313)
-make public-flip-readiness-gate   # offline M4 readiness residual (still private)
+make public-flip-readiness-gate   # offline M4 readiness residual (public MIT · gate PASS ≠ product GA)
 ```
 
 Heavy optional gates (models / network; not required for PR CI):
@@ -74,11 +74,11 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 
 ## Honesty locks (do not regress)
 
-- Kernel-only · **not Memory GA**  
-- Local-primary · dual_write OFF product path (elsewhere)  
+- Kernel-only · **not Memory GA** · public MIT ≠ Memory GA  
+- Local-primary · dual_write OFF (host policy, not a kernel product flag)  
 - Hosted Palace sunset · mesh optional  
 - Residual PASS ≠ live dogfood / invent GA  
-- Residual PASS ≠ public flip  
+- Residual PASS ≠ public flip · gate PASS ≠ product GA  
 - Future MCP host name: **iomesh-memory-mcp**  
 
 ## Issues & discussions
@@ -89,12 +89,12 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 
 ## Public repository policy
 
-This policy is **forward-looking** for after a deliberate public flip (the repo may still be private today). Keep private program material out of the tree and PR surface:
+This policy is **in force** for this **public** MIT repository (flip complete). Keep private program material out of the tree and PR surface:
 
-- Do **not** put private SR&ED / aion ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG **after public flip**  
+- Do **not** put private SR&ED / aion ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG  
 - Do **not** reference private monorepos (**aion**), internal pending-todos paths, or unpublished stage URLs  
 - Prefer public names: **`github.com/iome-sh/memory`**, product host **`iomesh-memory-mcp`**, public TUI **`iomesh-tui`**  
-- While **still private**, continuum serials in residual docs are OK; after flip, strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
+- Continuum serials in historical residual docs may remain; strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
 - Do **not** invent product Memory GA, freemium hosted Palace SLA, or dual_write-on product narrative  
 - Binary/package names operators actually run (e.g. **iomesh-memory-mcp**) may appear when documenting install/wire-up; do **not** document “clone the private monorepo” build paths  
 
@@ -105,7 +105,7 @@ This policy is **forward-looking** for after a deliberate public flip (the repo 
 - Ensure CI is green — aggregate status check **`ci-success`**  
 - Do not commit palace data, API keys, `.env`, secrets, or real user memory  
 - Update [CHANGELOG.md](CHANGELOG.md) **Unreleased** for user-visible API changes  
-- Follow **Public repository policy** above (no private ledger serials or monorepo paths on the forward PR surface after public flip)  
+- Follow **Public repository policy** above (no private ledger serials or monorepo paths on the forward PR surface)  
 
 ### CI on PR and merge
 

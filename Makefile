@@ -66,9 +66,9 @@ k2-event-time-index-residual-gate:
 recmem-compaction-residual-gate:
 	bash scripts/recmem_compaction_residual_gate.sh
 
-# Offline M4 public-flip readiness residual s1467 (not the flip).
+# Offline M4 public-flip readiness residual s1467 (flip complete; gate is not the flip).
 # Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
-# Honesty: still private · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · aion stays private.
+# Honesty: public MIT · residual PASS ≠ public flip · gate PASS ≠ product GA · kernel first · not Memory GA · dual_write OFF (host policy, not kernel flag) · aion stays private.
 public-flip-readiness-gate:
 	bash scripts/public_flip_readiness_gate.sh
 
