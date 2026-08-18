@@ -97,8 +97,14 @@ type MemoryStats struct {
 	LastCompaction  time.Time
 }
 
+// DefaultPalaceBaseDir is the local palace root used when PalaceConfig.BaseDir
+// (or NewPalaceStore's argument) is empty. Relative to the process working
+// directory. Not a leftover product path and not a hosted palace.
+const DefaultPalaceBaseDir = ".palace"
+
 // PalaceConfig for configurable PalaceStore creation (Phase 4.3)
 type PalaceConfig struct {
+	// BaseDir is the local palace root. Empty uses DefaultPalaceBaseDir (".palace").
 	BaseDir            string
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
@@ -137,10 +143,11 @@ type PalaceStore struct {
 	lastCompaction time.Time
 }
 
-// NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3)
+// NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3).
+// Empty BaseDir defaults to DefaultPalaceBaseDir (".palace") under the process cwd.
 func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 	if cfg.BaseDir == "" {
-		cfg.BaseDir = ".ossa/kb/palace"
+		cfg.BaseDir = DefaultPalaceBaseDir
 	}
 	if cfg.MaxWorkingEntries == 0 {
 		cfg.MaxWorkingEntries = 50
@@ -160,7 +167,8 @@ func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 	return ps
 }
 
-// NewPalaceStore is legacy convenience (uses defaults)
+// NewPalaceStore is a convenience constructor (uses defaults).
+// Empty baseDir defaults to DefaultPalaceBaseDir.
 func NewPalaceStore(baseDir string) *PalaceStore {
 	cfg := PalaceConfig{BaseDir: baseDir}
 	return NewPalaceStoreWithConfig(cfg)

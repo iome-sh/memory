@@ -8,6 +8,44 @@ import (
 	"time"
 )
 
+func TestNewPalaceStoreWithConfig_EmptyBaseDirDefaultsToDotPalace(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	store := NewPalaceStoreWithConfig(PalaceConfig{})
+	if store.BaseDir != DefaultPalaceBaseDir {
+		t.Fatalf("empty PalaceConfig.BaseDir = %q, want %q", store.BaseDir, DefaultPalaceBaseDir)
+	}
+	if store.Config.BaseDir != DefaultPalaceBaseDir {
+		t.Fatalf("Config.BaseDir = %q, want %q", store.Config.BaseDir, DefaultPalaceBaseDir)
+	}
+	if strings.Contains(store.BaseDir, ".ossa") {
+		t.Fatalf("leftover product default still in use: %q", store.BaseDir)
+	}
+
+	legacy := NewPalaceStore("")
+	if legacy.BaseDir != DefaultPalaceBaseDir {
+		t.Fatalf("NewPalaceStore(\"\") BaseDir = %q, want %q", legacy.BaseDir, DefaultPalaceBaseDir)
+	}
+
+	if _, err := os.Stat(DefaultPalaceBaseDir); err != nil {
+		t.Fatalf("expected default palace dir under cwd: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(".ossa", "kb", "palace")); !os.IsNotExist(err) {
+		t.Fatalf("must not create leftover .ossa/kb/palace: err=%v", err)
+	}
+}
+
+func TestNewPalaceStoreWithConfig_ExplicitBaseDirUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: dir, MaxWorkingEntries: 7})
+	if store.BaseDir != dir {
+		t.Fatalf("explicit BaseDir = %q, want %q", store.BaseDir, dir)
+	}
+	if store.Config.MaxWorkingEntries != 7 {
+		t.Fatalf("MaxWorkingEntries = %d, want 7", store.Config.MaxWorkingEntries)
+	}
+}
+
 func TestPalaceStore_WriteLoad(t *testing.T) {
 	tempDir := t.TempDir()
 	store := NewPalaceStore(tempDir)
