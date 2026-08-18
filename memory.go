@@ -1004,7 +1004,12 @@ func extractKeyphrases(text string) []string {
 }
 
 // IngestTurn is the primary production entry point for LongMemEval benchmark and ego online session processing.
-// Fact-augmented children (type turn_fact) get valid_from stamped when unset; child Write errors are returned.
+// It writes the parent turn first, then each non-empty ExtractedFacts child as type turn_fact.
+// Fact-augmented children get valid_from stamped when unset; child Write errors are returned.
+//
+// Partial persist is the contract: a child Write error does not roll back the parent or earlier
+// facts already written. A non-nil error does not mean nothing persisted. Not all-or-nothing.
+// Not Memory GA. dual_write OFF.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)

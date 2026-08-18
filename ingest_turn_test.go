@@ -74,7 +74,8 @@ func TestIngestTurn_FactWriteError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Parent turn is written first (default tier 0 → contextual).
+	// Contract (IngestTurn godoc): partial persist. Parent is written first (default
+	// tier 0 → contextual) and remains after a child Write error; the failed fact is absent.
 	turns := store.ListEntriesInTier(TierContextual)
 	if len(turns) != 1 {
 		t.Fatalf("contextual turns = %d, want 1 (parent persisted before fact failure)", len(turns))
