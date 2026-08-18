@@ -21,7 +21,7 @@ This document reorganizes improvements by **highest business/engineering impact 
 - **Turn ingest** — `IngestTurn` with `Timestamp`, `SessionID`, fact-augmented child writes.
 - **MemoryEntry temporal fields** — `Timestamp`, `SessionID`, `TemporalTags` (+ turn granularity fields).
 - **Pluggable ONNX embeddings** — hugot GoMLX default; ORT optional (CUDA/CoreML); BGE-small 384-d production default.
-- **PalaceConfig**, Working-tier eviction, versioning path, LongMemEval harness/gates.
+- **PalaceConfig**, Working-tier eviction, caller-managed best-effort version snapshots (not automatic overwrite versioning), LongMemEval harness/gates.
 
 ---
 
@@ -42,9 +42,9 @@ Further temporal **retrieval** work (session/time filters, temporal re-rank opti
 - Structured logging.
 - Expose `MemoryStats`.
 
-### 1.3 Activate Versioning **[Largely complete]**
+### 1.3 Activate Versioning **[Shipped as caller-managed / best-effort]**
 
-Versioning and archive paths exist on the write path; keep hardening edge cases and observability.
+`Write` / `WriteLatent` snapshot `versions/memory-entries/<id>/v{Version}.json` for the caller-supplied version (`Version==0` becomes 1). `archiveToVersions` errors are non-fatal. Overwrite does **not** increment `Version`; callers who want history must increment it. This is not automatic overwrite versioning and not a hosted version store. Auto-increment remains optional, not required.
 
 ---
 

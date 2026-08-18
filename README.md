@@ -10,7 +10,7 @@ Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memo
 
 ## Features
 
-- **File-backed store** — atomic writes, tiers (working / contextual / semantic / archival), versioning
+- **File-backed store** — atomic writes, tiers (working / contextual / semantic / archival), caller-managed best-effort version snapshots (overwrite does not auto-increment)
 - **Hybrid search** — keyword + optional dense/sparse vectors (Qdrant) and multi-factor re-ranking
 - **Temporal APIs** — session/time filters, event-time timelines, as-of fact listing, supersession helpers
 - **Multi-hop retrieval** — lightweight entity-graph expansion with hop-distance ranking

@@ -234,8 +234,12 @@ func (ps *PalaceStore) loadEntry(fullPath string) (MemoryEntry, bool) {
 	return entry, true
 }
 
-// WriteLatent stores entry in the subconscious latent buffer (RecMem Phase 1)
-// No immediate promotion or LLM compaction triggered.
+// WriteLatent stores entry in the subconscious latent buffer (RecMem Phase 1).
+// No immediate promotion or LLM compaction is triggered.
+//
+// Versioning is caller-managed and best-effort, same as Write: Version==0 is
+// stored as 1; archiveToVersions errors are non-fatal; callers who want history
+// must increment Version themselves. Overwrite does not auto-increment.
 func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
@@ -245,7 +249,7 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 		entry.Version = 1
 	}
 	if err := ps.archiveToVersions(entry); err != nil {
-		// Non-fatal
+		// Non-fatal: versioning is best-effort
 	}
 
 	dir := filepath.Join(ps.BaseDir, "tier-0-subconscious")
@@ -278,18 +282,25 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 	return nil
 }
 
-// Write persists a MemoryEntry (atomic write) + versioning + error wrapping + lifecycle
+// Write persists a MemoryEntry with an atomic write (temp file + rename).
+//
+// Versioning is caller-managed and best-effort. Version==0 is stored as 1.
+// archiveToVersions writes versions/memory-entries/<id>/v{Version}.json for the
+// incoming entry; its errors are non-fatal and do not fail Write. A second Write
+// of the same ID and Version overwrites both the live tier file and that
+// snapshot. Callers who want history must increment Version themselves. This is
+// not automatic overwrite versioning and not a hosted version store.
 func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
 	}
 
-	// Activate versioning: archive current version before write
+	// Best-effort snapshot at caller Version (0 → 1). Does not auto-increment.
 	if entry.Version == 0 {
 		entry.Version = 1
 	}
 	if err := ps.archiveToVersions(entry); err != nil {
-		// Non-fatal in production; continue (versioning is best-effort)
+		// Non-fatal: versioning is best-effort
 	}
 
 	dir := ps.getTierDir(entry.Tier)
