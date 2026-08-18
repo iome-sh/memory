@@ -57,6 +57,8 @@ func main() {
 }
 ```
 
+If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
+
 ### Optional semantic embeddings
 
 ```go
