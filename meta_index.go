@@ -9,10 +9,11 @@ import (
 )
 
 // entryMeta is a lightweight in-memory record for ListMemoryWithOptions filtering
-// without re-loading full MemoryEntry JSON for every candidate (K2 residual / s1066).
+// without re-loading full MemoryEntry JSON for every candidate (K2 / s1066).
 //
-// FS Palace remains the source of truth. The index is a best-effort cache rebuilt
-// lazily when dirty; correctness must match the full-scan ListMemory path.
+// FS Palace remains the source of truth. Write/unlink patches a clean index in
+// place; a dirty/missing index rebuilds lazily. Correctness must match the
+// full-scan ListMemory path.
 type entryMeta struct {
 	ID        string
 	Tier      MemoryTier
@@ -82,8 +83,8 @@ func (m entryMetaJSON) toMeta(path string, dirTier MemoryTier) entryMeta {
 	return metaFromEntry(e, path)
 }
 
-// invalidateMetaIndex marks the in-memory metadata index dirty (call after writes).
-// Safe for concurrent use. FS remains source of truth; next list rebuilds lazily.
+// invalidateMetaIndex marks the in-memory metadata index dirty.
+// Fallback when a mutation cannot be patched; next list rebuilds lazily.
 func (ps *PalaceStore) invalidateMetaIndex() {
 	ps.metaMu.Lock()
 	ps.metaIndexDirty = true
@@ -106,6 +107,111 @@ func (ps *PalaceStore) MetaIndexLen() int {
 	return len(ps.metaIndex)
 }
 
+// MetaIndexRebuilds returns how many full tier-JSON walks rebuildMetaIndexLocked
+// has run on this store. Tests use this to prove Write/unlink patched in place.
+// Not a product API.
+func (ps *PalaceStore) MetaIndexRebuilds() uint64 {
+	ps.metaMu.Lock()
+	defer ps.metaMu.Unlock()
+	return ps.metaIndexRebuilds
+}
+
+// upsertMetaIndex patches a clean in-memory (and optional durable) index after Write.
+// If the index is dirty or unbuilt, it stays dirty so the next list rebuilds from FS.
+func (ps *PalaceStore) upsertMetaIndex(entry MemoryEntry, path string) {
+	if ps.Config.DisableMetaIndex || path == "" {
+		return
+	}
+	path = filepath.Clean(path)
+	if entry.Tier == 0 {
+		entry.Tier = inferTierFromPath(path)
+	}
+	m := metaFromEntry(entry, path)
+
+	ps.metaMu.Lock()
+	defer ps.metaMu.Unlock()
+	if ps.metaIndexDirty || ps.metaIndex == nil {
+		return
+	}
+	replaced := false
+	for i := range ps.metaIndex {
+		if ps.metaIndex[i].Path == path {
+			ps.metaIndex[i] = m
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		ps.metaIndex = append(ps.metaIndex, m)
+	}
+	ps.metaIndexGen++
+	ps.persistDurableMetaLocked()
+}
+
+// removeMetaIndex drops the row for path from a clean index and persists the
+// optional durable snapshot. Dirty/unbuilt indexes stay dirty.
+func (ps *PalaceStore) removeMetaIndex(path string) {
+	if ps.Config.DisableMetaIndex || path == "" {
+		return
+	}
+	path = filepath.Clean(path)
+
+	ps.metaMu.Lock()
+	defer ps.metaMu.Unlock()
+	if ps.metaIndexDirty || ps.metaIndex == nil {
+		return
+	}
+	kept := ps.metaIndex[:0]
+	removed := false
+	for _, row := range ps.metaIndex {
+		if row.Path == path {
+			removed = true
+			continue
+		}
+		kept = append(kept, row)
+	}
+	if !removed {
+		return
+	}
+	// Release tail references when shrinking.
+	for i := len(kept); i < len(ps.metaIndex); i++ {
+		ps.metaIndex[i] = entryMeta{}
+	}
+	ps.metaIndex = kept
+	ps.metaIndexGen++
+	ps.persistDurableMetaLocked()
+}
+
+// unlinkEntry removes a listed-tier JSON file and patches the meta index.
+// Missing files are not an error. FS remains source of truth.
+func (ps *PalaceStore) unlinkEntry(id string, tier MemoryTier) error {
+	if id == "" {
+		return nil
+	}
+	path := filepath.Join(ps.getTierDir(tier), id+".json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		ps.invalidateMetaIndex()
+		return err
+	}
+	ps.removeMetaIndex(path)
+	return nil
+}
+
+func inferTierFromPath(path string) MemoryTier {
+	switch filepath.Base(filepath.Dir(path)) {
+	case "tier-1-working":
+		return TierWorking
+	case "tier-2-contextual":
+		return TierContextual
+	case "tier-3-archival":
+		return TierArchival
+	case "tier-4-semantic":
+		return TierSemantic
+	default:
+		return TierContextual
+	}
+}
+
 // ensureMetaIndexLocked rebuilds the index when dirty or missing.
 // Caller must hold ps.metaMu.
 func (ps *PalaceStore) ensureMetaIndexLocked() {
@@ -119,7 +225,7 @@ func (ps *PalaceStore) ensureMetaIndexLocked() {
 }
 
 // rebuildMetaIndexLocked walks all tier dirs once and rebuilds metaIndex.
-// Caller must hold ps.metaMu.
+// Caller must hold ps.metaMu. Incremental Write/unlink avoids this path.
 func (ps *PalaceStore) rebuildMetaIndexLocked() {
 	var meta []entryMeta
 	for _, tier := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
@@ -137,7 +243,7 @@ func (ps *PalaceStore) rebuildMetaIndexLocked() {
 			if strings.HasPrefix(name, ".tmp-") {
 				continue
 			}
-			path := filepath.Join(dir, name)
+			path := filepath.Clean(filepath.Join(dir, name))
 			data, err := os.ReadFile(path)
 			if err != nil {
 				continue
@@ -156,6 +262,7 @@ func (ps *PalaceStore) rebuildMetaIndexLocked() {
 	ps.metaIndex = meta
 	ps.metaIndexDirty = false
 	ps.metaIndexGen++
+	ps.metaIndexRebuilds++
 	ps.persistDurableMetaLocked()
 }
 
