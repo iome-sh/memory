@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`IngestTurn` persist honesty (#64):** godoc (and `TestIngestTurn_FactWriteError`) state the contract — parent and earlier facts remain after a child Write error. Partial persist · not rollback · not Memory GA · dual_write OFF.
+
 ### Fixed
 - **Public-flip residual docs (#62):** `docs/PUBLIC_FLIP_READINESS.md`, `docs/OPEN_SOURCE_AUDIT.md`, CONTRIBUTING public-repository policy, and the Makefile `public-flip-readiness-gate` comment treat flip-complete as current fact. Pre-flip “still private” language is historical. Public MIT ≠ Memory GA · kernel-only · gate PASS ≠ product GA · dual_write OFF (host policy, not kernel flag).
 - **LongMemEval `/retrieve` session scope (#55):** official generate/orchestrator pass `session_id`. Shared-palace QA without it is other-session dominated. Kernel `SearchMemoryOptions.SessionID` already existed. Harness-only · not Memory GA.
