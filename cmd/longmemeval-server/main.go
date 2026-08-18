@@ -17,8 +17,9 @@ import (
 	"github.com/iome-sh/memory/internal/longmemeval"
 )
 
-// LongMemEvalServer - Production harness for LongMemEval-S / LongMemEval-M
-// All four LongMemEval optimizations are toggleable via command-line flags.
+// LongMemEval local bench harness for LongMemEval-S / LongMemEval-M.
+// Residual-honest: not a production memory service, not Memory GA, not live ingest.
+// dual_write OFF. Judge-free overlap / fixtures ≠ official APPLY.
 //
 // Flags:
 //   -enable-turn-granularity     Use IngestTurn + turn-level metadata (default true)
@@ -27,8 +28,8 @@ import (
 //   -enable-chain-of-note        Use ReadWithChainOfNote for answer synthesis
 //
 // Endpoints:
-//   POST /ingest     - Ingest conversation turns (uses IngestTurn when enabled)
-//   POST /retrieve   - Hybrid retrieval with all active optimizations
+//   POST /ingest     - Persist conversation turns (IngestTurn when enabled). Failed palace persist is not status ok.
+//   POST /retrieve   - File-based hybrid retrieval; Qdrant only if LONGMEMEVAL_QDRANT_URL is set
 //   POST /synthesize - Chain-of-Note reading stage (when enabled)
 //   GET  /health
 //
@@ -66,6 +67,13 @@ type IngestRequest struct {
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
 	} `json:"history"`
+}
+
+// IngestResponse is the /ingest JSON body. Failed palace persist is never status ok.
+type IngestResponse struct {
+	Status   string `json:"status"`
+	Ingested int    `json:"ingested"`
+	Error    string `json:"error,omitempty"`
 }
 
 type RetrieveRequest struct {
@@ -126,9 +134,13 @@ func main() {
 	}
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
-	globalVectorStore = memory.NewVectorStore("localhost:6334", "longmemeval_memory")
+	// Qdrant is opt-in. Empty URL keeps ingest file-based (not live hybrid ingest).
+	// dual_write OFF · not Memory GA · palace persist is the ingest truth.
+	qdrantURL := strings.TrimSpace(os.Getenv("LONGMEMEVAL_QDRANT_URL"))
+	globalVectorStore = memory.NewVectorStore(qdrantURL, "longmemeval_memory")
 	if globalVectorStore.Enabled {
 		_ = globalVectorStore.CreateCollection(embeddingDim)
+		log.Printf("qdrant opt-in url=%s (sidecar only; not live ingest)", qdrantURL)
 	}
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -163,6 +175,8 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		turns = req.History
 	}
 
+	ingested := 0
+	var persistErrs []string
 	for _, t := range turns {
 		now := time.Now()
 		ts := now
@@ -186,13 +200,14 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			OriginalText: t.Content,
 		}
 
-		if *flagEnableTurnGranularity {
-			_ = globalStore.IngestTurn(entry)
-		} else {
-			_ = globalStore.Write(entry)
+		if err := persistIngestTurn(entry); err != nil {
+			persistErrs = append(persistErrs, err.Error())
+			continue
 		}
+		ingested++
 
-		// Also store in Qdrant for hybrid retrieval
+		// Optional Qdrant sidecar only when LONGMEMEVAL_QDRANT_URL is set.
+		// dual_write OFF: palace persist is ingest truth, not live hybrid ingest.
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, embeddingDim)
 			payload := map[string]interface{}{
@@ -200,12 +215,32 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 				"turn_id":   entry.TurnID,
 				"timestamp": ts.Unix(),
 			}
-			_ = globalVectorStore.StoreVector(uuid.NewString(), vec, payload)
+			if err := globalVectorStore.StoreVector(uuid.NewString(), vec, payload); err != nil {
+				log.Printf("qdrant store skipped (opt-in sidecar, not live ingest): %v", err)
+			}
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "ingested": fmt.Sprintf("%d turns", len(turns))})
+	resp := IngestResponse{Status: "ok", Ingested: ingested}
+	if len(persistErrs) > 0 {
+		resp.Status = "error"
+		resp.Error = persistErrs[0]
+		if len(persistErrs) > 1 {
+			resp.Error = fmt.Sprintf("%s (%d persist errors)", persistErrs[0], len(persistErrs))
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+var persistIngestTurn = persistIngestTurnDefault
+
+func persistIngestTurnDefault(entry memory.MemoryEntry) error {
+	if *flagEnableTurnGranularity {
+		return globalStore.IngestTurn(entry)
+	}
+	return globalStore.Write(entry)
 }
 
 func handleRetrieve(w http.ResponseWriter, r *http.Request) {
