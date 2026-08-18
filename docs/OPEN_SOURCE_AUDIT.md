@@ -1,19 +1,19 @@
 # Open-source readiness audit
 
-Checklist for bringing **github.com/iome-sh/memory** (Palace kernel) to the same OSS **process bar** as public **iomesh-tui**. Re-run before any deliberate visibility flip and before each major release.
+Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace kernel) vs public **iomesh-tui**. Visibility flip is **complete** (public MIT). Re-run before each major release.
 
-**Serial stamp (program continuum):** free eng residual pin **s1467** (M4 public-flip **readiness**) · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468 (mcp) · s1469 (TUI) · s1470 (aion residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng **s1473+**. Prior process bar: **s1452** (still private intentional Pass). Does **not** rewrite free-floor **s1465**.
+**Serial stamp (program continuum):** free eng residual pin **s1467** (M4 public-flip **readiness**) · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers s1468 (mcp) · s1469 (TUI) · s1470 (aion residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng **s1473+**. Prior process bar: **s1452** (historical: process bar landed while private). Does **not** rewrite free-floor **s1465**.
 
-> **M4 readiness pointer:** operator checklist + offline gate live in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Still private.** **Residual PASS ≠ public flip.** Readiness ≠ invent public / Memory GA / dual_write ON.
+> **M4 readiness pointer:** operator residual + offline gate live in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Public MIT** (flip complete). **Public MIT ≠ Memory GA.** **Residual PASS ≠ public flip.** Gate PASS ≠ product GA. Readiness ≠ invent Memory GA / dual_write ON.
 
 ## Visibility
 
 | Check | Status |
 |-------|--------|
-| Repository visibility | **Public** (MIT) — flipped deliberately. Deliberate future flip only after re-audit + [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). |
+| Repository visibility | **Public** (MIT) — flipped deliberately. Flip complete is current fact. See [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). |
 | Private vulnerability reporting path documented | Pass (SECURITY.md · security@iome.sh · advisory) |
 | No accidental “we are public Memory GA” claims | Pass (honesty locks below) |
-| Residual PASS ≠ public flip | Pass (s1467 readiness pin · s1473 final audit) |
+| Residual PASS ≠ public flip | Pass (s1467 readiness pin · s1473 final audit · gate PASS ≠ product GA) |
 
 ## Security
 
@@ -33,15 +33,15 @@ Checklist for bringing **github.com/iome-sh/memory** (Palace kernel) to the same
 
 | Claim | Status |
 |-------|--------|
-| Kernel-only · **not product Memory GA** · **not Memory GA** | Pass |
+| Kernel-only · **not product Memory GA** · **not Memory GA** · public MIT ≠ Memory GA | Pass |
 | Local-primary Memory path | Pass |
-| dual_write OFF product path (elsewhere) | Pass (docs/CONTRIBUTING/SECURITY) |
+| dual_write OFF (host policy default elsewhere, **not** a kernel product flag) | Pass (docs/CONTRIBUTING/SECURITY) |
 | Hosted Palace sunset until scale | Pass |
 | Mesh optional (TUI / ops packs) · aion broker stays private | Pass |
 | Future public MCP host named **iomesh-memory-mcp** (not aion-memory-mcp) | Pass |
 | Residual PASS ≠ live dogfood / invent GA | Pass |
-| Residual PASS ≠ public flip | Pass (s1467 · s1473) |
-| Option A edge OSS: open **kernel first**, then MCP; private flip separate deliberate act | Pass |
+| Residual PASS ≠ public flip | Pass (s1467 · s1473 · gate PASS ≠ product GA) |
+| Option A edge OSS: open **kernel first**, then MCP; sibling flip separate deliberate act | Pass |
 | Open boxes stay open | Pass (Partial rows remain honest) |
 
 ## Open-source process artifacts
@@ -68,7 +68,7 @@ Checklist for bringing **github.com/iome-sh/memory** (Palace kernel) to the same
 
 ## Final TUI-parity audit (s1473)
 
-Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module. **Do not** treat this section as a visibility flip.
+Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module. **Do not** treat this section as a visibility flip. Flip is already complete.
 
 | Check | Status |
 |-------|--------|
@@ -83,17 +83,17 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 | No committed secrets | Pass |
 | No aion import | Pass |
 | Repo description honesty (not sudo-jin) | Pass after settings (document) |
-| CodeQL | Partial / enable on flip (document) |
-| Visibility still private | Pass intentional |
+| CodeQL | Partial / enable after flip (document; not claimed green) |
+| Visibility public MIT | Pass (flip complete) |
 | residual PASS ≠ public flip | Pass |
 | History may contain ledger serials | Partial — forward policy |
 | GoReleaser binaries | N/A (library module; tags + go get) |
 
 ### Notes on Partial / settings rows
 
-- **CodeQL:** not claimed green. Enable default setup on or after deliberate public flip (recommended).  
-- **History serials:** residual docs may still stamp continuum serials while private; CONTRIBUTING public repository policy governs the **forward** PR surface after flip.  
-- **Repo description / topics / homepage / delete-branch-on-merge:** maintainer GitHub settings — see [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) final pre-flight. Description must not claim `sudo-jin` module path.  
+- **CodeQL:** not claimed green. Enable default setup after the public flip (recommended).  
+- **History serials:** residual docs may still stamp continuum serials; CONTRIBUTING public repository policy governs the **forward** PR surface. Do not rewrite published history lightly.  
+- **Repo description / topics / homepage / delete-branch-on-merge:** maintainer GitHub settings — see [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) post-flip steps. Description must not claim `sudo-jin` module path.  
 - **GoReleaser:** N/A for this library; primary artifact is annotated git tag + `go get` (see [RELEASING.md](../RELEASING.md)). Binary products (iomesh-tui / iomesh-memory-mcp) differ.  
 - **M5 signing / matrix (s1491):** library consumers verify via `go.sum` / module proxy checksum DB — **not** cosign on this package. Peer binary cosign/SBOM is mention-only; residual PASS ≠ invent M5 complete · ≠ invent cosign-on-library · ≠ invent Memory GA (see [RELEASING.md](../RELEASING.md#m5-signing--release-matrix-s1491-residual-tip)).
 
@@ -101,27 +101,27 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 
 | Risk | Rating | Notes |
 |------|--------|-------|
-| Visibility public | **Pass** (deliberate flip) | s1452 process bar · s1467 readiness · s1473 final audit — none flips public |
+| Visibility public | **Pass** (deliberate flip complete) | s1452 process bar · s1467 readiness · s1473 final audit — none of those residuals *were* the flip act |
 | Multi-tenant isolation | N/A / residual | Not a design goal of local FS palace |
 | Model supply chain | Residual | Operators download models; not vendored by default |
 | Concurrent writers on shared root | Residual | Documented; not multi-tenant safe |
-| History may contain private program serials | Partial | No history rewrite; CONTRIBUTING forward policy after flip |
+| History may contain private program serials | Partial | No history rewrite; CONTRIBUTING forward policy |
 | Product install surface | Outside this repo | TUI + future **iomesh-memory-mcp**; aion stays private |
-| CodeQL not enabled | Partial | Enable on flip (recommended); not claimed green here |
+| CodeQL not enabled | Partial | Enable after flip (recommended); not claimed green here |
 | Open boxes stay open | Intentional | Dependabot PRs, Partial rows, MCP host flip — not closed by this residual |
 
-## Maintainer actions **after** going public (future — not this PR)
+## Maintainer actions after going public (visibility already public)
 
 See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). Summary:
 
-1. GitHub → Settings → General → Danger Zone → Change visibility → Public (**deliberate**)  
+1. GitHub visibility → Public (**done** — flip complete)  
 2. Enable **Private vulnerability reporting**  
 3. Branch protection on `main`: require PR + status check **`ci-success`**  
 4. (Optional) topics: `golang`, `memory`, `rag`, `embeddings`, `qdrant`  
-5. CONTRIBUTING **public repository policy** already present (s1473) — enforce on forward PRs after flip  
+5. CONTRIBUTING **public repository policy** already present (s1473) — enforce on forward PRs  
 6. (Optional recommended) Enable CodeQL default setup  
 7. Do **not** publish private monorepo install paths or invent Memory GA  
-8. Flip order: **this kernel first**, then deliberate **`iomesh-memory-mcp`** public (never invent either public from residual PASS)
+8. Flip order: **this kernel first** (done), then deliberate **`iomesh-memory-mcp`** public (never invent Memory GA from residual PASS)
 
 ## Out of scope for this kernel package
 
@@ -129,7 +129,7 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 - Product Memory GA edge binary (→ **iomesh-memory-mcp** when extracted)  
 - Private aion broker / control plane  
 - Guarantees about third-party Qdrant / model hubs  
-- Visibility flip itself (deliberate maintainer act only · residual PASS ≠ public flip)  
+- Re-doing the visibility flip (deliberate maintainer act already done · residual PASS ≠ public flip)  
 - GoReleaser binary shipping (library module; tags + go get)
 
 ## Audit verdict (s1473 final TUI parity · s1467 readiness · process bar s1452)
@@ -137,14 +137,14 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 | Dimension | Verdict |
 |-----------|---------|
 | Process bar vs iomesh-tui | **Pass** (artifacts + CI spirit + public policy · s1473) |
-| M4 public-flip **readiness** docs + offline gate | **Pass** (s1467 · still private) |
+| M4 public-flip **readiness** docs + offline gate | **Pass** (s1467 · public MIT · gate PASS ≠ product GA) |
 | Final TUI-parity audit matrix | **Pass** (s1473 · Partial rows honest: CodeQL, history serials) |
-| Visibility public flip | **Done** |
-| Product honesty | **Pass** |
+| Visibility public flip | **Done** — **public MIT** |
+| Product honesty | **Pass** — public MIT ≠ Memory GA |
 | Security docs | **Pass** |
-| Live dogfood / rates | N/A — residual PASS ≠ dogfood; rates ~$88/$119 when pricing mentioned elsewhere; no freemium Palace invent |
+| Live dogfood / rates | N/A — residual PASS ≠ dogfood; rates ~$88/$119 when pricing mentioned elsewhere (not live kernel buyer rates); no freemium Palace invent |
 
-**Overall:** **Ready for deliberate public flip** after maintainer checklist in [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). Repository is **still private** until a human flips visibility. **Residual PASS ≠ public flip.** Kernel first, then MCP. **not Memory GA** · dual_write OFF · aion stays private · open boxes stay open · Palace sunset.
+**Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** **Residual PASS ≠ public flip.** Gate PASS ≠ product GA. Kernel first, then MCP. **not Memory GA** · dual_write OFF (host policy, not kernel flag) · aion stays private · open boxes stay open · Palace sunset.
 
 
 ## Public import

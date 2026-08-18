@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Public-flip residual docs (#62):** `docs/PUBLIC_FLIP_READINESS.md`, `docs/OPEN_SOURCE_AUDIT.md`, CONTRIBUTING public-repository policy, and the Makefile `public-flip-readiness-gate` comment treat flip-complete as current fact. Pre-flip “still private” language is historical. Public MIT ≠ Memory GA · kernel-only · gate PASS ≠ product GA · dual_write OFF (host policy, not kernel flag).
 - **LongMemEval `/retrieve` session scope (#55):** official generate/orchestrator pass `session_id`. Shared-palace QA without it is other-session dominated. Kernel `SearchMemoryOptions.SessionID` already existed. Harness-only · not Memory GA.
 - **Keyword OR-any-token flood (#56):** keyword hits still select on any token ≥3, but are ranked by distinct-token overlap before Limit so hash top-k cannot bury a unique gold phrase under incidental `when`/`did`/`last` matches. Kernel-only · not Memory GA.
 
@@ -68,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Honesty
 
-- Kernel-only · not product Memory GA · local-primary · dual_write OFF product path · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private · residual PASS ≠ public flip · M4 readiness ≠ invent public · s1473 final audit ≠ public flip.
+- Kernel-only · not product Memory GA · public MIT ≠ Memory GA · local-primary · dual_write OFF (host policy, not kernel flag) · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private · residual PASS ≠ public flip · gate PASS ≠ product GA · M4 readiness ≠ invent Memory GA.
 
 ## [1.5.7] — 2026-07
 
