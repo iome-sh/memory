@@ -128,6 +128,40 @@ func TestCompactionConfig_RecMemDefaults(t *testing.T) {
 	}
 }
 
+func TestEvictWorkingTier_UnlinksWorking(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	base := time.Now().Add(-4 * time.Hour)
+	for i, id := range []string{"w1", "w2", "w3"} {
+		ts := base.Add(time.Duration(i) * time.Hour)
+		if err := store.Write(MemoryEntry{
+			ID:        id,
+			Type:      "note",
+			Tier:      TierWorking,
+			Version:   1,
+			CreatedAt: ts,
+			UpdatedAt: ts,
+			Content:   MemoryContent{Summary: "working " + id},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	store.EvictWorkingTier(1, 1)
+
+	if got := store.ListEntriesInTier(TierWorking); len(got) != 1 {
+		t.Fatalf("working after evict = %d, want 1 (newest kept)", len(got))
+	}
+	if _, ok := store.Load("w1", TierWorking); ok {
+		t.Fatal("evicted w1 still in working")
+	}
+	if _, ok := store.Load("w1", TierContextual); !ok {
+		t.Fatal("expected evicted w1 in contextual")
+	}
+	if _, ok := store.Load("w3", TierWorking); !ok {
+		t.Fatal("expected newest w3 to remain in working")
+	}
+}
+
 func TestPalaceStore_WriteLatent(t *testing.T) {
 	tempDir := t.TempDir()
 	store := NewPalaceStore(tempDir)
