@@ -68,7 +68,7 @@ func isProtectedFactEntry(entry MemoryEntry, cfg CompactionConfig) bool {
 
 // PerformCompaction runs agent-managed compaction with H-Mem temporal window + alpha constraints.
 // Now respects LongMemEval fact protection and turn granularity.
-// Product Write errors from SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE are returned.
+// Product Write errors from SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE / ARCHIVE are returned.
 func (ps *PalaceStore) PerformCompaction(
 	targetTier MemoryTier,
 	cfg CompactionConfig,
@@ -142,7 +142,7 @@ func (ps *PalaceStore) PerformCompaction(
 		case "CREATE_CORE_PRINCIPLE":
 			err = ps.handleCreateCorePrinciple(act.TargetIDs, targetTier, cfg, vectorCallback)
 		case "ARCHIVE":
-			ps.handleArchive(act.TargetIDs, targetTier, cfg)
+			err = ps.handleArchive(act.TargetIDs, targetTier, cfg)
 		case "MERGE":
 			err = ps.handleMerge(act.TargetIDs, targetTier, cfg, vectorCallback)
 		}
@@ -364,8 +364,12 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
 			if !isProtectedFactEntry(entry, cfg) {
+				from := entry.Tier
+				if from == 0 {
+					from = tier
+				}
 				entry.Tier = TierArchival
-				if err := ps.Write(entry); err != nil {
+				if err := ps.writeLeavingTier(entry, from); err != nil {
 					return fmt.Errorf("failed to archive summarized entry: %w", err)
 				}
 			}
@@ -437,8 +441,12 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
 			if !isProtectedFactEntry(entry, cfg) {
+				from := entry.Tier
+				if from == 0 {
+					from = tier
+				}
 				entry.Tier = TierArchival
-				if err := ps.Write(entry); err != nil {
+				if err := ps.writeLeavingTier(entry, from); err != nil {
 					return fmt.Errorf("failed to archive core-principle source: %w", err)
 				}
 			}
@@ -447,16 +455,23 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 	return nil
 }
 
-func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier, cfg CompactionConfig) {
+func (ps *PalaceStore) handleArchive(ids []string, tier MemoryTier, cfg CompactionConfig) error {
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
 			if isProtectedFactEntry(entry, cfg) {
 				continue // never archive protected facts
 			}
+			from := entry.Tier
+			if from == 0 {
+				from = tier
+			}
 			entry.Tier = TierArchival
-			ps.Write(entry)
+			if err := ps.writeLeavingTier(entry, from); err != nil {
+				return fmt.Errorf("failed to archive entry: %w", err)
+			}
 		}
 	}
+	return nil
 }
 
 func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg CompactionConfig, vectorCb VectorStoreCallback) error {
@@ -517,8 +532,12 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 	for _, id := range ids {
 		if entry, ok := ps.Load(id, tier); ok {
 			if !isProtectedFactEntry(entry, cfg) {
+				from := entry.Tier
+				if from == 0 {
+					from = tier
+				}
 				entry.Tier = TierArchival
-				if err := ps.Write(entry); err != nil {
+				if err := ps.writeLeavingTier(entry, from); err != nil {
 					return fmt.Errorf("failed to archive merged entry: %w", err)
 				}
 			}
