@@ -6,7 +6,7 @@ Operator / maintainer residual for the **completed** public visibility flip of *
 
 **Serial stamp (program continuum):** free eng residual pin **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers **s1468** (mcp) · **s1469** (TUI) · **s1470** (aion residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng after free-floor peer **s1473+**.
 
-> **Hard non-claims (read first):** Repository is **public MIT** (flip complete). **Public MIT ≠ Memory GA**. **Residual PASS ≠ public flip** (gate PASS ≠ product GA · gate does not invent or re-do the flip). This pin is **M4 readiness ≠ M4 complete** · **not Memory GA** · **dual_write OFF** (host policy default elsewhere, **not** a kernel product flag) · **aion stays private** · **open boxes stay open** · hosted **Palace sunset** until scale · product-surface rates ~**$88** / ~**$119** when pricing is mentioned **elsewhere** (not live kernel buyer rates; do not invent freemium Palace SLA here). Do **not** run `gh repo edit --visibility public` from this residual.
+> **Hard non-claims (read first):** Repository is **public MIT** (flip complete). **Public MIT ≠ Memory GA**. **Residual PASS ≠ public flip** (gate PASS ≠ product GA · gate does not invent or re-do the flip). This pin is **M4 readiness ≠ M4 complete** · **not Memory GA** · **dual_write OFF** (host policy default elsewhere, **not** a kernel product flag) · **aion stays private** · **open boxes stay open** · hosted **Palace sunset** until scale · mesh optional · do not invent freemium Palace SLA or a priced SKU here. Do **not** run `gh repo edit --visibility public` from this residual.
 
 ## Why this residual exists
 
@@ -76,7 +76,7 @@ Closeout checklist used on flip day (**historical**). Completing this list was *
 | Product GA | **not Memory GA** · kernel ≠ product Memory GA · public MIT ≠ Memory GA |
 | dual_write | **dual_write OFF** (host policy default elsewhere, **not** a kernel product flag) |
 | aion | **aion stays private** (broker · CP · billing · INSTALL_STORE) |
-| Pricing | product-surface rates ~**$88** / ~**$119** when rates mentioned **elsewhere** · not live kernel buyer rates · no invent freemium Palace SLA here |
+| Pricing | no SKU or dollar figures in this kernel · mesh optional · no invent freemium Palace SLA |
 | Open work | **open boxes stay open** (Dependabot, residual risks, Partial audit rows) |
 | Hosted Palace | **Palace sunset** until deliberate scale · local-primary FS palace |
 | Flip order | **kernel first**, then **`iomesh-memory-mcp`** · never invent Memory GA from this pin |
@@ -133,4 +133,4 @@ This residual closes **kernel readiness documentation + offline gate** only. It 
 | aion | **private** |
 | M4 complete / invent Memory GA | **No** — readiness + final audit only · M4 readiness ≠ M4 complete |
 
-**Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** Kernel first, then MCP. Residual PASS ≠ public flip · gate PASS ≠ product GA · not Memory GA · dual_write OFF (host policy, not kernel flag) · aion stays private · open boxes stay open · Palace sunset · rates ~$88/$119 when rates apply elsewhere (not live kernel buyer rates).
+**Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** Kernel first, then MCP. Residual PASS ≠ public flip · gate PASS ≠ product GA · not Memory GA · dual_write OFF (host policy, not kernel flag) · aion stays private · open boxes stay open · Palace sunset · mesh optional · no invent freemium Palace SLA.
