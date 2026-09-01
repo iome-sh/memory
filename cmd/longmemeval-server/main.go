@@ -19,7 +19,7 @@ import (
 
 // LongMemEval local bench harness for LongMemEval-S / LongMemEval-M.
 // Residual-honest: not a production memory service, not Memory GA, not live ingest.
-// dual_write OFF. Judge-free overlap / fixtures ≠ official APPLY.
+// dual_write OFF. Judge-free overlap / fixtures ≠ official scored close.
 //
 // Flags:
 //   -enable-turn-granularity     Use IngestTurn + turn-level metadata (default true)
