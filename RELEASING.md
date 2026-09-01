@@ -193,7 +193,7 @@ Binary edge hosts that *consume* this library ship their **own** release packagi
 | residual PASS ≠ invent **signed forever-green releases** | Neither this module’s tags nor peer GoReleaser runs are invented green |
 | residual PASS ≠ invent **Memory GA** | Kernel library only |
 | residual PASS ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
-| residual PASS ≠ invent **APPLY** | Still-human APPLY / ops boxes stay outside this tip |
+| residual PASS ≠ invent an official scored/product close | Still-human scored/product close / ops boxes stay outside this tip |
 | residual PASS ≠ invent **aion public** | aion / control plane / commercial plane stay **private** |
 | Public MIT | Visibility already **public**; residual ≠ re-flip or invent flip |
 

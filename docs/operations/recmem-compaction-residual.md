@@ -29,7 +29,7 @@ Host/TUI surfaces (`memory_trigger_compact`, TUI compact-status / HITL) rest on 
 | `AutoRecMemCompaction` | **Shipped partial** | Density / count phase-transition over subconscious buffer → may call `PerformCompaction` |
 | `WriteLatent` / subconscious path | **Shipped partial** (Phase 1 class) | Latent buffer for RecMem-style recurrence |
 | `SemanticRefine` | **Partial / residual-honest** | Phase 3 first-slice may exist; full product-grade semantic refine residual if still planned |
-| Host `memory_trigger_compact` | **Advisory** (peer · mention only) | Publish trigger only · not silent compact APPLY |
+| Host `memory_trigger_compact` | **Advisory** (peer · mention only) | Publish trigger only · compaction stays advisory |
 | TUI HITL on compact | **Peer s1311** (mention only) | TUI requires HITL · no `trigger_compact` without HITL |
 | Product Memory GA | **No** | Kernel ≠ product Memory GA · **not Memory GA** |
 | GA token-reduction product claim | **No** | Compaction PASS ≠ invent Memory GA token-reduction · plan research language is historical |
