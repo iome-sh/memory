@@ -142,7 +142,7 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 | Visibility public flip | **Done** — **public MIT** |
 | Product honesty | **Pass** — public MIT ≠ Memory GA |
 | Security docs | **Pass** |
-| Live dogfood / rates | N/A — residual PASS ≠ dogfood; rates ~$88/$119 when pricing mentioned elsewhere (not live kernel buyer rates); no freemium Palace invent |
+| Live dogfood / rates | N/A — residual PASS ≠ dogfood; no SKU or dollar figures here; mesh optional; no freemium Palace invent |
 
 **Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** **Residual PASS ≠ public flip.** Gate PASS ≠ product GA. Kernel first, then MCP. **not Memory GA** · dual_write OFF (host policy, not kernel flag) · aion stays private · open boxes stay open · Palace sunset.
 

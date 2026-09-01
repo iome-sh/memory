@@ -60,6 +60,19 @@ need_grep() {
   fi
 }
 
+forbid_grep() {
+  local file="$1" needle="$2" label="$3"
+  if [[ ! -f "$file" ]]; then
+    fail "skip forbid ${label} (missing ${file})"
+    return
+  fi
+  if grep -qF "$needle" "$file"; then
+    fail "forbidden needle ${label} in ${file}"
+  else
+    pass "forbid ${label}"
+  fi
+}
+
 need_path() {
   local path="$1" label="$2"
   if [[ -e "$path" ]]; then
@@ -97,8 +110,11 @@ need_grep "$DOC" 'iomesh-memory-mcp' "doc MCP host naming"
 need_grep "$DOC" 'OPEN_SOURCE_AUDIT.md' "doc link OPEN_SOURCE_AUDIT"
 need_grep "$DOC" 'Palace sunset' "doc Palace sunset"
 need_grep "$DOC" 'open boxes stay open' "doc open boxes stay open"
-need_grep "$DOC" '$88' "doc rates ~\$88 mention"
-need_grep "$DOC" '$119' "doc rates ~\$119 mention"
+need_grep "$DOC" 'mesh optional' "doc mesh optional"
+forbid_grep "$DOC" '$88' "doc no \$88 rate"
+forbid_grep "$DOC" '$119' "doc no \$119 rate"
+forbid_grep "$AUDIT" '$88' "audit no \$88 rate"
+forbid_grep "$AUDIT" '$119' "audit no \$119 rate"
 need_grep "$DOC" 'public-flip-readiness-gate' "doc Makefile public-flip-readiness-gate target"
 need_grep "$DOC" 'SKIP_PUBLIC_FLIP_READINESS' "doc soft skip env"
 need_grep "$DOC" 'M4 readiness ≠ M4 complete' "doc M4 readiness ≠ M4 complete"
@@ -138,5 +154,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK honesty chain: public · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · aion stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · rates ~\$88/\$119 · s1467"
+log "RESULT OK honesty chain: public · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · aion stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional · s1467"
 exit 0
