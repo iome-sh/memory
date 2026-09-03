@@ -1045,6 +1045,13 @@ func extractKeyphrases(text string) []string {
 
 // IngestTurn is the primary production entry point for LongMemEval benchmark and ego online session processing.
 // It writes the parent turn first, then each non-empty ExtractedFacts child as type turn_fact.
+// When ExtractedFacts is empty, facts are auto-extracted from the turn text.
+//
+// Child Content.Tags inherit the parent turn's Content.Tags (trimmed, de-duplicated) and
+// always include the structural markers fact_augmented and from_turn. The kernel does not
+// stamp longmemeval; callers that want that label (the LongMemEval harness under
+// cmd/longmemeval-* and internal/longmemeval) pass it on the parent so children inherit it.
+//
 // Fact-augmented children get valid_from stamped when unset; child Write errors are returned.
 //
 // Partial persist is the contract: a child Write error does not roll back the parent or earlier
@@ -1115,7 +1122,7 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 			Content: MemoryContent{
 				Summary: truncate(factText, 280),
 				Full:    factText,
-				Tags:    []string{"fact_augmented", "from_turn", "longmemeval"},
+				Tags:    inheritTurnFactTags(turn.Content.Tags),
 			},
 			Provenance: MemoryProvenance{
 				SourceStep: "ingest_turn_fact",
@@ -1137,6 +1144,32 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	}
 
 	return nil
+}
+
+// inheritTurnFactTags copies the parent turn's Content.Tags and appends the
+// structural markers fact_augmented and from_turn. Blank tags are dropped;
+// duplicates are skipped. longmemeval is not added here — callers that want
+// it stamp it on the parent so children inherit it.
+func inheritTurnFactTags(parentTags []string) []string {
+	out := make([]string, 0, len(parentTags)+2)
+	seen := make(map[string]struct{}, len(parentTags)+2)
+	add := func(t string) {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			return
+		}
+		if _, ok := seen[t]; ok {
+			return
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	for _, t := range parentTags {
+		add(t)
+	}
+	add("fact_augmented")
+	add("from_turn")
+	return out
 }
 
 // SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.

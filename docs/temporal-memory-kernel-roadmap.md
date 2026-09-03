@@ -59,7 +59,7 @@ On `MemoryEntry` (`memory.go`):
 
 ### Ingest & search
 
-- `IngestTurn` — primary turn ingest path (defaults timestamp/IDs, fact-augmented child writes, session/timestamp propagation)
+- `IngestTurn` — primary turn ingest path (defaults timestamp/IDs, fact-augmented child writes that inherit parent `Content.Tags` plus `fact_augmented`/`from_turn`, session/timestamp propagation)
 - `SearchMemory(query, tier, limit, vec)` — hybrid keyword + vector re-rank when a query embedding is supplied; keyword hits stay ahead of cosine rank (hash `QueryVec` must not drop a literal token past `Limit`); embedding path uses configured `EmbeddingFunc` / batch embed
 
 ### Compaction touchpoints

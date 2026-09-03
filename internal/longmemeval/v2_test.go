@@ -45,6 +45,18 @@ func TestPalaceMemory_InsertQueryText(t *testing.T) {
 	if err := adapter.Insert(tr); err != nil {
 		t.Fatal(err)
 	}
+	facts := store.ListEntriesInTier(memory.TierSemantic)
+	if len(facts) == 0 {
+		t.Fatal("expected IngestTurn fact children")
+	}
+	for _, f := range facts {
+		if !memory.EntryHasTag(f, IngestTag) {
+			t.Fatalf("V2 adapter must stamp %q on the parent so children inherit it; tags=%v", IngestTag, f.Content.Tags)
+		}
+		if !memory.EntryHasTag(f, "fact_augmented") || !memory.EntryHasTag(f, "from_turn") {
+			t.Fatalf("child missing structural markers: %v", f.Content.Tags)
+		}
+	}
 	items := adapter.Query(ds.Questions[0].Question, "")
 	if len(items) == 0 {
 		t.Fatal("expected at least one text context item")

@@ -171,3 +171,39 @@ func TestHandleIngest_FailedTurnNotCounted(t *testing.T) {
 		t.Fatalf("error = %q, want disk full", got.Error)
 	}
 }
+
+func TestHandleIngest_CallerStampsLongmemeval(t *testing.T) {
+	base := t.TempDir()
+	setupIngestHarness(t, base)
+
+	resp := postIngestRaw(t, 1)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	listed := globalStore.ListMemoryWithOptions(memory.ListMemoryOptions{Tag: "longmemeval", Limit: 50})
+	if len(listed) == 0 {
+		t.Fatal("harness ingest must stamp longmemeval on the parent so children inherit it")
+	}
+	var sawParent, sawChild bool
+	for _, e := range listed {
+		if !memory.EntryHasTag(e, "longmemeval") {
+			t.Fatalf("tag=longmemeval survivor missing tag: id=%s tags=%v", e.ID, e.Content.Tags)
+		}
+		switch e.Type {
+		case "conversation_turn":
+			sawParent = true
+		case "turn_fact":
+			sawChild = true
+			if !memory.EntryHasTag(e, "fact_augmented") || !memory.EntryHasTag(e, "from_turn") {
+				t.Fatalf("child missing structural markers: %v", e.Content.Tags)
+			}
+		}
+	}
+	if !sawParent {
+		t.Fatal("expected parent turn tagged longmemeval")
+	}
+	if !sawChild {
+		t.Fatal("expected inherited longmemeval on a turn_fact child")
+	}
+}

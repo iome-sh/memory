@@ -341,7 +341,7 @@ func evalInstance(inst LongMemEvalInstance, embedFn memory.EmbeddingFunc, batchF
 				ID:           memory.GenerateMemoryID(),
 				Type:         "conversation_turn",
 				Tier:         memory.TierWorking,
-				Content:      memory.MemoryContent{Full: turn.Content, Summary: truncate(turn.Content, 280)},
+				Content:      memory.MemoryContent{Full: turn.Content, Summary: truncate(turn.Content, 280), Tags: []string{longmemeval.IngestTag}},
 				Cycle:        turnIdx + 1,
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
