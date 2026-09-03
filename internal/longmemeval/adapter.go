@@ -8,6 +8,10 @@ import (
 	"github.com/iome-sh/memory"
 )
 
+// IngestTag is the provenance label the LongMemEval harness stamps on parent
+// turns so IngestTurn children inherit it. PalaceStore does not add this tag.
+const IngestTag = "longmemeval"
+
 // ContextItem matches official V2 Memory.query items: type text|image, value string.
 type ContextItem struct {
 	Type  string `json:"type"`
@@ -41,7 +45,7 @@ func (m *PalaceMemory) Insert(trajectory V2Trajectory) error {
 			ID:           memory.GenerateMemoryID(),
 			Type:         "conversation_turn",
 			Tier:         memory.TierWorking,
-			Content:      memory.MemoryContent{Full: text, Summary: truncate(text, 280)},
+			Content:      memory.MemoryContent{Full: text, Summary: truncate(text, 280), Tags: []string{IngestTag}},
 			Cycle:        i + 1,
 			CreatedAt:    now,
 			UpdatedAt:    now,

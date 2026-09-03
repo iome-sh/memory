@@ -230,6 +230,11 @@ func TestPalaceStore_SearchMemory_ONNXRerank(t *testing.T) {
 
 func onnxModelDirForTest(t *testing.T) string {
 	t.Helper()
+	// Isolate hugot/gomlx under -race. DownloadModel races in hub.DownloadFilesCtx;
+	// NewGONNXEmbedder hits gomlx workerspool/checkptr. Not an IngestTurn tag race.
+	if raceDetectorOn {
+		t.Skip("skip hugot/gomlx ONNX under -race (third-party DownloadModel + session)")
+	}
 	if dir := os.Getenv(EnvONNXModelPath); dir != "" {
 		if _, err := os.Stat(dir); err == nil {
 			return dir

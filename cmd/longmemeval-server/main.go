@@ -190,7 +190,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			ID:           memory.GenerateMemoryID(),
 			Type:         "conversation_turn",
 			Tier:         memory.TierWorking,
-			Content:      memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280)},
+			Content:      memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280), Tags: []string{longmemeval.IngestTag}},
 			Cycle:        t.Cycle,
 			CreatedAt:    now,
 			UpdatedAt:    now,
