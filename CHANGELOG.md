@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Empty `PalaceConfig.BaseDir` (#66):** `NewPalaceStoreWithConfig` / `NewPalaceStore("")` default to local `.palace` (`DefaultPalaceBaseDir`) instead of leftover `.ossa/kb/palace`. Callers that pass `BaseDir` are unchanged. Local-primary · not a hosted palace · not Memory GA.
 
 ### Fixed
+- **govulncheck GO-2026-6355 / GO-2026-6354:** bump `golang.org/x/crypto` to v0.56.0 (ssh.Dial via hugot.NewPipeline). Kernel-only · not Memory GA · dual_write OFF.
 - **`IngestTurn` fact-child tags (#78):** derived `turn_fact` children inherit the parent turn's `Content.Tags` and keep `fact_augmented` / `from_turn`. The kernel no longer stamps `longmemeval`; the LongMemEval harness (`cmd/longmemeval-*`, `internal/longmemeval`) supplies it on the parent. Kernel-only · not Memory GA · dual_write OFF.
 - **Public-flip priced-rate strip (#75):** `docs/PUBLIC_FLIP_READINESS.md` and `docs/OPEN_SOURCE_AUDIT.md` drop priced product-surface figures. Palace sunset and mesh-optional honesty stay without SKU or dollar figures. Gate forbids those needles. Kernel-only · not Memory GA · dual_write OFF (host policy).
 - **Internal close-token strip (#74):** CHANGELOG, RELEASING, recmem residual, and the longmemeval-server comment rephrase without the internal close-token. Judge-free overlap is not an official scored close; compaction stays advisory. Kernel-only · not Memory GA · dual_write OFF (host policy).
