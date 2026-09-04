@@ -22,7 +22,7 @@ Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memo
 
 ```bash
 go get github.com/iome-sh/memory@latest
-# or pin a release: go get github.com/iome-sh/memory@v1.5.7
+# or pin a release: go get github.com/iome-sh/memory@v1.5.8
 ```
 
 Requires the Go version in [`go.mod`](go.mod). CI uses `GOTOOLCHAIN=auto`.
