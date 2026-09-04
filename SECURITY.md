@@ -45,7 +45,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 - **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers.  
 - **Optional embeddings load models** — model supply chain and native ORT/CUDA stacks are out of band of the pure-Go default path.  
 - **Kernel-only** — this package is not Memory GA; product dual_write defaults OFF elsewhere; hosted Palace remains sunset until deliberate scale; mesh is optional via TUI/ops packs.  
-- **Future public MCP host** (planned naming honesty): **`iomesh-memory-mcp`** — not `aion-memory-mcp`. The private aion broker / control plane stays private.  
+- **No mesh org header** — organization isolation for the I/O Mesh broker is a separate HTTP header (`X-IOMesh-Org`) on mesh clients; this library does not implement that. The public MCP host is **`iomesh-memory-mcp`**.  
 
 ### What this is *not*
 

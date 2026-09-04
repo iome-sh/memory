@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **K2 incremental meta-index patch (#63):** `Write` / unlink patches the in-memory (and optional durable) event-time meta index when it is already clean, so `ListMemoryWithOptions` does not rebuild-on-dirty from every tier JSON. FS Palace remains source of truth. First list / `InvalidateMetaIndex` / stamp mismatch still O(n). Btree/tag secondaries remain residual. Kernel-only · not Memory GA · residual ≠ invent index green.
 
 ### Changed
+- **Public copy hygiene:** operator-facing README, RELEASING, SECURITY, and OPEN_SOURCE_AUDIT drop internal serials and private-plane names. Public MIT · local filesystem library · not Memory GA · not cloud multi-tenant.
 - **`IngestTurn` persist honesty (#64):** godoc (and `TestIngestTurn_FactWriteError`) state the contract — parent and earlier facts remain after a child Write error. Partial persist · not rollback · not Memory GA · dual_write OFF.
 - **Write versioning honesty (#65):** document `Write` / `WriteLatent` as caller-managed and best-effort. `Version==0` becomes 1; `archiveToVersions` errors are non-fatal; overwrite does not auto-increment. README no longer claims automatic overwrite versioning. Kernel-only · not Memory GA · not a hosted version store.
 - **Empty `PalaceConfig.BaseDir` (#66):** `NewPalaceStoreWithConfig` / `NewPalaceStore("")` default to local `.palace` (`DefaultPalaceBaseDir`) instead of leftover `.ossa/kb/palace`. Callers that pass `BaseDir` are unchanged. Local-primary · not a hosted palace · not Memory GA.

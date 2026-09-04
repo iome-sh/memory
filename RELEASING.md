@@ -2,6 +2,9 @@
 
 Ship from `main` via PR; cut annotated semver tags for Go module consumers.
 
+Public module: `github.com/iome-sh/memory`  
+Consumers: `go get github.com/iome-sh/memory@vX.Y.Z` (module proxy). This is a **library**, not product Memory GA.
+
 ## When to bump and tag
 
 **Do not leave user-visible API waves only under `[Unreleased]`.** After merging a coherent capability set, cut a release in the same delivery loop (or immediately after):
@@ -50,11 +53,9 @@ git push origin vX.Y.Z
 - Prefer **patch/minor** within the current `v1.5.x` line for additive temporal/kernel APIs  
 - Document breaking changes explicitly in CHANGELOG  
 
-## Support / version policy (E5)
+## Support / version policy
 
-**Serial stamp:** free eng residual tip **s1499** (E5 support / version policy for the public Go library) · free eng concurrent **s1499+** · peer host **iomesh-memory-mcp** (mention only).
-
-Clear support window for **`github.com/iome-sh/memory`** so integrators know what is maintained. This advances Edge Memory GA candidacy **E5** documentation without inventing product GA or forever-green release machinery.
+Clear support window for **`github.com/iome-sh/memory`** so integrators know what is maintained. Support docs ≠ product Memory GA and ≠ forever-green release machinery.
 
 ### What is supported
 
@@ -96,7 +97,7 @@ go mod download github.com/iome-sh/memory@vX.Y.Z
 ```
 
 - **No `GOPRIVATE` / PAT** required for this public module.  
-- Cosign / SBOM / GoReleaser apply to **binary peers** (`iomesh-memory-mcp`, `iomesh-tui`) — not to this library surface. See [M5 signing / release matrix](#m5-signing--release-matrix-s1491-residual-tip) above.  
+- Cosign / SBOM / GoReleaser apply to **binary peers** (`iomesh-memory-mcp`, `iomesh-tui`) — not to this library surface. See [Signing / release matrix](#signing--release-matrix) below.  
 - Host release matrix for the MCP binary lives in the peer’s `RELEASING.md` (mention only; do not invent peer forever-green from this tip).
 
 ### Security-supported versions
@@ -109,17 +110,15 @@ When cutting a **new minor** (or deliberately EOL-ing an old line):
 
 Reporting: private Security Advisory or **security@iome.sh** — see [SECURITY.md](SECURITY.md). Day-to-day usage questions: [SUPPORT.md](SUPPORT.md) / GitHub Issues.
 
-### What this tip does **not** mean
+### What this policy does **not** mean
 
 | Non-claim | Honesty |
 |-----------|---------|
-| tip ≠ invent **Edge Memory GA** | Support policy docs only; product declaration is a separate human close |
-| tip ≠ invent **bare Memory GA** | Kernel library support ≠ sold “Memory GA” |
-| tip ≠ invent **forever-green signed releases** | Tags + `go get` / `go.sum` / proxy; no invent cosign-on-library or always-green peer GoReleaser |
-| tip ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
-| tip ≠ invent **live dogfood** | No invent operator dogfood green from docs |
-| tip ≠ invent **aion public** | aion / control plane stay private |
-| Docs-only tip | **No release tag invented** by this residual |
+| docs ≠ invent **Memory GA** | Kernel library support ≠ sold “Memory GA” |
+| docs ≠ invent **forever-green signed releases** | Tags + `go get` / `go.sum` / proxy; no invent cosign-on-library or always-green peer GoReleaser |
+| docs ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
+| docs ≠ invent **live dogfood** | No invent operator dogfood green from docs |
+| Docs-only change | **No release tag invented** by documentation |
 
 ## Artifacts
 
@@ -142,11 +141,9 @@ This package is a **Go library module**. The primary release artifact is an **an
 - Optional: `gh release create vX.Y.Z` (or `gh release edit`) for human-readable notes from CHANGELOG — notes only, not binary assets.  
 - Optional longmemeval / helper cmd binaries may be built in CI for smoke; they are not the module’s public product surface.
 
-## M5 signing / release matrix (s1491 residual tip)
+## Signing / release matrix
 
-**Serial stamp:** free eng residual pin **s1491** (M5 signing / release-matrix honesty for the public library) · free eng concurrent **s1491+** · peers **iomesh-memory-mcp** / **iomesh-tui** (binary packaging) mention only.
-
-Post–public-flip trust bar for **`github.com/iome-sh/memory`**. This section documents how library consumers verify releases and how this module peers with binary hosts. **Residual tip ≠ invent M5 complete** · **≠ invent cosign on this library** · **≠ invent Memory GA**.
+How library consumers verify releases, and how this module peers with binary hosts. **Docs ≠ invent cosign on this library** · **≠ invent Memory GA**.
 
 ### Matrix (this module vs binary peers)
 
@@ -156,9 +153,9 @@ Post–public-flip trust bar for **`github.com/iome-sh/memory`**. This section d
 | Consumer install | `go get github.com/iome-sh/memory@vX.Y.Z` (or `@main`) | `go install …@vX.Y.Z` and/or downloaded release binaries |
 | Integrity / “signing” | Go module graph: **`go.sum`** + public module **proxy checksum database** (sum.golang.org) when fetching via the default proxy | **checksums.txt** + per-archive **SPDX SBOM** + **keyless cosign** (`cosign sign-blob` via GitHub OIDC / Fulcio) on tag releases |
 | Cosign on this package | **N/A** — no library binary to sign; do **not** invent cosign green here | Documented in each peer’s `RELEASING.md` (do **not** invent those releases forever-green from this residual) |
-| SBOM / GoReleaser | **N/A** for the module surface | Peer GoReleaser + syft SBOM residual (peers own greenness) |
+| SBOM / GoReleaser | **N/A** for the module surface | Peer GoReleaser + syft SBOM (peers own greenness) |
 | Optional notes-only release | `gh release create` from CHANGELOG (no binary assets required) | GoReleaser publishes assets; notes optional |
-| Visibility / license | **Public** MIT | Peers public MIT (when flipped); **aion** stays **private** commercial plane |
+| Visibility / license | **Public** MIT | Peers public MIT |
 
 ### Consumer verification (library path)
 
@@ -182,21 +179,18 @@ go mod download github.com/iome-sh/memory@vX.Y.Z
 Binary edge hosts that *consume* this library ship their **own** release packaging:
 
 - **iomesh-tui** / **iomesh-memory-mcp**: GoReleaser cross-builds, `checksums.txt`, SPDX SBOM, keyless cosign on tag releases (see each peer’s `RELEASING.md`).  
-- This residual **mentions** that path for continuum honesty only. It does **not** claim peer release workflows are forever green, that cosign verify always succeeds in every environment, or that GHCR images are published.
+- This page **mentions** that path only. It does **not** claim peer release workflows are forever green, that cosign verify always succeeds in every environment, or that GHCR images are published.
 
-### What M5 residual PASS does **not** mean
+### What this matrix does **not** mean
 
 | Non-claim | Honesty |
 |-----------|---------|
-| residual PASS ≠ invent **M5 complete** | Tip documents the matrix; open boxes (peer release greenness, optional CodeQL, etc.) stay open |
-| residual PASS ≠ invent **cosign on the library** | Library trust = tag + `go get` / `go.sum` / proxy checksum DB |
-| residual PASS ≠ invent **signed forever-green releases** | Neither this module’s tags nor peer GoReleaser runs are invented green |
-| residual PASS ≠ invent **Memory GA** | Kernel library only |
-| residual PASS ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
-| residual PASS ≠ invent an official scored/product close | Still-human scored/product close / ops boxes stay outside this tip |
-| residual PASS ≠ invent **aion public** | aion / control plane / commercial plane stay **private** |
-| Public MIT | Visibility already **public**; residual ≠ re-flip or invent flip |
+| docs ≠ invent **cosign on the library** | Library trust = tag + `go get` / `go.sum` / proxy checksum DB |
+| docs ≠ invent **signed forever-green releases** | Neither this module’s tags nor peer GoReleaser runs are invented green |
+| docs ≠ invent **Memory GA** | Kernel library only |
+| docs ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
+| Public MIT | Visibility already **public**; docs ≠ re-flip |
 
 ## Honesty
 
-Tags describe the **kernel library**, not product Memory GA. Hosted Palace sunset and dual_write product defaults live outside this module. Residual honesty pins (including **s1491** M5 signing/matrix and **s1499** support / version policy) may land after a tag without inventing GA, cosign-on-library, forever-green peer releases, or Edge Memory GA. **Public MIT** · dual_write **OFF** product path · aion private · open boxes stay open · docs tips invent **no** release tag.
+Tags describe the **kernel library**, not product Memory GA. This is a local filesystem library. Hosted Palace sunset and dual_write product defaults live outside this module. **Public MIT** · dual_write **OFF** product path · open boxes stay open · docs invent **no** release tag.
