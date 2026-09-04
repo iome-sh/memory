@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.8] — 2026-09-04
+
+Kernel-only · not Memory GA · dual_write OFF.
+
 ### Added
 - **K2 incremental meta-index patch (#63):** `Write` / unlink patches the in-memory (and optional durable) event-time meta index when it is already clean, so `ListMemoryWithOptions` does not rebuild-on-dirty from every tier JSON. FS Palace remains source of truth. First list / `InvalidateMetaIndex` / stamp mismatch still O(n). Btree/tag secondaries remain residual. Kernel-only · not Memory GA · residual ≠ invent index green.
 
@@ -158,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Stable hierarchical agent memory package (Palace): PalaceStore, compaction, hybrid SearchMemory, pluggable embeddings, optional Qdrant dense + sparse.
 
-[Unreleased]: https://github.com/iome-sh/memory/compare/v1.5.7...HEAD
+[Unreleased]: https://github.com/iome-sh/memory/compare/v1.5.8...HEAD
+[1.5.8]: https://github.com/iome-sh/memory/compare/v1.5.7...v1.5.8
 [1.5.7]: https://github.com/iome-sh/memory/compare/v1.5.6...v1.5.7
 [1.5.6]: https://github.com/iome-sh/memory/compare/v1.5.5...v1.5.6
 [1.5.5]: https://github.com/iome-sh/memory/compare/v1.5.4...v1.5.5
