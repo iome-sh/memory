@@ -59,6 +59,8 @@ func main() {
 
 If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
 
+This package is a **local filesystem library**, not a cloud multi-tenant service. It does not implement mesh `X-IOMesh-Org` headers. Isolation is the directory you pass as `BaseDir` (or OS isolation around that directory). dual_write **OFF** · **not** Memory GA.
+
 ### Optional semantic embeddings
 
 ```go

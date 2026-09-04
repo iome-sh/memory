@@ -120,8 +120,8 @@ need_grep "$DOC" 'SKIP_PUBLIC_FLIP_READINESS' "doc soft skip env"
 need_grep "$DOC" 'M4 readiness ≠ M4 complete' "doc M4 readiness ≠ M4 complete"
 need_grep "$DOC" 'does **not** flip' "doc does not flip visibility honesty"
 
-# OPEN_SOURCE_AUDIT continuum stamp + link + honesty
-need_grep "$AUDIT" 's1467' "audit continuum s1467"
+# OPEN_SOURCE_AUDIT link + honesty (no private ledger serials on the forward surface)
+need_grep "$AUDIT" 'public MIT' "audit public MIT"
 need_grep "$AUDIT" 'public' "audit public"
 need_grep "$AUDIT" 'PUBLIC_FLIP_READINESS.md' "audit links PUBLIC_FLIP_READINESS"
 need_grep "$AUDIT" 'residual PASS ≠ public flip' "audit residual PASS ≠ public flip"
