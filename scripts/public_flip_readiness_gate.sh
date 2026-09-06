@@ -116,9 +116,10 @@ forbid_grep "$DOC" '$119' "doc no \$119 rate"
 forbid_grep "$AUDIT" '$88' "audit no \$88 rate"
 forbid_grep "$AUDIT" '$119' "audit no \$119 rate"
 
-# Product-plane name lock. Token is concatenated so this script never embeds it.
+# Product-plane name lock. Tokens are concatenated so this script never embeds them.
+# Uppercase form is also concatenated: bash 3.2 (macOS /bin/bash) has no ${var^^}.
 _product_token="ai""on"
-_product_upper="${_product_token^^}"
+_product_upper="AI""ON"
 if grep -R -n -I --exclude-dir=.git -E "${_product_token}|${_product_upper}_|${_product_token}-memory" . >/dev/null 2>&1; then
   fail "tree contains private product-plane name"
   grep -R -n -I --exclude-dir=.git -E "${_product_token}|${_product_upper}_|${_product_token}-memory" . >&2 || true
