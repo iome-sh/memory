@@ -1,7 +1,7 @@
 # Multi-hop hop-distance ranking residual honesty (s1278)
 
 **Status:** residual-honest closed (kernel docs + tests pin) · **2026-08-05**  
-**Free eng residual pin:** **s1278** (memory serial; continuum alignment with aion free eng floor **s1276+**)  
+**Free eng residual pin:** **s1278** (memory serial; continuum alignment with host free eng floor **s1276+**)  
 **Implementation pin:** **s1067** / A2 hop-distance ranking lite · **v1.5.7 continuum**  
 **Scope:** kernel-only residual honesty for `PreferShorterHops` / `ExpandRelatedEntitiesHops` / `MultiHopRetrieve` ranking — **not** invent Memory GA
 
@@ -60,12 +60,12 @@ Residual A2 work still open (not claimed by s1278):
 
 | Peer | Role |
 |------|------|
-| **aion s1277** | Host free-eng residual honesty peer (related routes / MCP wire — not this repo) |
+| **host s1277** | Host free-eng residual honesty peer (related routes / MCP wire — not this repo) |
 | **TUI** | Related `hop_distance` display on multi-hop related path (host surface; not kernel GA) |
 | **SDK** | `HopDistance` on related hits when wired by host (not claimed here) |
 | **s1297 inventory residual** | Kernel advanced agent inventory honesty pin — see [`advanced-agent-inventory-residual.md`](advanced-agent-inventory-residual.md) (MultiHopRetrieve · PreferShorterHops · ListFactsAsOf · SupersedeEntityFacts · ListMemoryWithOptions; host/TUI peers mention only) |
 
-Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in aion continuum when claimed.
+Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in the private control-plane continuum when claimed.
 
 ## Gate (local)
 
@@ -86,4 +86,4 @@ PASS proves tree SSOT for hop ranking defaults + tests + this residual doc — *
 | Multi-hop class | **Lite** — not full Zep/Graphiti path scoring |
 | Full graph RAG | **No** |
 | Product Memory GA | **No** — kernel-only |
-| Free eng floor peer | aion **s1276+** / peer **s1277**; TUI hop_distance display mention-only |
+| Free eng floor peer | host **s1276+** / peer **s1277**; TUI hop_distance display mention-only |

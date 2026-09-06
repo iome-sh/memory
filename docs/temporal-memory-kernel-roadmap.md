@@ -1,17 +1,17 @@
 # Temporal Memory Kernel Roadmap
 
 **Repository**: `github.com/iome-sh/memory`  
-**Scope**: Temporal features **inside this package** (Palace kernel), not aion host product surfaces  
+**Scope**: Temporal features **inside this package** (Palace kernel), not host product surfaces  
 **Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6; A2 hop ranking = s1067 / v1.5.7 continuum; hop ranking residual honesty = s1278  
 **Last Updated**: 2026-08-05
 
-This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes aion Control Plane / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
+This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes private control-plane / broker / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
 
 ---
 
 ## Honesty boundaries
 
-| Concern | This package (`memory`) | Host (`aion` and product surfaces) |
+| Concern | This package (`memory`) | Host (MCP / product surfaces) |
 |---------|-------------------------|-------------------------------------|
 | Storage model | Single-tenant filesystem Palace (`PalaceStore` + tier dirs) | Multi-tenant isolation, org/agent paths, collection naming |
 | API surface | Go types + `PalaceStore` methods | MCP, HTTP sidecar, mesh streams, console UX |
@@ -155,7 +155,7 @@ Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Arc
 | Path | Who owns it | Notes |
 |------|-------------|--------|
 | **Library preset** | `memory` package | Optional ONNX/hugot profile: Qwen3-0.6B → **1024-d**; caller sets `EmbeddingFunc` + collection dim |
-| **Host worker path** | aion (and fleet) | Host may prefer remote/embed-worker pipelines, model routing, or different dims; **must not** assume library default is Qwen3 |
+| **Host worker path** | host (and fleet) | Host may prefer remote/embed-worker pipelines, model routing, or different dims; **must not** assume library default is Qwen3 |
 
 Default production ONNX path today is **BGE-small-en-v1.5 (384-d)** (see README / `BGESmallEmbeddingDim`). Hash fallback remains **768-d** when ONNX is unset.
 
@@ -163,7 +163,7 @@ K3 must:
 
 - Ship as **opt-in** preset (env or constructor), not silent default flip that breaks existing 384-d collections
 - Document dimension mismatches and re-index requirements
-- State clearly that aion hosts may ignore this preset and inject their own `EmbeddingFunc`
+- State clearly that hosts may ignore this preset and inject their own `EmbeddingFunc`
 
 ---
 
@@ -200,7 +200,7 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry
 | `valid_until` set | Invalid if `!asOf.Before(until)` — **exclusive end** (`asOf == until` is invalid) |
 | No validity tags | “Known by asOf”: valid if `entryEventTime` is zero **or** `!entryEventTime.After(asOf)` |
 
-Tag format (host-written, e.g. aion `applyTemporalToEntry`): `valid_from:<RFC3339>`, `valid_until:<RFC3339>`.
+Tag format (host-written, e.g. host `applyTemporalToEntry`): `valid_from:<RFC3339>`, `valid_until:<RFC3339>`.
 
 #### ListFactsAsOf
 
@@ -308,7 +308,7 @@ Path-aware ranking lite: prefer shorter BFS hop distance from seed when ordering
 
 ### Residual honesty pin (s1278) — closed residual-honest
 
-Free eng residual pin for A2 hop-distance ranking honesty (memory serial **s1278**; continuum with aion free eng floor **s1276+** / peer **s1277**). Documents:
+Free eng residual pin for A2 hop-distance ranking honesty (memory serial **s1278**; continuum with host free eng floor **s1276+** / peer **s1277**). Documents:
 
 - `PreferShorterHops` default **true**; explicit false = legacy seed-match-first (does not prefer shorter hops)
 - multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG · not product Memory GA · kernel-only

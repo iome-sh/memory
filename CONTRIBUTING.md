@@ -7,7 +7,7 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality, hon
 - **Local-primary memory kernel** — hierarchical Palace FS, hybrid search, temporal lite, optional Qdrant, optional ONNX embeddings  
 - **Kernel-only** — **not product Memory GA**  
 - Product path elsewhere: **dual_write OFF** by default (host policy, **not** a kernel product flag); hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
-- Future public MCP host naming honesty: **`iomesh-memory-mcp`** (not `aion-memory-mcp`); private aion broker stays private  
+- Future public MCP host naming honesty: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
 
 This repository is **public** (MIT). **Public MIT ≠ Memory GA.** Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
 
@@ -91,8 +91,8 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 
 This policy is **in force** for this **public** MIT repository (flip complete). Keep private program material out of the tree and PR surface:
 
-- Do **not** put private SR&ED / aion ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG  
-- Do **not** reference private monorepos (**aion**), internal pending-todos paths, or unpublished stage URLs  
+- Do **not** put private SR&ED / program ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG  
+- Do **not** reference private monorepos (control-plane / broker), internal pending-todos paths, or unpublished stage URLs  
 - Prefer public names: **`github.com/iome-sh/memory`**, product host **`iomesh-memory-mcp`**, public TUI **`iomesh-tui`**  
 - Continuum serials in historical residual docs may remain; strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
 - Do **not** invent product Memory GA, freemium hosted Palace SLA, or dual_write-on product narrative  

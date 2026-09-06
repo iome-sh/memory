@@ -6,7 +6,7 @@
 
 This document reorganizes improvements by **highest business/engineering impact first**, grouped into logical rollout categories suitable for a standalone, importable Go package.
 
-**Temporal kernel track**: see the dedicated roadmap → [`docs/temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) (K0 shipped … K4 later). Do not conflate this library with aion product Memory add-on GA.
+**Temporal kernel track**: see the dedicated roadmap → [`docs/temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) (K0 shipped … K4 later). Do not conflate this library with product Memory add-on GA.
 
 ---
 
@@ -121,7 +121,7 @@ Support multiple embedding generations.
 
 ### 5.3 Optional Qwen3-0.6B 1024-d preset **[Planned — K3]**
 
-Optional local profile; aion host may prefer embed-worker path. See [`temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) § K3 (dual-path honesty).
+Optional local profile; host may prefer embed-worker path. See [`temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) § K3 (dual-path honesty).
 
 ---
 

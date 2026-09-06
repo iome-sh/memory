@@ -55,7 +55,7 @@ These product surfaces wire the kernel inventory above. They are **peers mention
 | **`memory_supersede_entity`** | Host MCP supersession · SupersedeEntityFacts |
 | **TUI s1296** | timeline / compact-status (host UI peer · not kernel GA) |
 
-Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in aion continuum when claimed.
+Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in the private control-plane continuum when claimed.
 
 ## Honesty / non-goals
 
@@ -77,7 +77,7 @@ Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host 
 | [`k2-event-time-index-residual.md`](k2-event-time-index-residual.md) | s1303 K2 event-time index residual honesty pin (peer · ListMemoryWithOptions O(n) / full event-time index residual) |
 | [`recmem-compaction-residual.md`](recmem-compaction-residual.md) | s1313 RecMem / compaction residual honesty pin (peer · AutoRecMemCompaction partial · trigger advisory · HITL · not invent GA token-reduction) |
 | [`multi-hop-hop-distance-ranking-residual.md`](multi-hop-hop-distance-ranking-residual.md) | s1278 hop-distance ranking honesty pin (peer) |
-| Host aion advanced agent MCP residual | PreferShorterHops host wire / inventory (mention only · not this repo) |
+| Host advanced agent MCP residual | PreferShorterHops host wire / inventory (mention only · not this repo) |
 | TUI s1296 timeline/compact-status | Host UI peer (mention only) |
 
 ## Gate (local)
