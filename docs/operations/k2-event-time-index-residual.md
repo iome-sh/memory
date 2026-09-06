@@ -64,7 +64,7 @@ Order of operations (list path): collect candidates → session → time → tag
 | **TUI s1296** | `/memory timeline` + compact-status (host UI peer · not kernel GA) |
 | **Concurrent s1301** | Host/TUI free-eng concurrent peer (mention only · not this repo) |
 
-Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in aion continuum when claimed.
+Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in the private control-plane continuum when claimed.
 
 ## Honesty / non-goals
 
@@ -86,7 +86,7 @@ Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host 
 | [`advanced-agent-inventory-residual.md`](advanced-agent-inventory-residual.md) | s1297 kernel advanced agent inventory honesty pin (peer · includes ListMemoryWithOptions row) |
 | [`recmem-compaction-residual.md`](recmem-compaction-residual.md) | s1313 RecMem / compaction residual honesty pin (peer · AutoRecMemCompaction partial · trigger advisory · HITL) |
 | [`multi-hop-hop-distance-ranking-residual.md`](multi-hop-hop-distance-ranking-residual.md) | s1278 hop-distance ranking honesty pin (peer) |
-| Host aion dual agent MCP residual | timeline / inventory host wire (mention only · not this repo) |
+| Host dual-agent MCP residual | timeline / inventory host wire (mention only · not this repo) |
 | TUI s1296 timeline/compact-status | Host UI peer (mention only) |
 
 ## Gate (local)

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # public_flip_readiness_gate.sh — s1467 offline M4 public-flip readiness residual
 # free eng residual pin s1467 · free eng concurrent s1467+ after free-floor s1465 · lag s1466
-# peers s1468 (mcp) · s1469 (TUI) · s1470 (aion residual) mention only · free-floor peer s1471 · free eng s1473+
+# peers s1468 (mcp) · s1469 (TUI) · s1470 (private-plane residual) mention only · free-floor peer s1471 · free eng s1473+
 #
 # SSOT for Option A M4 *readiness* (not the flip):
 #   docs/PUBLIC_FLIP_READINESS.md + OPEN_SOURCE_AUDIT + LICENSE/SECURITY/CI present
 #   needles: public · residual PASS ≠ public flip · kernel first · not Memory GA · s1467
 # Honesty: public · residual PASS ≠ public flip · not Memory GA · dual_write OFF ·
-#   aion stays private · M4 readiness ≠ M4 complete / invent public · does NOT flip visibility
+#   private control-plane / broker stays private · M4 readiness ≠ M4 complete / invent public · does NOT flip visibility
 # Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
 #
 # Usage:
@@ -37,7 +37,7 @@ if [[ "${SKIP_PUBLIC_FLIP_READINESS:-}" == "1" ]]; then
 fi
 
 log "offline M4 public-flip readiness residual (no visibility flip / no network beyond repo files)"
-log "non-claim: residual PASS ≠ public flip · public · kernel first · not Memory GA · dual_write OFF · aion stays private · M4 readiness ≠ invent public"
+log "non-claim: residual PASS ≠ public flip · public · kernel first · not Memory GA · dual_write OFF · private control-plane / broker stays private · M4 readiness ≠ invent public"
 
 DOC="docs/PUBLIC_FLIP_READINESS.md"
 AUDIT="docs/OPEN_SOURCE_AUDIT.md"
@@ -97,7 +97,7 @@ need_grep "$DOC" 's1465' "doc free-floor s1465"
 need_grep "$DOC" 's1466' "doc lag s1466"
 need_grep "$DOC" 's1468' "doc peer s1468 mcp mention"
 need_grep "$DOC" 's1469' "doc peer s1469 TUI mention"
-need_grep "$DOC" 's1470' "doc peer s1470 aion residual mention"
+need_grep "$DOC" 's1470' "doc peer s1470 private-plane residual mention"
 need_grep "$DOC" 's1471' "doc free-floor peer s1471"
 need_grep "$DOC" 's1473+' "doc free eng s1473+"
 need_grep "$DOC" 'public' "doc public"
@@ -105,7 +105,7 @@ need_grep "$DOC" 'residual PASS ≠ public flip' "doc residual PASS ≠ public f
 need_grep "$DOC" 'kernel first' "doc kernel first"
 need_grep "$DOC" 'not Memory GA' "doc not Memory GA"
 need_grep "$DOC" 'dual_write OFF' "doc dual_write OFF"
-need_grep "$DOC" 'aion stays private' "doc aion stays private"
+need_grep "$DOC" 'private control-plane / broker stays private' "doc private control-plane / broker stays private"
 need_grep "$DOC" 'iomesh-memory-mcp' "doc MCP host naming"
 need_grep "$DOC" 'OPEN_SOURCE_AUDIT.md' "doc link OPEN_SOURCE_AUDIT"
 need_grep "$DOC" 'Palace sunset' "doc Palace sunset"
@@ -115,6 +115,17 @@ forbid_grep "$DOC" '$88' "doc no \$88 rate"
 forbid_grep "$DOC" '$119' "doc no \$119 rate"
 forbid_grep "$AUDIT" '$88' "audit no \$88 rate"
 forbid_grep "$AUDIT" '$119' "audit no \$119 rate"
+
+# Product-plane name lock. Tokens are concatenated so this script never embeds them.
+# Uppercase form is also concatenated: bash 3.2 (macOS /bin/bash) has no ${var^^}.
+_product_token="ai""on"
+_product_upper="AI""ON"
+if grep -R -n -I --exclude-dir=.git -E "${_product_token}|${_product_upper}_|${_product_token}-memory" . >/dev/null 2>&1; then
+  fail "tree contains private product-plane name"
+  grep -R -n -I --exclude-dir=.git -E "${_product_token}|${_product_upper}_|${_product_token}-memory" . >&2 || true
+else
+  pass "tree has no private product-plane name"
+fi
 need_grep "$DOC" 'public-flip-readiness-gate' "doc Makefile public-flip-readiness-gate target"
 need_grep "$DOC" 'SKIP_PUBLIC_FLIP_READINESS' "doc soft skip env"
 need_grep "$DOC" 'M4 readiness ≠ M4 complete' "doc M4 readiness ≠ M4 complete"
@@ -154,5 +165,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK honesty chain: public · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · aion stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional · s1467"
+log "RESULT OK honesty chain: public · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · private control-plane / broker stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional · s1467"
 exit 0

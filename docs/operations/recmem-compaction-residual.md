@@ -76,7 +76,7 @@ Phase framing (plan-aligned residual honesty):
 | **TUI s1296** | `/memory timeline` + compact-status (status UI · not invent compaction green) |
 | **Concurrent s1311+** | Host/TUI free-eng concurrent peer after free-floor **s1309** · lag **s1310** |
 
-Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in aion continuum when claimed.
+Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in the private control-plane continuum when claimed.
 
 ## Honesty / non-goals
 
@@ -99,7 +99,7 @@ Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host 
 | [`k2-event-time-index-residual.md`](k2-event-time-index-residual.md) | s1303 K2 event-time index residual honesty pin (peer) |
 | [`multi-hop-hop-distance-ranking-residual.md`](multi-hop-hop-distance-ranking-residual.md) | s1278 hop-distance ranking honesty pin (peer) |
 | [`docs/recmem-integration-plan.md`](../recmem-integration-plan.md) | Historical RecMem plan (not invent GA) |
-| Host aion / TUI compact residual | `memory_trigger_compact` advisory · TUI s1311 HITL (mention only · not this repo) |
+| Host / TUI compact residual | `memory_trigger_compact` advisory · TUI s1311 HITL (mention only · not this repo) |
 
 ## Gate (local)
 

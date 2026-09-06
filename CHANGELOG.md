@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Public name hygiene:** drop product-plane names from user-facing docs, godoc, Makefile, and readiness-gate needles. Honesty stays: kernel-only · not Memory GA · dual_write OFF (host policy) · this package does not import private control-plane / broker packages · private control-plane / broker stays private.
+
 ## [1.5.8] — 2026-09-04
 
 Kernel-only · not Memory GA · dual_write OFF.
@@ -88,7 +91,7 @@ Kernel-only · not Memory GA · dual_write OFF.
 
 ### Honesty
 
-- Kernel-only · not product Memory GA · public MIT ≠ Memory GA · local-primary · dual_write OFF (host policy, not kernel flag) · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · aion broker stays private · residual PASS ≠ public flip · gate PASS ≠ product GA · M4 readiness ≠ invent Memory GA.
+- Kernel-only · not product Memory GA · public MIT ≠ Memory GA · local-primary · dual_write OFF (host policy, not kernel flag) · hosted Palace sunset · future MCP host **iomesh-memory-mcp** · private control-plane / broker stays private · residual PASS ≠ public flip · gate PASS ≠ product GA · M4 readiness ≠ invent Memory GA.
 
 ## [1.5.7] — 2026-07
 

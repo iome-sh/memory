@@ -68,7 +68,7 @@ recmem-compaction-residual-gate:
 
 # Offline M4 public-flip readiness residual s1467 (flip complete; gate is not the flip).
 # Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
-# Honesty: public MIT · residual PASS ≠ public flip · gate PASS ≠ product GA · kernel first · not Memory GA · dual_write OFF (host policy, not kernel flag) · aion stays private.
+# Honesty: public MIT · residual PASS ≠ public flip · gate PASS ≠ product GA · kernel first · not Memory GA · dual_write OFF (host policy, not kernel flag) · private control-plane / broker stays private.
 public-flip-readiness-gate:
 	bash scripts/public_flip_readiness_gate.sh
 

@@ -31,7 +31,7 @@ type ListMemoryOptions struct {
 	// Limit caps results (default 50 when <= 0 — timeline-friendly; not search's 10).
 	Limit int
 	// Tier when non-nil: only that tier. When nil: Working+Contextual+Semantic
-	// (exclude Archival by default to match aion MCP timeline).
+	// (exclude Archival by default to match the public MCP host timeline).
 	Tier *MemoryTier
 	// IncludeArchival, when true and Tier==nil, also includes Archival.
 	IncludeArchival bool

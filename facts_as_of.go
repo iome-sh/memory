@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Validity tag prefixes written by hosts (e.g. aion applyTemporalToEntry).
+// Validity tag prefixes written by hosts (e.g. host applyTemporalToEntry).
 // Format: "valid_from:<RFC3339>" / "valid_until:<RFC3339>".
 const (
 	validFromTagPrefix  = "valid_from:"

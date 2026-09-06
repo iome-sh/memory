@@ -4,9 +4,9 @@
 
 Operator / maintainer residual for the **completed** public visibility flip of **`github.com/iome-sh/memory`** (Palace kernel). **Flip complete is current fact.** Pre-flip checklist language below is **historical**. This document is **readiness residual only** — it does **not** flip visibility again, does **not** invent Memory GA, and **M4 readiness ≠ M4 complete** (readiness docs ≠ product Memory GA).
 
-**Serial stamp (program continuum):** free eng residual pin **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers **s1468** (mcp) · **s1469** (TUI) · **s1470** (aion residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng after free-floor peer **s1473+**.
+**Serial stamp (program continuum):** free eng residual pin **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers **s1468** (mcp) · **s1469** (TUI) · **s1470** (private-plane residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng after free-floor peer **s1473+**.
 
-> **Hard non-claims (read first):** Repository is **public MIT** (flip complete). **Public MIT ≠ Memory GA**. **Residual PASS ≠ public flip** (gate PASS ≠ product GA · gate does not invent or re-do the flip). This pin is **M4 readiness ≠ M4 complete** · **not Memory GA** · **dual_write OFF** (host policy default elsewhere, **not** a kernel product flag) · **aion stays private** · **open boxes stay open** · hosted **Palace sunset** until scale · mesh optional · do not invent freemium Palace SLA or a priced SKU here. Do **not** run `gh repo edit --visibility public` from this residual.
+> **Hard non-claims (read first):** Repository is **public MIT** (flip complete). **Public MIT ≠ Memory GA**. **Residual PASS ≠ public flip** (gate PASS ≠ product GA · gate does not invent or re-do the flip). This pin is **M4 readiness ≠ M4 complete** · **not Memory GA** · **dual_write OFF** (host policy default elsewhere, **not** a kernel product flag) · **private control-plane / broker stays private** · **open boxes stay open** · hosted **Palace sunset** until scale · mesh optional · do not invent freemium Palace SLA or a priced SKU here. Do **not** run `gh repo edit --visibility public` from this residual.
 
 ## Why this residual exists
 
@@ -20,7 +20,7 @@ This pin freezes **kernel-first** flip order honesty. Gate PASS ≠ product GA.
 |-------|--------|-------------------------|
 | **1. First** | **`github.com/iome-sh/memory`** (this kernel) | **Public MIT** · flip complete · never invent Memory GA here |
 | **2. Then** | **`github.com/iome-sh/iomesh-memory-mcp`** (edge MCP host) | Peer continuum · **not flipped here** · never invent Memory GA here |
-| Stay private | **aion** broker / CP / INSTALL_STORE / billing | **aion stays private** · not in public Option A surface |
+| Stay private | private control-plane / broker / INSTALL_STORE / billing | **private control-plane / broker stays private** · not in public Option A surface |
 
 Publish order is **kernel first**, then MCP host (+ GHCR `ghcr.io/iome-sh/iomesh-memory-mcp` when deliberate). Do **not** flip MCP public before the kernel. Do **not** invent Memory GA from this checklist PASS.
 
@@ -32,7 +32,7 @@ Re-run and confirm **Pass** (or intentional residual) on:
 2. **LICENSE** (MIT) · **NOTICE** · **SECURITY.md** (security@iome.sh + advisory path) · **CONTRIBUTING** · **CODE_OF_CONDUCT** · **SUPPORT** · **RELEASING** · **CHANGELOG**.  
 3. **CI** present and green on the public tip: lint/gofmt · vet · test · govulncheck · `ci-success` (see `.github/workflows/ci.yml`).  
 4. **Dependabot** / secret-scan / templates still present (s1452 bar).  
-5. **Honesty locks** still true: kernel-only · **not Memory GA** · local-primary · **dual_write OFF** (host policy, not kernel flag) · **Palace sunset** · mesh optional · future host named **`iomesh-memory-mcp`** (not `aion-memory-mcp`).  
+5. **Honesty locks** still true: kernel-only · **not Memory GA** · local-primary · **dual_write OFF** (host policy, not kernel flag) · **Palace sunset** · mesh optional · future host named **`iomesh-memory-mcp`**.  
 6. **No accidental public-product claims** in README / RELEASE notes (no invent Memory GA, no freemium hosted Palace SLA, no invent dual_write ON).  
 7. **History / serials** residual: program continuum serials may remain in historical residual docs; CONTRIBUTING public-repository policy governs the **forward** PR surface (do **not** force-rewrite history lightly).  
 8. **Sibling readiness**: MCP host process bar green **before** that repo’s flip (peer work; not completed by this residual). Kernel is public; MCP host flip is a separate deliberate act.
@@ -65,7 +65,7 @@ Closeout checklist used on flip day (**historical**). Completing this list was *
 - [x] Flip visibility **Public** (**deliberate** human act — **done**)  
 - [ ] Then allow **`iomesh-memory-mcp`** flip second (separate deliberate act after its own re-audit)  
 
-**Public MIT** (flip complete). Residual PASS ≠ public flip · gate PASS ≠ product GA · not Memory GA · dual_write OFF (host policy, not kernel flag) · aion stays private · kernel first, then MCP.
+**Public MIT** (flip complete). Residual PASS ≠ public flip · gate PASS ≠ product GA · not Memory GA · dual_write OFF (host policy, not kernel flag) · private control-plane / broker stays private · kernel first, then MCP.
 
 ## Hard locks (must remain true)
 
@@ -75,7 +75,7 @@ Closeout checklist used on flip day (**historical**). Completing this list was *
 | Residual gate | **Residual PASS ≠ public flip** · gate PASS ≠ product GA · readiness PASS ≠ invent Memory GA |
 | Product GA | **not Memory GA** · kernel ≠ product Memory GA · public MIT ≠ Memory GA |
 | dual_write | **dual_write OFF** (host policy default elsewhere, **not** a kernel product flag) |
-| aion | **aion stays private** (broker · CP · billing · INSTALL_STORE) |
+| private plane | **private control-plane / broker stays private** (broker · CP · billing · INSTALL_STORE) |
 | Pricing | no SKU or dollar figures in this kernel · mesh optional · no invent freemium Palace SLA |
 | Open work | **open boxes stay open** (Dependabot, residual risks, Partial audit rows) |
 | Hosted Palace | **Palace sunset** until deliberate scale · local-primary FS palace |
@@ -93,7 +93,7 @@ Expand residual-honest from [`docs/OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) 
 4. Confirm **SECURITY.md** contact path still works (security@iome.sh · advisory).  
 5. (Optional) repository topics: `golang`, `memory`, `rag`, `qdrant`, `onnx`.  
 6. Confirm **CONTRIBUTING** public-policy section: continuum ledger serials stay off the *forward* PR surface (no reckless history rewrite).  
-7. Do **not** publish private monorepo install paths, invent Memory GA, turn dual_write ON by default, or claim aion is public.  
+7. Do **not** publish private monorepo install paths, invent Memory GA, turn dual_write ON by default, or claim the private control-plane / broker is public.  
 8. Announce / tag only with **RELEASING.md** process — version tags ≠ visibility flip.  
 9. **Then** schedule MCP host flip (`iomesh-memory-mcp`) as a **separate** deliberate act after its own re-audit (peer serials mention only).  
 10. GHCR publish of `ghcr.io/iome-sh/iomesh-memory-mcp` remains MCP-host work — not this kernel residual.
@@ -104,7 +104,7 @@ Expand residual-honest from [`docs/OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) 
 |------|---------------------|
 | **s1468** mcp | MCP host continuum / readiness peer |
 | **s1469** TUI | Edge install honesty / product tip peer |
-| **s1470** aion residual | Option A residual pin peer · aion stays private |
+| **s1470** private-plane residual | Option A residual pin peer · private control-plane / broker stays private |
 | **s1471** free-floor peer | Free-floor peer serial (does not rewrite free-floor **s1465**) |
 | **s1473+** free eng | Free eng after free-floor peer · next continuum floor |
 
@@ -130,7 +130,7 @@ This residual closes **kernel readiness documentation + offline gate** only. It 
 | Residual PASS = public flip? | **No** — **residual PASS ≠ public flip** · gate PASS ≠ product GA |
 | Memory GA | **No** — **not Memory GA** · public MIT ≠ Memory GA |
 | dual_write | **OFF** (host policy, not kernel flag) |
-| aion | **private** |
+| private plane | **private** |
 | M4 complete / invent Memory GA | **No** — readiness + final audit only · M4 readiness ≠ M4 complete |
 
-**Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** Kernel first, then MCP. Residual PASS ≠ public flip · gate PASS ≠ product GA · not Memory GA · dual_write OFF (host policy, not kernel flag) · aion stays private · open boxes stay open · Palace sunset · mesh optional · no invent freemium Palace SLA.
+**Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** Kernel first, then MCP. Residual PASS ≠ public flip · gate PASS ≠ product GA · not Memory GA · dual_write OFF (host policy, not kernel flag) · private control-plane / broker stays private · open boxes stay open · Palace sunset · mesh optional · no invent freemium Palace SLA.
