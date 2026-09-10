@@ -67,10 +67,15 @@ type MemoryContent struct {
 
 // MemoryProvenance tracks origin
 type MemoryProvenance struct {
-	SourceCycle int      `json:"source_cycle"`
-	SourceStep  string   `json:"source_step,omitempty"`
-	ParentIDs   []string `json:"parent_ids,omitempty"`
-	ToolCalls   []string `json:"tool_calls,omitempty"`
+	SourceCycle int    `json:"source_cycle"`
+	SourceStep  string `json:"source_step,omitempty"`
+	// SourceHint is the cite-both source class (private|mesh|…). IngestTurn
+	// defaults this to "private" on the local-palace path when the caller
+	// does not already supply a classifiable hint or tag. Distinct from
+	// SourceStep (process name such as mcp_memory_ingest_turn).
+	SourceHint string   `json:"source_hint,omitempty"`
+	ParentIDs  []string `json:"parent_ids,omitempty"`
+	ToolCalls  []string `json:"tool_calls,omitempty"`
 }
 
 // MemoryMetrics for scoring and access
@@ -1064,6 +1069,13 @@ func extractKeyphrases(text string) []string {
 // stamp longmemeval; callers that want that label (the LongMemEval harness under
 // cmd/longmemeval-* and internal/longmemeval) pass it on the parent so children inherit it.
 //
+// Local-palace IngestTurn stamps an observable private source class when the caller
+// does not already provide a classifiable source hint or tag: Provenance.SourceHint
+// is set to "private" and Content.Tags gains source_hint:private. Mesh-class hints
+// (source_hint:mesh, source:mesh, …) stay distinct and are not overwritten. Host
+// process labels such as mcp_memory_ingest_turn / source:iomesh-memory-mcp are not
+// a cite-both class. Fact children inherit SourceHint and the source_hint:* tag.
+//
 // Fact-augmented children get valid_from stamped when unset; child Write errors are returned.
 //
 // Partial persist is the contract: a child Write error does not roll back the parent or earlier
@@ -1110,6 +1122,8 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 		turn.Type = "turn"
 	}
 
+	ensurePrivateIngestSource(&turn)
+
 	if err := ps.Write(turn); err != nil {
 		return fmt.Errorf("failed to write turn entry: %w", err)
 	}
@@ -1138,6 +1152,7 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 			},
 			Provenance: MemoryProvenance{
 				SourceStep: "ingest_turn_fact",
+				SourceHint: turn.Provenance.SourceHint,
 				ParentIDs:  []string{turn.ID},
 			},
 			Metrics: MemoryMetrics{
@@ -1161,7 +1176,8 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 // inheritTurnFactTags copies the parent turn's Content.Tags and appends the
 // structural markers fact_augmented and from_turn. Blank tags are dropped;
 // duplicates are skipped. longmemeval is not added here — callers that want
-// it stamp it on the parent so children inherit it.
+// it stamp it on the parent so children inherit it. source_hint:* tags
+// stamped by ensurePrivateIngestSource are inherited with the rest.
 func inheritTurnFactTags(parentTags []string) []string {
 	out := make([]string, 0, len(parentTags)+2)
 	seen := make(map[string]struct{}, len(parentTags)+2)

@@ -148,7 +148,7 @@ func TestIngestTurn_FactChildrenInheritParentTagsNoDefaultLongmemeval(t *testing
 		t.Fatal("expected auto-extracted turn_fact children")
 	}
 
-	wantChild := []string{"source:iomesh-memory-mcp", "role:user", "fact_augmented", "from_turn"}
+	wantChild := []string{"source:iomesh-memory-mcp", "role:user", "source_hint:private", "fact_augmented", "from_turn"}
 	for _, f := range facts {
 		if f.Type != "turn_fact" {
 			t.Fatalf("type = %q, want turn_fact", f.Type)
@@ -183,6 +183,14 @@ func TestIngestTurn_FactChildrenInheritParentTagsNoDefaultLongmemeval(t *testing
 		}
 	}
 
+	parent, ok := store.Load("turn-mcp-1", TierContextual)
+	if !ok {
+		t.Fatal("parent turn missing")
+	}
+	if parent.Provenance.SourceHint != SourceHintPrivate || !EntryHasTag(parent, FormatSourceHintTag(SourceHintPrivate)) {
+		t.Fatalf("parent missing private source class; hint=%q tags=%v", parent.Provenance.SourceHint, parent.Content.Tags)
+	}
+
 	bySource := store.ListMemoryWithOptions(ListMemoryOptions{Tag: "source:iomesh-memory-mcp", Limit: 50})
 	if len(bySource) != 1+len(facts) {
 		t.Fatalf("tag=source:iomesh-memory-mcp got %d, want parent+children %d", len(bySource), 1+len(facts))
@@ -190,6 +198,10 @@ func TestIngestTurn_FactChildrenInheritParentTagsNoDefaultLongmemeval(t *testing
 	byPrefix := store.ListMemoryWithOptions(ListMemoryOptions{TagPrefix: "source:", Limit: 50})
 	if len(byPrefix) != 1+len(facts) {
 		t.Fatalf("tag_prefix=source: got %d, want parent+children %d", len(byPrefix), 1+len(facts))
+	}
+	byHint := store.ListMemoryWithOptions(ListMemoryOptions{Tag: "source_hint:private", Limit: 50})
+	if len(byHint) != 1+len(facts) {
+		t.Fatalf("tag=source_hint:private got %d, want parent+children %d", len(byHint), 1+len(facts))
 	}
 	byBench := store.ListMemoryWithOptions(ListMemoryOptions{Tag: "longmemeval", Limit: 50})
 	if len(byBench) != 0 {
@@ -220,5 +232,8 @@ func TestIngestTurn_FactChildrenInheritCallerLongmemeval(t *testing.T) {
 	}
 	if !EntryHasTag(facts[0], "fact_augmented") || !EntryHasTag(facts[0], "from_turn") {
 		t.Fatalf("missing structural markers: %v", facts[0].Content.Tags)
+	}
+	if facts[0].Provenance.SourceHint != SourceHintPrivate || !EntryHasTag(facts[0], FormatSourceHintTag(SourceHintPrivate)) {
+		t.Fatalf("local-palace ingest must stamp private source class; hint=%q tags=%v", facts[0].Provenance.SourceHint, facts[0].Content.Tags)
 	}
 }
