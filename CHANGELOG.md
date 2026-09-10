@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.10] — 2026-09-10
+
+Kernel-only · not Memory GA · dual_write OFF.
+
 ### Fixed
 - **Private ingest source class (#90):** `IngestTurn` stamps observable `provenance.source_hint=private` and tag `source_hint:private` on the parent and inherited `turn_fact` children when the caller does not already supply a classifiable mesh or private source. Host process labels (`mcp_memory_ingest_turn`, `source:iomesh-memory-mcp`) are not a cite-both class. Mesh-class hints (`source_hint:mesh`, `source:mesh`, …) stay distinct. `Write` persists caller `source_hint` / tags as-is (no default stamp). Kernel-only · not Memory GA · dual_write OFF.
 
