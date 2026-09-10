@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -463,5 +462,5 @@ func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry {
 
 // ensureRelationsDir creates BaseDir/relations if missing (safe for graph writes).
 func (ps *PalaceStore) ensureRelationsDir() error {
-	return os.MkdirAll(filepath.Join(ps.BaseDir, "relations"), 0755)
+	return palaceMkdirAll(filepath.Join(ps.BaseDir, "relations"))
 }

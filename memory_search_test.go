@@ -447,6 +447,87 @@ func TestSearchMemoryWithOptions_KeywordOverlapOutranksIncidentalOR(t *testing.T
 	}
 }
 
+func TestSearchMemoryWithOptions_DefaultTiersSkipArchival(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	if err := store.Write(MemoryEntry{
+		ID:      "live",
+		Tier:    TierContextual,
+		Content: MemoryContent{Summary: "alpha project live note"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Write(MemoryEntry{
+		ID:      "archived",
+		Tier:    TierArchival,
+		Content: MemoryContent{Summary: "alpha project archival needle"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := store.SearchMemoryWithOptions("alpha project", SearchMemoryOptions{Limit: 10})
+	if !entryHasID(got, "live") {
+		t.Fatalf("default retrieve missed live hit; ids=%v", idsOf(got))
+	}
+	if entryHasID(got, "archived") {
+		t.Fatalf("default retrieve included archival; ids=%v", idsOf(got))
+	}
+
+	legacy := store.SearchMemory("alpha project", nil, 10, nil)
+	if entryHasID(legacy, "archived") {
+		t.Fatalf("SearchMemory wrapper included archival; ids=%v", idsOf(legacy))
+	}
+
+	withArch := store.SearchMemoryWithOptions("alpha project", SearchMemoryOptions{
+		Limit:           10,
+		IncludeArchival: true,
+	})
+	if !entryHasID(withArch, "archived") {
+		t.Fatalf("IncludeArchival missed archival needle; ids=%v", idsOf(withArch))
+	}
+
+	archTier := TierArchival
+	onlyArch := store.SearchMemoryWithOptions("alpha project", SearchMemoryOptions{
+		Limit: 10,
+		Tier:  &archTier,
+	})
+	if !entryHasID(onlyArch, "archived") {
+		t.Fatalf("explicit Archival tier missed needle; ids=%v", idsOf(onlyArch))
+	}
+}
+
+func TestSearchMemoryWithOptions_LowConfidenceIncludesArchival(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	if err := store.Write(MemoryEntry{
+		ID:      "live",
+		Tier:    TierContextual,
+		Content: MemoryContent{Summary: "unrelated working checklist"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Write(MemoryEntry{
+		ID:      "archived",
+		Tier:    TierArchival,
+		Content: MemoryContent{Summary: "obsidian-cinder-archival-7714 only lives here"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	const needle = "obsidian-cinder-archival-7714"
+	got := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{Limit: 10})
+	if !entryHasID(got, "archived") {
+		t.Fatalf("low-confidence path missed archival needle; ids=%v", idsOf(got))
+	}
+
+	vec := GenerateSimpleEmbedding(needle, DefaultHashEmbeddingDim)
+	vecGot := store.SearchMemoryWithOptions(needle, SearchMemoryOptions{
+		Limit:    10,
+		QueryVec: vec,
+	})
+	if !entryHasID(vecGot, "archived") {
+		t.Fatalf("low-confidence vector path missed archival needle; ids=%v", idsOf(vecGot))
+	}
+}
+
 func TestKeywordTokens_HyphenNeedle(t *testing.T) {
 	got := keywordTokens("zircon-lantern-4829")
 	want := []string{"zircon", "lantern", "4829"}

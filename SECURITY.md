@@ -41,8 +41,8 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 
 ### Residual risks (honest)
 
-- **Local FS palace is user data** — encryption at rest, backup, and access control are operator responsibilities.  
-- **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers.  
+- **Local FS palace is user data** — encryption at rest, backup, and access control are operator responsibilities. New palace dirs are created `0700` and kernel-written files `0600`; pre-existing trees are not retroactively chmod'd. Mode bits are not encryption at rest.  
+- **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers. In-process `writeMu` serializes `entity-graph.json` / `event-time.json` rewrites; multi-process writers to the same root remain unsupported.  
 - **Optional embeddings load models** — model supply chain and native ORT/CUDA stacks are out of band of the pure-Go default path.  
 - **Kernel-only** — this package is not Memory GA; product dual_write defaults OFF elsewhere; hosted Palace remains sunset until deliberate scale; mesh is optional via TUI/ops packs.  
 - **No mesh org header** — organization isolation for the I/O Mesh broker is a separate HTTP header (`X-IOMesh-Org`) on mesh clients; this library does not implement that. The public MCP host is **`iomesh-memory-mcp`**.  
@@ -56,7 +56,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 
 ## Hardening checklist for operators
 
-1. Point `BaseDir` at a directory with appropriate OS permissions; do not share roots across untrusted tenants  
+1. Point `BaseDir` at a directory with appropriate OS permissions; do not share roots across untrusted tenants. Kernel creates new palace dirs `0700` and writes files `0600` — confirm with `stat` on a fresh palace.  
 2. Prefer the pure-Go hugot backend for CI/dev; only enable ORT/CUDA with trusted native libraries  
 3. Download models only from sources you trust; pin paths via `MEMORY_ONNX_MODEL_PATH`  
 4. Do not commit palace contents, `.env`, or API keys  

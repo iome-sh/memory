@@ -78,14 +78,15 @@ Shipped surface:
 
 ```go
 type SearchMemoryOptions struct {
-    SessionID      string
-    TimeFrom       *time.Time // inclusive event time (entryEventTime)
-    TimeTo         *time.Time // inclusive
-    AsOf           *time.Time // optional; when set, EntryValidAt filter before Limit (s616)
-    Limit          int        // default 10
-    Tier           *MemoryTier
-    QueryVec       []float32
-    ReRankTemporal bool
+    SessionID       string
+    TimeFrom        *time.Time // inclusive event time (entryEventTime)
+    TimeTo          *time.Time // inclusive
+    AsOf            *time.Time // optional; when set, EntryValidAt filter before Limit (s616)
+    Limit           int        // default 10
+    Tier            *MemoryTier
+    QueryVec        []float32
+    ReRankTemporal  bool
+    IncludeArchival bool // when Tier==nil, also include Archival
 }
 
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry
@@ -98,7 +99,8 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 - Optional `ReRankTemporal` after vector/keyword scoring (`CalculateRelevanceScore`)
 - Filters apply **before** Limit (underfill class)
 - Backward compatible: `SearchMemory` remains a thin wrapper
-- Tests: session isolation, window edges, re-rank order, wrapper parity
+- Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Archival** unless `IncludeArchival`, explicit Archival `Tier`, or empty default-tier keyword hits / low-confidence fallback — #87)
+- Tests: session isolation, window edges, re-rank order, wrapper parity, default-tier archival skip
 
 ---
 
