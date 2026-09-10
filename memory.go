@@ -142,6 +142,11 @@ type PalaceStore struct {
 
 	// lastCompaction is set when PerformCompaction runs on a non-empty tier (in-process).
 	lastCompaction time.Time
+
+	// writeMu serializes atomic rewrites of shared palace files
+	// (relations/entity-graph.json, indexes/event-time.json).
+	// Lock order: metaMu before writeMu.
+	writeMu sync.Mutex
 }
 
 // NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3).
@@ -188,7 +193,7 @@ func (ps *PalaceStore) ensureDirs() error {
 		filepath.Join(ps.BaseDir, "indexes"),
 	}
 	for _, d := range dirs {
-		if err := os.MkdirAll(d, 0755); err != nil {
+		if err := palaceMkdirAll(d); err != nil {
 			return fmt.Errorf("ensureDirs failed for %s: %w", d, err)
 		}
 	}
@@ -269,22 +274,8 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
 	}
-	tmpFile, err := os.CreateTemp(dir, ".tmp-"+entry.ID+"-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp failed: %w", err)
-	}
-	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-		return fmt.Errorf("write temp failed: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpFile.Name())
-		return fmt.Errorf("close temp failed: %w", err)
-	}
-	if err := os.Rename(tmpFile.Name(), path); err != nil {
-		os.Remove(tmpFile.Name())
-		return fmt.Errorf("rename failed: %w", err)
+	if err := palaceWriteFileAtomic(dir, path, ".tmp-"+entry.ID+"-*.json", data); err != nil {
+		return err
 	}
 	// Latent buffer is not listed by ListMemory; leave the listed-tier meta index as-is.
 	return nil
@@ -319,22 +310,8 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
 	}
-	tmpFile, err := os.CreateTemp(dir, ".tmp-"+entry.ID+"-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp failed: %w", err)
-	}
-	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-		return fmt.Errorf("write temp failed: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpFile.Name())
-		return fmt.Errorf("close temp failed: %w", err)
-	}
-	if err := os.Rename(tmpFile.Name(), path); err != nil {
-		os.Remove(tmpFile.Name())
-		return fmt.Errorf("rename failed: %w", err)
+	if err := palaceWriteFileAtomic(dir, path, ".tmp-"+entry.ID+"-*.json", data); err != nil {
+		return err
 	}
 	// Patch a clean meta index in place; stay dirty if unbuilt (s1066 / #63).
 	ps.upsertMetaIndex(entry, path)
@@ -357,7 +334,7 @@ func (ps *PalaceStore) writeLeavingTier(entry MemoryEntry, fromTier MemoryTier) 
 // archiveToVersions archives the entry as a versioned snapshot
 func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 	versionsDir := filepath.Join(ps.BaseDir, "versions", "memory-entries", entry.ID)
-	if err := os.MkdirAll(versionsDir, 0755); err != nil {
+	if err := palaceMkdirAll(versionsDir); err != nil {
 		return fmt.Errorf("mkdir versions failed: %w", err)
 	}
 	versionPath := filepath.Join(versionsDir, fmt.Sprintf("v%d.json", entry.Version))
@@ -365,7 +342,7 @@ func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
 	}
-	if err = os.WriteFile(versionPath, data, 0644); err != nil {
+	if err = palaceWriteFile(versionPath, data); err != nil {
 		return fmt.Errorf("write version failed: %w", err)
 	}
 	return nil
@@ -607,6 +584,9 @@ type SearchMemoryOptions struct {
 	// after the keyword/vector path (before Limit). Keyword hits stay ahead of
 	// non-hits so temporal re-rank cannot drop a literal match past Limit.
 	ReRankTemporal bool
+	// IncludeArchival, when true and Tier==nil, also includes Archival.
+	// Default retrieve is Working+Contextual+Semantic (same as ListMemoryWithOptions).
+	IncludeArchival bool
 }
 
 // entryEventTime returns the preferred event clock for temporal filters:
@@ -623,6 +603,8 @@ func entryEventTime(e MemoryEntry) time.Time {
 
 // SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1.
 // Thin wrapper over SearchMemoryWithOptions with no session/time filters and ReRankTemporal=false.
+// When tier is nil, default tiers skip Archival (Working+Contextual+Semantic) unless
+// the query has no keyword hits on those tiers (low-confidence fallback; #87).
 func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, vec []float32) []MemoryEntry {
 	return ps.SearchMemoryWithOptions(query, SearchMemoryOptions{
 		Tier:     tier,
@@ -631,25 +613,27 @@ func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, v
 	})
 }
 
-// SearchMemoryWithOptions provides hybrid retrieval with optional session, time-window,
-// and temporal re-ranking. Uses the configured EmbeddingFunc for vector re-ranking.
-func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
-	limit := opts.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	var results []MemoryEntry
-
-	// Start with all entries (or tier filtered)
+// searchCandidateTiers returns the retrieve tier set. When Tier is set, only that
+// tier. Otherwise Working+Contextual+Semantic, plus Archival if IncludeArchival.
+func searchCandidateTiers(opts SearchMemoryOptions) []MemoryTier {
 	if opts.Tier != nil {
-		results = ps.ListEntriesInTier(*opts.Tier)
-	} else {
-		for _, t := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
-			results = append(results, ps.ListEntriesInTier(t)...)
-		}
+		return []MemoryTier{*opts.Tier}
 	}
+	if opts.IncludeArchival {
+		return []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic}
+	}
+	return []MemoryTier{TierWorking, TierContextual, TierSemantic}
+}
 
-	// Session filter
+func (ps *PalaceStore) collectSearchCandidates(opts SearchMemoryOptions) []MemoryEntry {
+	var results []MemoryEntry
+	for _, t := range searchCandidateTiers(opts) {
+		results = append(results, ps.ListEntriesInTier(t)...)
+	}
+	return results
+}
+
+func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []MemoryEntry {
 	if opts.SessionID != "" {
 		var filtered []MemoryEntry
 		for _, e := range results {
@@ -660,7 +644,6 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = filtered
 	}
 
-	// Time-window filter (inclusive bounds on preferred event time)
 	if opts.TimeFrom != nil || opts.TimeTo != nil {
 		var filtered []MemoryEntry
 		for _, e := range results {
@@ -676,7 +659,6 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = filtered
 	}
 
-	// As-of validity filter (K4 / s616): after time-window, before keyword/vector + Limit.
 	if opts.AsOf != nil {
 		var filtered []MemoryEntry
 		for _, e := range results {
@@ -686,11 +668,35 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		}
 		results = filtered
 	}
+	return results
+}
+
+// SearchMemoryWithOptions provides hybrid retrieval with optional session, time-window,
+// and temporal re-ranking. Uses the configured EmbeddingFunc for vector re-ranking.
+//
+// Default tiers when Tier==nil match ListMemoryWithOptions: Working+Contextual+Semantic.
+// Archival is included when IncludeArchival is set, or when the default-tier keyword
+// hit set is empty (low-confidence fallback). That fallback is the empty keyword-hit
+// set, not a numeric cosine cutoff (Memory P0: do not invent a threshold).
+func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	results := filterSearchCandidates(ps.collectSearchCandidates(opts), opts)
 
 	// Hybrid: keyword hits first (literal recall), then vector rank for the rest.
 	// QueryVec alone used to skip the keyword path; hash embeddings made that
 	// ranking noise and could drop an exact token past Limit (#45).
 	keywordHits := rankKeywordHitsByOverlap(filterEntriesByKeywords(results, query), query)
+	if opts.Tier == nil && !opts.IncludeArchival && len(keywordHits) == 0 {
+		// Low-confidence: no keyword hits on default tiers → include Archival.
+		expanded := opts
+		expanded.IncludeArchival = true
+		results = filterSearchCandidates(ps.collectSearchCandidates(expanded), expanded)
+		keywordHits = rankKeywordHitsByOverlap(filterEntriesByKeywords(results, query), query)
+	}
 	if len(opts.QueryVec) > 0 {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
@@ -768,8 +774,11 @@ type EntityGraph struct {
 
 // AddEntityRelationship adds normalized entity links (H-Mem style).
 // Ensures BaseDir/relations exists before write (safe if ensureDirs was skipped
-// or the directory was removed).
+// or the directory was removed). Shared graph rewrite is serialized on writeMu
+// and written via temp+rename at 0600 (#86).
 func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
+	ps.writeMu.Lock()
+	defer ps.writeMu.Unlock()
 	_ = ps.ensureRelationsDir()
 	graphPath := filepath.Join(ps.BaseDir, "relations", "entity-graph.json")
 	graph := make(map[string][]string)
@@ -785,8 +794,11 @@ func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
 		}
 	}
 	graph[entity] = append(graph[entity], related)
-	data, _ := json.MarshalIndent(graph, "", "  ")
-	os.WriteFile(graphPath, data, 0644)
+	data, err := json.MarshalIndent(graph, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = palaceWriteFileAtomic(filepath.Join(ps.BaseDir, "relations"), graphPath, ".tmp-entity-graph-*.json", data)
 }
 
 // GetRelatedEntities returns related entities for graph traversal

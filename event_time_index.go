@@ -142,7 +142,7 @@ func (ps *PalaceStore) persistDurableMetaLocked() {
 		return
 	}
 	dir := filepath.Join(ps.BaseDir, "indexes")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := palaceMkdirAll(dir); err != nil {
 		return
 	}
 	count, maxNs := ps.palaceJSONStamp()
@@ -159,22 +159,8 @@ func (ps *PalaceStore) persistDurableMetaLocked() {
 	if err != nil {
 		return
 	}
-	tmp, err := os.CreateTemp(dir, ".tmp-event-time-*.json")
-	if err != nil {
-		return
-	}
-	tmpName := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
-		return
-	}
-	dest := ps.eventTimeIndexPath()
-	if err := os.Rename(tmpName, dest); err != nil {
-		os.Remove(tmpName)
-	}
+	// Caller holds metaMu. writeMu serializes with entity-graph rewrites (#86).
+	ps.writeMu.Lock()
+	defer ps.writeMu.Unlock()
+	_ = palaceWriteFileAtomic(dir, ps.eventTimeIndexPath(), ".tmp-event-time-*.json", data)
 }

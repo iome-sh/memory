@@ -141,8 +141,11 @@ results := store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOpt
 | `TimeFrom` / `TimeTo` | Inclusive event-time window |
 | `Limit` | Cap results (default 10 for search) |
 | `Tier` | Optional tier filter |
+| `IncludeArchival` | When `Tier` is nil, also walk Archival (default retrieve skips it) |
 | `QueryVec` | Dense re-rank when non-empty; keyword token hits stay ahead of `Limit` |
 | `ReRankTemporal` | Sort by relevance after keyword/vector path; keyword hits stay ahead of `Limit` |
+
+Default retrieve tiers are **Working + Contextual + Semantic** (Archival skipped), matching `ListMemoryWithOptions`. Archival is included when `IncludeArchival` is set, `Tier` is Archival, or the default-tier keyword hit set is empty (low-confidence fallback; not a numeric score cutoff).
 
 ### Timeline list
 

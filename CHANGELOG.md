@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Palace mode bits (#85):** `ensureDirs` / `MkdirAll` use `0700`; entry, version, `entity-graph.json`, and `event-time.json` writes use `0600`. Fresh-palace tests assert modes. Kernel-only · not Memory GA · dual_write OFF · not encryption at rest.
+- **Shared graph/index writeMu (#86):** `relations/entity-graph.json` and `indexes/event-time.json` rewrite under `writeMu` via temp+rename (`0600`). Per-entry rename was already atomic; concurrent `Write` / `IngestTurn` / `AddEntityRelationship` keep those shared files readable JSON. Not async 500ms ingest. Kernel-only · not Memory GA · dual_write OFF.
+- **Retrieve default tiers skip archival (#87):** `SearchMemory` / `SearchMemoryWithOptions` default to Working+Contextual+Semantic (same as list). Archival is included when `IncludeArchival` is set, an explicit `Tier` is Archival, or the default-tier keyword hit set is empty (low-confidence fallback — not a numeric cosine cutoff). Kernel-only · not Memory GA · dual_write OFF.
 - **Public name hygiene:** drop product-plane names from user-facing docs, godoc, Makefile, and readiness-gate needles. Honesty stays: kernel-only · not Memory GA · dual_write OFF (host policy) · this package does not import private control-plane / broker packages · private control-plane / broker stays private.
 
 ## [1.5.8] — 2026-09-04
