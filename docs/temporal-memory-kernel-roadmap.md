@@ -121,7 +121,12 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - Count questions (`how many` / `how much`) are not treated as calendar windows
 - Count queries promote `turn_fact` / `fact_augmented` children before Limit
 
-**Measure (2026-09-12, kernel `ef6a3e9`):** locked n=12 MiniLM/BGE still **10/12**, `multi-session` **0/2**. Retrieve now includes all inner haystack sessions (3 and 4 ids). Judge still fails: reader does not assemble the count from chatter. Headline rates unchanged vs pre-T1.
+**Measure (2026-09-12):**
+
+- `ef6a3e9` T1 retrieve only: MiniLM/BGE **10/12**, `multi-session` **0/2**; all inner sessions in k=40.
+- `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
+
+**Still open for T1:** rank `turn_fact` children by query overlap (noisy fallback facts); named extract for `led`/`leading` + project/team. Re-measure n=12 after that; then n=60.
 
 **In scope (measure)**
 

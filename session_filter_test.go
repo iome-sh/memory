@@ -1,6 +1,9 @@
 package memory
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestConvTag(t *testing.T) {
 	if got := ConvTag("  conv-1  "); got != "conv:conv-1" {
@@ -184,5 +187,35 @@ func TestSearchMemoryWithOptions_CountQueryPromotesFacts(t *testing.T) {
 	})
 	if len(hits) == 0 || hits[0].ID != "fact-led-two" {
 		t.Fatalf("count query should lead with turn_fact, ids=%v", idsOf(hits))
+	}
+}
+
+func TestPromoteFactEntriesForQuery_RanksLedOverChatterFacts(t *testing.T) {
+	chatter := MemoryEntry{
+		ID: "f-chatter", Type: "turn_fact",
+		Content: MemoryContent{Summary: "The elbow method is an excellent choice for clustering."},
+	}
+	gold := MemoryEntry{
+		ID: "f-led", Type: "turn_fact",
+		Content: MemoryContent{Summary: "I led the data analysis team on a marketing research class project."},
+	}
+	got := promoteFactEntriesForQuery([]MemoryEntry{chatter, gold}, "How many projects have I led")
+	if len(got) != 2 || got[0].ID != "f-led" {
+		t.Fatalf("led fact should rank first among facts, ids=%v", idsOf(got))
+	}
+}
+
+func TestExtractAtomicFacts_LedProject(t *testing.T) {
+	got := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I led the data analysis team on a class project. The elbow method is useful.",
+	}})
+	found := false
+	for _, s := range got {
+		if strings.Contains(strings.ToLower(s), "led the data analysis") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected led-project sentence in %v", got)
 	}
 }
