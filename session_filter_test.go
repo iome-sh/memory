@@ -437,6 +437,12 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesClothingErrands(t *testing.T
 	if !strings.Contains(lower, "boot") {
 		t.Fatalf("assembly missing boot object: %q", evidence)
 	}
+	if !strings.Contains(lower, "3 distinct items") {
+		t.Fatalf("assembly must label 3 distinct clothing clusters: %q", evidence)
+	}
+	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a numeric gold: %q", evidence)
+	}
 }
 
 func TestExtractAtomicFacts_ModelKitsHoursPlantsDates(t *testing.T) {
@@ -495,6 +501,9 @@ func TestAssembleCountEvidence_FiveKitsDedupeB29(t *testing.T) {
 		if !strings.Contains(lower, key) {
 			t.Fatalf("missing %s in %q", key, got)
 		}
+	}
+	if !strings.Contains(lower, "5 distinct") {
+		t.Fatalf("assembly must label 5 distinct kit clusters: %q", got)
 	}
 }
 
@@ -588,6 +597,9 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesFiveKits(t *testing.T) {
 	}
 	if strings.Count(lower, "[kit:b-29]") != 1 {
 		t.Fatalf("B-29 must dedupe across sessions: %q", evidence)
+	}
+	if !strings.Contains(lower, "5 distinct") {
+		t.Fatalf("search assembly must label 5 distinct kit clusters: %q", evidence)
 	}
 }
 

@@ -3,6 +3,7 @@ package memory
 import (
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -356,9 +357,11 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // and dry-clean survives when the query only says pick/return/store. Other
 // quantity queries cluster by distinctive object (kit identity, plant name,
 // hour+destination) so a repeated B-29 is one kit and two plants in one turn
-// are two clusters. Dated-span “how many days between” is not assembled here
-// (see AssembleTemporalEvidence). Empty when the query is not a count question
-// or no facts match.
+// are two clusters. The header labels how many clusters were assembled
+// ("Count evidence (N distinct items):") so a reader can count them; it does
+// not invent a numeric gold ("the answer is 3"). Dated-span “how many days
+// between” is not assembled here (see AssembleTemporalEvidence). Empty when
+// the query is not a count question or no facts match.
 func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	if !isCountQuery(query) || isDatedSpanQuery(query) {
 		return ""
@@ -394,7 +397,13 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	if len(snippets) == 0 {
 		return ""
 	}
-	return "Count evidence:\n- " + strings.Join(snippets, "\n- ")
+	return formatEvidenceBlock("Count evidence", len(snippets), "items", snippets)
+}
+
+// formatEvidenceBlock prefixes a bullet list with the cluster count so a
+// reader can count distinct items/events. It does not print a gold answer.
+func formatEvidenceBlock(title string, n int, noun string, snippets []string) string {
+	return title + " (" + strconv.Itoa(n) + " distinct " + noun + "):\n- " + strings.Join(snippets, "\n- ")
 }
 
 func assembleExactTextCountEvidence(matched []MemoryEntry) []string {
