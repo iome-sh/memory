@@ -18,13 +18,17 @@ func listBenchBaseTime() time.Time {
 }
 
 func seedListBenchStore(b *testing.B, disableMetaIndex bool) *PalaceStore {
+	return seedListBenchStoreN(b, listBenchN, disableMetaIndex)
+}
+
+func seedListBenchStoreN(b *testing.B, n int, disableMetaIndex bool) *PalaceStore {
 	b.Helper()
 	store := NewPalaceStoreWithConfig(PalaceConfig{
 		BaseDir:          b.TempDir(),
 		DisableMetaIndex: disableMetaIndex,
 	})
 	base := listBenchBaseTime()
-	for i := 0; i < listBenchN; i++ {
+	for i := 0; i < n; i++ {
 		sid := listBenchSessions[i%len(listBenchSessions)]
 		e := MemoryEntry{
 			ID:        fmt.Sprintf("e-%04d", i),
@@ -108,6 +112,8 @@ func BenchmarkSearchMemoryWithOptions_CountQuery(b *testing.B) {
 	otherQ := "timeline note sess-A"
 	countVec := GenerateSimpleEmbedding(countQ, 8)
 	otherVec := GenerateSimpleEmbedding(otherQ, 8)
+	// Warm so sub-benches measure search, not first-list meta rebuild.
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 1})
 
 	b.Run("CountQuery_SkipVector", func(b *testing.B) {
 		b.ReportAllocs()
@@ -133,6 +139,74 @@ func BenchmarkSearchMemoryWithOptions_CountQuery(b *testing.B) {
 		}
 		if n == 0 {
 			b.Fatal("empty search")
+		}
+	})
+	b.Run("CountQuery_SkipVector_SessionID", func(b *testing.B) {
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			n = len(store.SearchMemoryWithOptions(countQ, SearchMemoryOptions{
+				SessionID: "sess-A",
+				Limit:     10,
+				QueryVec:  countVec,
+			}))
+		}
+		if n == 0 {
+			b.Fatal("empty search")
+		}
+	})
+}
+
+// BenchmarkListMemoryWithOptions_RebuildAndN2000 is optional scale/rebuild
+// evidence for the T2 btree gate. go test without -bench does not run it.
+func BenchmarkListMemoryWithOptions_RebuildAndN2000(b *testing.B) {
+	opts := listBenchSessionTimeOpts()
+	b.Run("N200_RebuildEach", func(b *testing.B) {
+		store := seedListBenchStoreN(b, listBenchN, false)
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			store.InvalidateMetaIndex()
+			n = len(store.ListMemoryWithOptions(opts))
+		}
+		if n == 0 {
+			b.Fatal("empty list")
+		}
+	})
+	b.Run("N2000_MetaIndex", func(b *testing.B) {
+		store := seedListBenchStoreN(b, 2000, false)
+		_ = store.ListMemoryWithOptions(opts)
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			n = len(store.ListMemoryWithOptions(opts))
+		}
+		if n == 0 {
+			b.Fatal("empty list")
+		}
+	})
+	b.Run("N2000_DisableMetaIndex", func(b *testing.B) {
+		store := seedListBenchStoreN(b, 2000, true)
+		_ = store.ListMemoryWithOptions(opts)
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			n = len(store.ListMemoryWithOptions(opts))
+		}
+		if n == 0 {
+			b.Fatal("empty list")
+		}
+	})
+	b.Run("N2000_RebuildEach", func(b *testing.B) {
+		store := seedListBenchStoreN(b, 2000, false)
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			store.InvalidateMetaIndex()
+			n = len(store.ListMemoryWithOptions(opts))
+		}
+		if n == 0 {
+			b.Fatal("empty list")
 		}
 	})
 }

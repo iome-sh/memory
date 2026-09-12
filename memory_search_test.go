@@ -691,3 +691,89 @@ func sameIDsInOrder(a, b []MemoryEntry) bool {
 	}
 	return true
 }
+
+func sameIDSet(a, b []MemoryEntry) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := make(map[string]int, len(a))
+	for _, e := range a {
+		seen[e.ID]++
+	}
+	for _, e := range b {
+		n, ok := seen[e.ID]
+		if !ok || n == 0 {
+			return false
+		}
+		seen[e.ID] = n - 1
+	}
+	return true
+}
+
+func TestSearchMemoryWithOptions_MetaIndexMatchesScanFilters(t *testing.T) {
+	baseDir := t.TempDir()
+	idx := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	base := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
+	conv := "qa-conv"
+	entries := []MemoryEntry{
+		{
+			ID: "a1", Tier: TierContextual, SessionID: "sess-A", Timestamp: base,
+			Content: MemoryContent{Summary: "alpha project notes A", Tags: []string{ConvTag(conv)}},
+		},
+		{
+			ID: "b1", Tier: TierContextual, SessionID: "sess-B", Timestamp: base.Add(time.Hour),
+			Content: MemoryContent{Summary: "alpha project notes B"},
+		},
+		{
+			ID: "a-old", Tier: TierContextual, SessionID: "sess-A", Timestamp: base.Add(-48 * time.Hour),
+			Content: MemoryContent{Summary: "alpha project notes old"},
+		},
+		{
+			ID: "fact", Type: "turn_fact", Tier: TierSemantic, SessionID: "sess-B", Timestamp: base,
+			Content: MemoryContent{
+				Summary: "I led the atlas project",
+				Tags:    []string{ConvTag(conv), "fact_augmented"},
+			},
+		},
+		{
+			ID: "kp", Tier: TierContextual, SessionID: "sess-A", Timestamp: base,
+			Keyphrases: []string{"quartz-harbor-3391"},
+			Content:    MemoryContent{Summary: "lab turn", Full: "no unique token here"},
+		},
+	}
+	for _, e := range entries {
+		if err := idx.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scan := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir, DisableMetaIndex: true})
+	from := base.Add(-time.Minute)
+	to := base.Add(2 * time.Hour)
+
+	cases := []struct {
+		name  string
+		query string
+		opts  SearchMemoryOptions
+	}{
+		{"session", "alpha project notes", SearchMemoryOptions{SessionID: "sess-A", Limit: 10}},
+		{"conv_tag", "alpha project", SearchMemoryOptions{SessionID: conv, Limit: 10}},
+		{"time", "alpha project notes", SearchMemoryOptions{TimeFrom: &from, TimeTo: &to, Limit: 10}},
+		{"count_session", "How many projects have I led?", SearchMemoryOptions{SessionID: conv, Limit: 10}},
+		{"keyphrases", "quartz-harbor-3391", SearchMemoryOptions{SessionID: "sess-A", Limit: 10}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotIdx := idx.SearchMemoryWithOptions(tc.query, tc.opts)
+			gotScan := scan.SearchMemoryWithOptions(tc.query, tc.opts)
+			if !sameIDSet(gotIdx, gotScan) {
+				t.Fatalf("index vs scan: index=%v scan=%v", idsOf(gotIdx), idsOf(gotScan))
+			}
+			if len(gotIdx) == 0 {
+				t.Fatal("empty search")
+			}
+			if tc.name == "keyphrases" && !entryHasID(gotIdx, "kp") {
+				t.Fatalf("meta-index session filter dropped Keyphrases-only hit; ids=%v", idsOf(gotIdx))
+			}
+		})
+	}
+}

@@ -161,6 +161,8 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 
 **In scope:** optional btree / tag secondary if `MetaIndexRebuilds` or list latency shows up in T1 benches. Keep FS as source of truth.
 
+**Measure (2026-09-12):** warmed `ListMemoryWithOptions` at N=200 is ~1ms on the meta index; first-list rebuild is not the limiter vs filter/load of survivors. N=2000 warmed stays ~1ms (same session+time survivor set). btree / tag secondaries **parked**. Search/count candidates now reuse the list meta index for session/time/tier (`DisableMetaIndex` opt-out).
+
 **Out of scope:** flock; cross-process writers; distributed timelines.
 
 ### T3 — Temporal relation edges
