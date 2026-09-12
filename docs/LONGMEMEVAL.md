@@ -47,7 +47,7 @@ real.
 |-------|--------|
 | Date (UTC) | — |
 | Kernel commit SHA | — |
-| Kernel tag | v1.5.10 (or the tag under test) |
+| Kernel tag | v1.5.11 (or the tag under test) |
 | Dataset variant | LongMemEval-S / oracle JSON (`longmemeval_oracle.json`) |
 | Sample | `mixed` (stratified by `question_type`) — **not** prefix-n |
 | n (questions) | — |
@@ -71,7 +71,14 @@ labelled. Hash overlap stays unpublished.
 make longmemeval-smoke
 make longmemeval-recall-gate
 
-# Official V1 files (does not vendor 7 GB)
+# Methodology card (optional; not part of make ci).
+# Missing data/longmemeval_oracle.json → SKIP exit 0 (not a CI failure).
+# testdata/longmemeval_oracle_subset.json is 3 single-session-user items — not mixed official V1.
+# Official judge pin is gpt-4o-2024-08-06. Makefile default gpt-4o-mini is a cheap local path — not official V1.
+make longmemeval-v1-card
+
+# Official V1 files (does not vendor LongMemEval-M ~2.7 GB or V2 ~7 GB).
+# data/ is gitignored. Oracle JSON is ~15 MB; s_cleaned is ~277 MB.
 make download-dataset   # → data/longmemeval_oracle.json
 
 # Generate hypotheses against a running local harness
@@ -79,6 +86,9 @@ export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
 go run ./cmd/longmemeval-server
 make longmemeval-qa-generate LONGMEMEVAL_QA_SAMPLE=mixed
 LONGMEMEVAL_JUDGE_MODEL=gpt-4o-2024-08-06 make longmemeval-judge
+
+# Optional scored mixed sample (same official pin + ONNX + session_id). Writes the card.
+LONGMEMEVAL_V1_RUN=1 LONGMEMEVAL_QA_LIMIT=12 make longmemeval-v1-card
 ```
 
 `--limit N` on `scripts/longmemeval_qa_generate.py` is **dataset prefix order**.
@@ -92,6 +102,34 @@ dominated.
 Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as
 RFC3339.
 
+## Internal run log
+
+Label: **INTERNAL unpublished · not Memory GA · not hash-overlap**. This section is not a README number and not Memory GA.
+
+### 2026-09-12 — SKIPPED (no official-judge mixed sample recorded)
+
+`data/longmemeval_oracle.json` is gitignored and is **not** in the committed tree. In-repo `testdata/longmemeval_oracle_subset.json` is **3 `single-session-user` items** — that is **not** mixed official V1.
+
+`make longmemeval-v1-card` prints a methodology card and exits 0 when the oracle is missing or is the in-repo subset (not a CI failure). A local operator may download the ~15 MB oracle JSON into gitignored `data/`; do **not** commit it. This change fetched that oracle locally to verify the mixed histogram path, then left it gitignored. `make download-dataset` would also pull `longmemeval_s_cleaned.json` (~277 MB); that file, LongMemEval-M (~2.7 GB), and V2 (~7 GB) were **not** downloaded and are not vendored.
+
+BGE-small-en-v1.5 ONNX was not available in this environment (Hugging Face model download returned 401), so no official-embed generate+judge sample ran. Hash overlap stays unpublished. **No accuracy number.**
+
+| Field | Value |
+|-------|--------|
+| Date (UTC) | 2026-09-12 |
+| Kernel commit SHA | recorded at runtime by `scripts/longmemeval_v1_card.sh` |
+| Kernel tag | v1.5.11 |
+| Dataset variant | `longmemeval_oracle.json` **not committed** (gitignored `data/`) |
+| Sample | `mixed` (required) — subset ≠ mixed V1 |
+| n (questions) | SKIPPED (no official-judge sample) |
+| Type histogram | SKIPPED for a scored slice. Full oracle (local, uncommitted) is 500 mixed (`temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-user` 70, `single-session-assistant` 56, `single-session-preference` 30). Mixed n=12 is 2 of each type. |
+| Session scope | `session_id` = official `conv_id` on `/retrieve` |
+| Embed mode | ONNX (BGE-small-en-v1.5, 384-d) required. **Not hash.** BGE not loaded here. |
+| Judge model pin | `gpt-4o-2024-08-06` (Makefile default `gpt-4o-mini` is **not** official V1) |
+| dual_write | OFF |
+| Product claim | **not Memory GA** |
+| Status | SKIPPED — no official-judge mixed sample |
+
 ## Honesty
 
 - Inspectable filesystem palace remains the source of truth.
@@ -99,3 +137,4 @@ RFC3339.
 - This card is not a Memory GA announcement and not a seed-deck exhibit.
 - Host walking skeleton (TUI `/memory digest --require-sources mesh,private`)
   is cite-both of mesh pull + private palace — a different clock from this eval.
+- `make longmemeval-v1-card` is optional and is **not** part of `make ci`.

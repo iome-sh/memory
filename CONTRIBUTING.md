@@ -39,6 +39,7 @@ Heavy optional gates (models / network; not required for PR CI):
 make test-onnx
 make longmemeval-recall-gate
 make longmemeval-bench
+make longmemeval-v1-card   # methodology card; SKIP if oracle missing (exit 0); not make ci
 ```
 
 ## Coding standards
