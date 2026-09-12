@@ -83,7 +83,7 @@ make download-dataset   # → data/longmemeval_oracle.json
 
 # Generate hypotheses against a running local harness
 export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
-# If BGE is unavailable (Hugging Face may 401), in-tree MiniLM is the local ONNX path:
+# If BGE is unavailable (Hugging Face may 401 / 404; 2026-09-12 retry still SKIP), in-tree MiniLM is the local ONNX path:
 #   testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
 # MiniLM is not the official V1 BGE-small-en-v1.5 embed pin.
 go run ./cmd/longmemeval-server
@@ -110,6 +110,21 @@ RFC3339.
 
 Label: **INTERNAL unpublished · not Memory GA · not hash-overlap**. This section is not a README number and not Memory GA. The official BGE-small-en-v1.5 card above stays unfilled — a MiniLM sample is **not** the official V1 embed pin.
 
+### 2026-09-12 — official BGE-small-en-v1.5 ONNX retry (SKIP)
+
+Retried `go run ./scripts/download_onnx_model.go` (hugot `DownloadModel` of `KnightsAnalytics/bge-small-en-v1.5`). Hugging Face returned **401** (`Invalid username or password`) for hugot and unauthenticated `curl`. Authenticated `curl` / `hf download` returned **404** (`Repository not found` / `Model not found`). Hugging Face model page 404; KnightsAnalytics org listing has MiniLM but no `bge-small-en-v1.5`. No BGE weights were written under `testdata/models/`. In-tree MiniLM was not deleted. Official V1 embed pin remains unmet. **No scored BGE card. No README number. Not Memory GA. dual_write OFF. Hash overlap unpublished. MiniLM ≠ BGE pin.**
+
+| Field | Value |
+|-------|--------|
+| Date (UTC) | 2026-09-12T05:21:26Z |
+| Kernel commit SHA | `e70343eab80e71c5157d6e34e3eaab39e98f73cf` (tag **v1.5.11**) |
+| Kernel tag | v1.5.11 |
+| Status | **SKIP** — BGE-small-en-v1.5 ONNX still unavailable (hugot **401**; HF **404**) |
+| Embed mode | **not** official V1 BGE pin (download failed; MiniLM internal card below is a different embedder) |
+| Judge model pin | `gpt-4o-2024-08-06` (not run — no BGE weights) |
+| dual_write | OFF |
+| Product claim | **not Memory GA** |
+
 ### 2026-09-12 — mixed MiniLM ONNX generate+judge (INTERNAL unpublished)
 
 Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (not committed). Hypotheses JSONL and eval-results stayed gitignored. LongMemEval-M (~2.7 GB) and V2 (~7 GB) were not vendored. Hash overlap unpublished. **Not Memory GA. Not BGE official pin. Not a README number.**
@@ -124,7 +139,7 @@ Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (
 | n (questions) | 12 |
 | Type histogram | `knowledge-update` 2, `multi-session` 2, `single-session-assistant` 2, `single-session-preference` 2, `single-session-user` 2, `temporal-reasoning` 2 |
 | Session scope | `session_id` = official `conv_id` on `/retrieve` |
-| Embed mode | **ONNX MiniLM-L6-v2** (384-d, in-tree `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`, hugot GoMLX). **Not hash. Not BGE-small-en-v1.5. Not official V1 embed pin.** BGE was unavailable (Hugging Face download previously 401). |
+| Embed mode | **ONNX MiniLM-L6-v2** (384-d, in-tree `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`, hugot GoMLX). **Not hash. Not BGE-small-en-v1.5. Not official V1 embed pin.** BGE still unavailable (Hugging Face hugot download **401**; authenticated lookup **404** as of 2026-09-12 retry). |
 | Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions` (`cmd/longmemeval-server` `/retrieve`) |
 | Judge model pin | `gpt-4o-2024-08-06` (upstream `evaluate_qa.py` zoo key `gpt-4o`; Makefile default `gpt-4o-mini` is **not** official V1) |
 | Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
