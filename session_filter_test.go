@@ -574,6 +574,139 @@ func TestAssembleCountEvidence_ThreePlantsOneTurnTwoNames(t *testing.T) {
 	}
 }
 
+func TestAssembleCountEvidence_HoursUnseenDestinations(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("h1", "s1", "I drove six hours to Yosemite."),
+		factEntry("h2", "s2", "I spent eight hours in Zion."),
+		factEntry("h3", "s3", "On my recent trip to the mountains in Tennessee I drove for five hours to get there."),
+	}
+	q := "How many hours in total did I spend driving to destinations?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[hours:") != 3 {
+		t.Fatalf("want 3 hour clusters (yosemite, zion, tennessee), got %q", got)
+	}
+	for _, key := range []string{"[hours:yosemite]", "[hours:zion]", "[hours:tennessee]"} {
+		if !strings.Contains(lower, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("hour unique-entity path must not label N distinct items: %q", got)
+	}
+	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a numeric gold: %q", got)
+	}
+	if !strings.Contains(got, "\n- ") {
+		t.Fatalf("hour unique-entity path must stay unnumbered dashes: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_HoursRepeatedDestOneCluster(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("h1", "s1", "I drove six hours to the Outer Banks."),
+		factEntry("h2", "s2", "I drove four hours to the Outer Banks last summer."),
+	}
+	q := "How many hours in total did I spend driving to destinations?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[hours:") != 1 {
+		t.Fatalf("repeated Outer Banks must be one cluster, got %q", got)
+	}
+	if !strings.Contains(lower, "[hours:outer-banks]") {
+		t.Fatalf("missing outer-banks cluster: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_KitsUnseenMustangAndRepeatedB29(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("k1", "s1", "I bought a P-51 Mustang kit at the hobby shop."),
+		factEntry("k2", "s2", "I'm thinking of working on a 1/72 scale B-29 bomber next."),
+		factEntry("k3", "s3", "I just got this 1/72 scale B-29 bomber kit."),
+	}
+	q := "How many model kits have I worked on or bought?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[kit:") != 2 {
+		t.Fatalf("want 2 kit clusters (mustang + b-29), got %q", got)
+	}
+	if strings.Count(lower, "[kit:b-29]") != 1 {
+		t.Fatalf("repeated B-29 must be one cluster, got %q", got)
+	}
+	if !strings.Contains(lower, "[kit:p-51-mustang]") {
+		t.Fatalf("missing P-51 Mustang kit cluster: %q", got)
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("kit unique-entity path must not label N distinct items: %q", got)
+	}
+	if !strings.Contains(got, "\n- ") {
+		t.Fatalf("kit unique-entity path must stay unnumbered dashes: %q", got)
+	}
+	if strings.Contains(got, "\n1. ") || strings.Contains(got, "\n2. ") {
+		t.Fatalf("kit unique-entity path must not number bullets: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_KitsTwoNamesOneTurn(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("k1", "s1", "I bought a P-51 Mustang kit and a B-29 Superfortress kit."),
+	}
+	q := "How many model kits have I worked on or bought?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[kit:") != 2 {
+		t.Fatalf("two kit names in one turn must be two clusters, got %q", got)
+	}
+	if !strings.Contains(lower, "[kit:p-51-mustang]") || !strings.Contains(lower, "[kit:b-29]") {
+		t.Fatalf("want mustang + b-29, got %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_PlantsCatalogNotPowerPlant(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("p1", "s1", "I'm trying to care for my peace lily and a succulent I got from the nursery."),
+		factEntry("p2", "s2", "I toured the power plant down the river."),
+		factEntry("p3", "s3", "I got a monstera plant from the market."),
+	}
+	q := "How many plants did I acquire in the last month?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[plant:") != 3 {
+		t.Fatalf("want 3 plant clusters (peace-lily, succulent, monstera), got %q", got)
+	}
+	for _, key := range []string{"[plant:peace-lily]", "[plant:succulent]", "[plant:monstera]"} {
+		if !strings.Contains(lower, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+	if strings.Contains(lower, "[plant:power]") {
+		t.Fatalf("power plant must not cluster: %q", got)
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("plant unique-entity path must not label N distinct items: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_ClothingQueryNotUniqueEntity(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("c1", "s1", "I need to return some boots to Zara."),
+		factEntry("c2", "s2", "I still need to pick up my dry cleaning for the navy blue blazer."),
+		factEntry("k1", "s3", "I bought a P-51 Mustang kit at the hobby shop."),
+	}
+	q := "How many items of clothing do I need to pick up or return from a store?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "[kit:") || strings.Contains(lower, "[plant:") || strings.Contains(lower, "[hours:") {
+		t.Fatalf("clothing query must not take unique-entity path: %q", got)
+	}
+	if !strings.Contains(lower, "distinct items") {
+		t.Fatalf("clothing path should keep N distinct items: %q", got)
+	}
+	if !strings.Contains(got, "1. ") {
+		t.Fatalf("clothing path should number bullets: %q", got)
+	}
+}
+
 func TestAssembleCountEvidence_DatedSpanIsNotCountEvidence(t *testing.T) {
 	facts := []MemoryEntry{
 		factEntry("d1", "s1", "I attended the Sunday mass at St. Mary's Church on January 2nd."),
