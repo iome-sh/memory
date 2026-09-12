@@ -34,7 +34,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 | Trust boundary | Posture |
 |----------------|---------|
 | Local Palace filesystem (`BaseDir`) | **User data** — the process that opens the store can read/write all entries under that root. Treat the directory as confidential. |
-| Multi-process shared root | **Single-writer contract** — one process per palace root. Concurrent writers to the same root are unsupported (last-write-wins on a given entry file). That is the product contract, not a hidden defect. Path layout is not a secure tenancy boundary; use separate roots (or OS isolation) per trust domain. |
+| Multi-process shared root | **Single-writer contract** — one process per palace root. Concurrent writers to the same root are unsupported (last-write-wins on a given entry file). That is the product contract, not a hidden defect. Path layout is not a secure tenancy boundary; use separate roots (or OS isolation) per trust domain. Probe script exists (`scripts/two_process_writer_probe.sh`); flock is not shipped. |
 | Optional embeddings | Loading ONNX / hugot models executes model graphs and may download assets; only load trusted model paths. |
 | Optional Qdrant | Network client to operator-chosen endpoint; no cloud Memory SLA. Validate URLs and network exposure. |
 | Compaction / host hooks | Host-supplied LLM or callbacks can see entry text; hosts must not log secrets. |
@@ -42,7 +42,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 ### Residual risks (honest)
 
 - **Local FS palace is user data** — encryption at rest, backup, and access control are operator responsibilities. New palace dirs are created `0700` and kernel-written files `0600`; pre-existing trees are not retroactively chmod'd. Mode bits are not encryption at rest.  
-- **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers. Supported topology is **one host process per palace root**. In-process `writeMu` serializes `entity-graph.json` / `event-time.json` rewrites; multi-process writers to the same root remain unsupported (not flock, not cloud isolation).  
+- **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers. Supported topology is **one host process per palace root**. In-process `writeMu` serializes `entity-graph.json` / `event-time.json` rewrites; multi-process writers to the same root remain unsupported (not flock, not cloud isolation). Probe script exists; flock is not shipped.  
 - **Optional embeddings load models** — model supply chain and native ORT/CUDA stacks are out of band of the pure-Go default path. Stored vectors are optional (`PersistEmbeddings` default off); hash embeddings are never persisted as `QueryVec` / stored vectors.  
 - **Kernel-only** — this package is not Memory GA; product dual_write defaults OFF elsewhere; hosted Palace remains sunset until deliberate scale; mesh is optional via TUI/ops packs.  
 - **No mesh org header** — organization isolation for the I/O Mesh broker is a separate HTTP header (`X-IOMesh-Org`) on mesh clients; this library does not implement that. The public MCP host is **`iomesh-memory-mcp`**.  

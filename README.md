@@ -29,7 +29,7 @@ Requires the Go version in [`go.mod`](go.mod). CI uses `GOTOOLCHAIN=auto`.
 
 ## Supported topology
 
-**One process per palace root.** Multi-process writers on a shared `BaseDir` are **unsupported** — that is the product contract, not a defect to hide. In-process `writeMu` serializes the two shared files (`relations/entity-graph.json`, `indexes/event-time.json`). Per-entry JSON uses `CreateTemp` + `chmod 0600` + `Rename` (the rename is the ingest ack). Path isolation is not cloud tenancy.
+**One process per palace root.** Multi-process writers on a shared `BaseDir` are **unsupported** — that is the product contract, not a defect to hide. In-process `writeMu` serializes the two shared files (`relations/entity-graph.json`, `indexes/event-time.json`). Per-entry JSON uses `CreateTemp` + `chmod 0600` + `Rename` (the rename is the ingest ack). Path isolation is not cloud tenancy. Operators can collect last-write-wins evidence with [`scripts/two_process_writer_probe.sh`](scripts/two_process_writer_probe.sh); flock is not shipped.
 
 ## Quick start (TTFH-shaped)
 
