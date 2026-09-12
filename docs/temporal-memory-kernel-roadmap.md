@@ -2,31 +2,62 @@
 
 **Repository:** [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory)  
 **Scope:** Temporal features **inside this package** (`PalaceStore`), not MCP/TUI hosts.  
-**As of:** 2026-09-12 · tagged **v1.5.12** (T1 multi-session retrieve + count assembly)
+**As of:** 2026-09-12 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta
 
-This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui), [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp)) are optional.
+This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.7**, [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.2**) are optional.
 
 Related: [TTFH walking skeleton](./TTFH.md) · [LongMemEval methodology](./LONGMEMEVAL.md) · [locked mixed baseline](./LONGMEMEVAL_BASELINE.md) · [package improvements](./memory-refactor-improvements.md)
 
 ---
 
-## Re-evaluation (original plan vs v1.5.11)
+## Re-evaluation (original plan vs v1.5.12)
 
-The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/A3**. Most of that surface is now in the tree. What moved after v1.5.7 is index patching, palace file modes, retrieve default tiers, private `source_hint`, optional ONNX persist, TTFH, and a locked LongMemEval mixed slice.
+The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/A3**. That surface is in the tree. After v1.5.7: index patching, palace file modes, retrieve default tiers, private `source_hint`, optional ONNX persist, TTFH, locked LongMemEval slices, then **T1** multi-session retrieve (v1.5.12).
 
-| Original phase | Original intent | Status at v1.5.11 | Still open |
-|----------------|-----------------|-------------------|------------|
+| Original phase | Original intent | Status | Still open |
+|----------------|-----------------|--------|------------|
 | **K0** | Event time, decay, `IngestTurn`, hybrid search | **Shipped** | — |
-| **K1** | `SearchMemoryWithOptions` session/time + temporal re-rank | **Shipped** (v1.5.2) | — |
-| **K2** | Event-time timeline list + tag helpers; FS index | **Mostly shipped** — list API v1.5.3; durable `indexes/event-time.json`; in-memory patch on Write/unlink (v1.5.8). First list / stamp mismatch still rebuilds. | btree / tag secondaries if O(n) rebuild is the bottleneck |
-| **K3** | Optional Qwen3-0.6B **1024-d** local preset | **Not started** (and not blocking). Default ONNX remains BGE-small **384-d**; MiniLM is the in-tree fallback; `PersistEmbeddings` is opt-in (default off). | Only if a consumer needs 1024-d |
-| **K4** | Facts-as-of / validity windows | **Shipped lite** (v1.5.4) — `ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf` | Temporal **edges**; transaction-time + validity as first-class stores |
-| **A2** | Multi-hop / associative retrieve | **Shipped lite** (v1.5.5–1.5.7) — `MultiHopRetrieve`, hop-distance ranking | Typed / bidirectional edges; full path scoring |
-| **A3** | Fact supersession | **Shipped lite** (v1.5.6) — `SupersedeEntityFacts`, `WriteAndSupersede` | Auto entity extract; NLP contradiction |
+| **K1** | Session/time search + temporal re-rank | **Shipped** (v1.5.2) + T1 `SessionIDs` / skip-vector on count/temporal ([#122](https://github.com/iome-sh/memory/pull/122)) | — |
+| **K2** | Event-time timeline list + FS index | **Mostly shipped** — list API v1.5.3; durable `indexes/event-time.json`; in-memory patch on Write/unlink (v1.5.8). First list / stamp mismatch still rebuilds. T2 **bench** shipped ([#128](https://github.com/iome-sh/memory/pull/128) `376dd69`). | btree / tag secondaries **parked** — [#131](https://github.com/iome-sh/memory/pull/131) measure (in-flight) says rebuild is not the limiter |
+| **K3** | Optional Qwen3-0.6B **1024-d** | **Not started** (not blocking). Default ONNX **BGE-small 384-d**; MiniLM in-tree fallback; `PersistEmbeddings` default off. | Consumer-driven (**T5**) |
+| **K4** | Facts-as-of / validity windows | **Shipped lite** (v1.5.4) — `ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`. Compaction SUMMARIZE/MERGE stamp `valid_from`. **T4 tests shipped** ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): after MERGE/SUMMARIZE the product is still `ListFactsAsOf`-visible; ARCHIVE tier-move stays valid at now; no invented `valid_until`. | Temporal **edges** (**T3**); dual-clock **store** (**T8**, parked). `ListFactsAsOf` still scans facts (T4-perf parked). |
+| **A2** | Multi-hop retrieve | **Shipped lite** (v1.5.5–1.5.7) | Typed / bidirectional edges (**T3**) |
+| **A3** | Fact supersession | **Shipped lite** (v1.5.6) + latest-value **retrieve** evidence ([#122](https://github.com/iome-sh/memory/pull/122)) | Auto entity extract; NLP contradiction |
 
-**Eval evidence (not a leaderboard number):** locked mixed LongMemEval n=12, same IDs, judge `gpt-4o-2024-08-06`. Hash 9/12, MiniLM 10/12, BGE 10/12. **`multi-session` is 0/2 on every embedder.** Gold answers are counts across sessions. The reader now uses full retrieve-k (was 15 of 40). The remaining miss is a **kernel retrieve / temporal-aggregation** problem, not “missing K1 filters.”
+**Eval evidence (unpublished, not a README number, not official V1):** locked mixed LongMemEval, judge `gpt-4o-2024-08-06`, reader `gpt-4o-mini`, isolated palace per embed.
 
-**Walking skeleton:** `go run ./examples/ttfh_rca` — ingest three RCA turns, same-process retrieve, `ListFactsAsOf`, print `source_hint`. That path exercises K0 + K1 session retrieve + K4 as-of. It does not exercise multi-session count questions.
+| Wave | Kernel | hash | MiniLM | BGE | Notes |
+|------|--------|------|--------|-----|-------|
+| A pre-T1 | `cb93b08` | 9/12 MS 0/2 | 10/12 0/2 | 10/12 0/2 | Single `SessionID` |
+| E T1 done-when | `f99c140` [#111](https://github.com/iome-sh/memory/pull/111) | 11/12 MS 1/2 | **12/12 2/2** | 11/12 1/2 | MiniLM+BGE left 0/2 |
+| F clothing clusters | `aa64dbc` [#115](https://github.com/iome-sh/memory/pull/115) | 11/12 **2/2** | **12/12 2/2** | **12/12 2/2** | Clothes pass; hash temporal miss |
+| G dated events | `b02abaf` [#119](https://github.com/iome-sh/memory/pull/119) | 11/12 1/2 | 11/12 1/2 | 11/12 1/2 | Temporal first **pass all 3**; clothes reader summed 2 |
+| H N-header | `895f255` [#120](https://github.com/iome-sh/memory/pull/120) | 11/12 1/2 | 10/12 0/2 | 11/12 1/2 | Clothes still 2; MiniLM projects overcount (`8 distinct`) |
+| n=60 v1.5.12 | `e90a82d` | 47/60 MS 8/10 | 48/60 MS 7/10 | TBD | **Before [#119](https://github.com/iome-sh/memory/pull/119).** Clothes pass; kits/hours miss. BGE column not finished — do not invent. |
+
+Clothes remesure after numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)) is **TBD**. n=12 after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) is **TBD**. n=60 after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124) is **TBD**. Do not invent remesure scores.
+
+**Walking skeleton:** `go run ./examples/ttfh_rca` — K0 + K1 session retrieve + K4 as-of. It does not exercise multi-session counts.
+
+---
+
+## Competitive landscape
+
+Public positioning only. No invented latency, accuracy, or revenue figures. This kernel is **not** [MemPalace](https://github.com/MemPalace) / `mempalace` (an unrelated Python project; already noted in the README).
+
+Palace write path is **raw ingest + heuristic facts** (`IngestTurn` children, named-pattern / clothing / unique-entity / dated-phrase helpers). There is **no LLM on write**. Several peers extract facts with an LLM on every `add` / episode.
+
+| Project | Write path | Store | Temporal | Retrieve | Deploy |
+|---------|------------|-------|----------|----------|--------|
+| **Palace (this kernel)** | Raw ingest + heuristic facts; **no LLM on write** | Inspectable FS JSON palace (`cat` / `diff` / cite) | Entry `valid_from` / `valid_until` tags + event `Timestamp` (not bi-temporal edges) | Keyword-first; skip-vector on count / temporal-order; optional `QueryVec` otherwise | Local embeddable **MIT Go**. One process per palace root. |
+| **Mem0** | LLM extract on `add()` (`infer=True` default: ADD / UPDATE / DELETE) | Vector store; optional graph on Platform | Update pipeline / recency, not entry validity tags | Vector (graph ranking on Platform) | Hosted platform + OSS |
+| **Graphiti** | LLM extract entities / relations from episodes | Graph DB (Neo4j / FalkorDB / Neptune, …) | **Bi-temporal edges** (`valid_at` / `invalid_at` + transaction time) | Hybrid semantic + BM25 + graph walk | OSS; needs a graph database |
+| **Zep** | Graphiti-style episodes (hosted Context Lake) | Hosted graph service | Bi-temporal (Graphiti model) | Hybrid (hosted) | Hosted |
+| **Letta** | Agent **self-edits** memory blocks | Core blocks always in-context + archival | Runtime memory tiers, not a dual-clock KG | Agentic tool search | Agent **runtime**, not an embeddable Go library |
+| **LangMem** | LLM memory-manager extract | LangGraph store / collections | Semantic / episodic / procedural types | Vector / collection lookup | Python library (LangGraph-native) |
+| **Cognee** | Documents / tables / code → entities (typically LLM extract) | Graph + vector + relational | Graph RAG, not palace validity tags | Graph / vector / auto-route | Python OSS + cloud |
+
+Use Palace when the job is an inspectable local ops record in Go with no required database. Use the others when you want LLM extraction on write, a hosted memory SaaS, a bi-temporal knowledge graph, or an agent runtime that edits its own blocks. See also the README “When to use this kernel” table.
 
 ---
 
@@ -34,11 +65,11 @@ The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/
 
 ### K0 — Baseline
 
-On `MemoryEntry`: `Timestamp` (event time), `SessionID`, `TemporalTags`, turn fields (`TurnID`, `ExtractedFacts`, `Keyphrases`, `OriginalText`). Provenance: `IngestTurn` stamps `source_hint=private` when the caller does not already supply a classifiable mesh or private source.
+On `MemoryEntry`: `Timestamp` (event time), `SessionID`, `TemporalTags`, turn fields (`TurnID`, `ExtractedFacts`, `Keyphrases`, `OriginalText`). `IngestTurn` stamps `source_hint=private` when the caller does not already supply a classifiable mesh or private source.
 
 Scoring: `CalculateTemporalDecay`, `CalculateRecencyBoost`, `CalculateRelevanceScore`, `MultiFactorScore`.
 
-Ingest/search: `IngestTurn`; `SearchMemory` hybrid keyword-first + optional `QueryVec`. Hash embeddings never persist as stored vectors.
+Search: hybrid keyword-first + optional `QueryVec`. **Count and temporal-order queries skip vector scoring** (keyword + evidence assembly). Hash embeddings never persist.
 
 Topology: **one process per palace root**. `writeMu` serializes `relations/entity-graph.json` and `indexes/event-time.json`. Flock is not shipped.
 
@@ -46,13 +77,15 @@ Topology: **one process per palace root**. `writeMu` serializes `relations/entit
 
 ```go
 type SearchMemoryOptions struct {
-    SessionID, TimeFrom, TimeTo *… // session + inclusive event-time window
-    AsOf            *time.Time     // EntryValidAt before Limit
-    Limit           int            // default 10
-    Tier            *MemoryTier
-    QueryVec        []float32      // keyword hits stay ahead of cosine
-    ReRankTemporal  bool
-    IncludeArchival bool           // default tiers: Working+Contextual+Semantic
+    SessionID        string
+    SessionIDs       []string   // any-of; also matches conv:<id> tags (T1)
+    TimeFrom, TimeTo *time.Time
+    AsOf             *time.Time // EntryValidAt before Limit
+    Limit            int        // default 10
+    Tier             *MemoryTier
+    QueryVec         []float32  // skipped for count / temporal-order queries
+    ReRankTemporal   bool
+    IncludeArchival  bool       // default tiers: Working+Contextual+Semantic
 }
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry
 ```
@@ -63,16 +96,18 @@ Filters apply **before** Limit. `SearchMemory` remains a thin wrapper.
 
 ```go
 type ListMemoryOptions struct {
-    SessionID, TimeFrom, TimeTo *…
+    SessionID        string
+    SessionIDs       []string // any-of + conv: tags
+    TimeFrom, TimeTo *time.Time
     Tag, TagPrefix, Query string
-    Limit int            // default 50
-    Tier *MemoryTier
+    Limit            int  // default 50
+    Tier             *MemoryTier
     IncludeArchival, Ascending bool
 }
 func (ps *PalaceStore) ListMemoryWithOptions(opts ListMemoryOptions) []MemoryEntry
 ```
 
-`Write` / unlink **patch** a clean in-memory meta index (and optional durable snapshot). Dirty/missing index rebuilds lazily from tier JSON (O(n)). `DisableMetaIndex` / `DisableDurableIndex` exist for tests. FS files remain source of truth.
+`Write` / unlink **patch** a clean in-memory meta index (optional durable snapshot). Dirty/missing index rebuilds lazily from tier JSON (O(n)). FS files remain source of truth.
 
 ### K4 lite — Validity windows
 
@@ -82,16 +117,19 @@ func EntryValidAt(e MemoryEntry, asOf time.Time) bool
 func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry
 ```
 
-Tags: `valid_from:<RFC3339>` inclusive start; `valid_until:<RFC3339>` **exclusive** end. No tags → valid if event time is zero or `!eventTime.After(asOf)`.
+Tags: `valid_from:<RFC3339>` inclusive start; `valid_until:<RFC3339>` **exclusive** end. No tags → valid if event time is zero or `!eventTime.After(asOf)`. Compaction SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE stamp `valid_from` from the parent.
 
-### A3 lite — Supersession
+T4 tests ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): `ListFactsAsOf` after MERGE/SUMMARIZE still returns the product; sources move to archival without invented `valid_until`; ARCHIVE that only moves tiers stays valid at now. Dual-clock store is **not** shipped.
+
+### A3 lite — Supersession + latest-value retrieve
 
 ```go
 func (ps *PalaceStore) SupersedeEntityFacts(entityKey string, asOf time.Time) (int, error)
 func (ps *PalaceStore) WriteAndSupersede(entry MemoryEntry, supersedeKeys []string) error
+func AssembleLatestValueEvidence(query string, facts []MemoryEntry) string
 ```
 
-Closes prior open windows for an explicit entity key. Does not delete entries. Does not run NLP.
+`Supersede*` closes prior open windows for an **explicit** entity key (no NLP). `AssembleLatestValueEvidence` ranks dollar/scalar facts later-`Timestamp` first for amount / pre-approved queries ([#122](https://github.com/iome-sh/memory/pull/122)). LongMemEval retrieve may prepend a synthetic `latest_value_evidence` hit (not persisted).
 
 ### A2 lite — Multi-hop
 
@@ -100,66 +138,68 @@ func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry
 func (ps *PalaceStore) ExpandRelatedEntitiesHops(seed string, maxHops int) map[string]int
 ```
 
-BFS on `GetRelatedEntities`, collect by `entity:` tags, default **shorter hop first**. Not typed-edge weights.
+BFS on `GetRelatedEntities`, collect by `entity:` tags, default **shorter hop first**. `MultiHopOptions.SessionIDs` is any-of. Not typed-edge weights.
+
+### T1 helpers (v1.5.12 + unreleased)
+
+```go
+func ConvTag(id string) string
+func AssembleCountEvidence(query string, facts []MemoryEntry) string
+func AssembleTemporalEvidence(query string, facts []MemoryEntry) string
+```
+
+Count queries are **not** calendar windows. They union matching `turn_fact` children across `conv:` sessions (`unionCountQueryFacts` over `collectSearchCandidates`), rank named-pattern facts, diversify by session, then Limit. Clothing clusters are action×object (dry-clean / return / pick-up); N-header is clothing-only ([#124](https://github.com/iome-sh/memory/pull/124)); bullets are `1. 2. 3.` in cluster order ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). That does **not** invent “the answer is 3”. Unique-entity clusters cover kits, plants, hour+destination (catalogs today). Temporal evidence lists **text date phrases** separately from ingest `Timestamp`; which-first sorts by parsed text time. Dated-span how-many with ≥2 parsed text times appends `text dates N days apart (phrase → phrase)` ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`) — not ingest `Timestamp`, not a gold answer.
 
 ---
 
-## Future phases (next TODOs)
+## Performance map (shipped vs next)
 
-Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand → T5 last**. Do not start K3/Qwen3 or a dual-clock KG before T1 is measured.
+| Lever | Status | Notes |
+|-------|--------|-------|
+| Keyword-first retrieve | **Shipped** | Vector cannot bury a token hit past Limit |
+| Skip `QueryVec` on count / temporal-order | **Shipped** ([#122](https://github.com/iome-sh/memory/pull/122)) | Fake embedder must not run on those queries |
+| Batch ONNX scoring on LME retrieve | **Shipped** ([#114](https://github.com/iome-sh/memory/pull/114)) | Harness path; library `PersistEmbeddings` still default **off** |
+| Meta-index patch on Write | **Shipped** (v1.5.8) | First list after process start may rebuild |
+| Durable `indexes/event-time.json` | **Shipped** | Stamp mismatch → O(n) JSON walk |
+| T2 list-latency bench | **Shipped** ([#128](https://github.com/iome-sh/memory/pull/128) `376dd69`) | `BenchmarkListMemoryWithOptions_SessionTimeLimit` MetaIndex vs `DisableMetaIndex`; `BenchmarkSearchMemoryWithOptions_CountQuery` skip-vector vs `QueryVec`. Measured on in-flight [#131](https://github.com/iome-sh/memory/pull/131) (Apple M4, N=200, `-benchtime=500ms -count=1`; **not** on `main` yet): warmed MetaIndex **792540 ns/op**; DisableMetaIndex **5125908 ns/op**; CountQuery_SkipVector **5510644 ns/op**; NonCount_WithQueryVec **6502154 ns/op**. Rebuild is **not** the limiter at N=200 (filter/load of survivors dominates). btree stays **parked**. |
+| Count-union on search candidates | **Shipped** | `unionCountQueryFacts` over `collectSearchCandidates`. Do **not** claim a hot vector index. [#131](https://github.com/iome-sh/memory/pull/131) (in-flight) routes session/time/tier collect through the list meta index so count queries with `SessionID` do not walk every JSON. |
+| btree / tag secondaries | **T2**, parked | #131 measure: DisableMetaIndex gap is full JSON scan vs index filter, not a btree range. Warmed MetaIndex ~1ms at N=200 and N=2000. |
+| `ListFactsAsOf` scan | **T4-perf parked** | Still walks facts in tier JSON. Tests in #126 lock compaction visibility, not scan cost. |
+| Persist ONNX vectors | Opt-in | Default **off**. Hash never stored. |
+| usearch / ORT / Qdrant | Optional, off default path | Must not become required. Hash SearchMemory stays the zero-dep path. |
 
-### T1 — Multi-session temporal retrieve (**done** on n=12)
+---
 
-**Why:** Original K1 session filter is single-`SessionID`. LongMemEval `multi-session` items need facts **spread across several haystack sessions** in one `conv_id` palace. Flattening ingest onto `SessionID=conv_id` plus Limit filled by one noisy session buries count gold.
+## Future phases
 
-**Shipped this slice**
+Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader assembly). btree / typed edges stay gated on measured limiters, not on eval hunger.
 
-- `SearchMemoryOptions.SessionIDs` / `ListMemoryOptions.SessionIDs` / `FactsAsOfOptions.SessionIDs` / `MultiHopOptions.SessionIDs` (any-of)
-- `conv:<id>` tag match: retrieve with `SessionID=conv_id` still sees inner haystack sessions
-- Session-diverse ranking before Limit (round-robin distinct `SessionID`s)
-- LongMemEval ingest passes per-turn `session_id` and stamps `conv:<conv_id>`
-- Count questions (`how many` / `how much`) are not treated as calendar windows
-- Count queries promote `turn_fact` / `fact_augmented` children before Limit
-- Count queries rank named-pattern facts (led/leading+project, bought, spent, …) above fallback chatter
-- Count queries collect matching `turn_fact` children across the palace/`conv:` session set (stemmed noun overlap), not only the keyword hit list, then diversify+Limit
-- `AssembleCountEvidence` compact unique snippets (LongMemEval retrieve prepends a synthetic hit; not persisted)
-- Clothing-errand named extract (dry-clean, pick-up/return × boot/blazer/Zara; not poster/case-competition)
-- `AssembleCountEvidence` diversifies clothing counts by action+object (one snippet per cluster; compound return+pick-up is two bullets; dry-clean kept on pick/return/store queries)
-- Unique-entity count clusters: kit identity (dedupe repeated B-29), plant names (two plants in one turn are two clusters), hour+destination (word numbers)
-- Temporal dated-event evidence: text date phrase vs ingest Timestamp; which-first sorts by parsed text time; dated-span how-many-days lists bullets and, with ≥2 parsed text times, appends `text dates N days apart (phrase → phrase)` (not ingest Timestamp, not a gold answer); search promotes event-name hits
+### T1 residuals (after v1.5.12)
 
-**Measure (2026-09-12):**
+**Shipped** (see helpers above). **Done-when on n=12 MiniLM+BGE multi-session 0/2** was met at Wave E/F.
 
-- `ef6a3e9` T1 retrieve only: MiniLM/BGE **10/12**, `multi-session` **0/2**; all inner sessions in k=40.
-- `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
-- `2695e02` (#110) Wave D: MiniLM **11/12** `multi-session` **1/2** (clothes pass); BGE **10/12** **0/2**; hash **9/12** **0/2**. Projects (`6d550036`) still miss. T1 done-when not met.
-- `f99c140` (#111) Wave E: MiniLM **12/12** `multi-session` **2/2**; BGE **11/12** **1/2**; hash **11/12** **1/2**. Projects pass all three. T1 done-when met. Residual n=12 miss: clothes (`0a995998` gold 3) on hash/BGE — this slice. Do not invent a remesure score.
-- `aa64dbc` (#115 on #114) Wave F: MiniLM **12/12** `multi-session` **2/2**; BGE **12/12** **2/2**; hash **11/12** **2/2**. Clothes pass all three. Residual: hash temporal `gpt4_2487a7cb`.
-- `b02abaf` (#119) Wave G: hash/MiniLM/BGE **11/12** `multi-session` **1/2**. Temporal `gpt4_2487a7cb` pass all three. Clothes (`0a995998` gold 3) miss all three (reader summed 2; retrieve still 3 clusters). Projects pass. `#120` not in this kernel.
-- `895f255` (#120) Wave H: hash **11/12** MS **1/2**; MiniLM **10/12** MS **0/2**; BGE **11/12** MS **1/2**. Clothes miss all three (`Count evidence (3 distinct items)` present; reader summed 2). MiniLM projects miss (`8 distinct items`). Temporal pass. `#122` not this kernel.
+**Still open**
 
-**Still open for T1:** Wave H (`#120`) did not close clothes; MiniLM projects regressed. Header N is correct for clothes (3) and noisy for projects (8). Next: locked mixed **n=60**. Do not invent a `#122` remesure score. Not a README number.
+| Residual | Evidence | Next slice |
+|----------|----------|------------|
+| Clothes gold 3, reader sums 2 | Waves G–H: 3 clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Remesure **TBD** — do not invent. Does not invent “the answer is 3”. |
+| Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)) — remesure after #122+#124+#127 |
+| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | Remesure n=60 on #119+#122+#124; generalize catalogs (**T7**) |
+| Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`): `text dates N days apart (phrase → phrase)` from parsed text times. Remesure **TBD**. Does not invent gold. |
+| KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)) — remesure |
+| Skip-vector + #124 + #127 n=12 | not remesured | Wave after #122+#124+#127 |
 
-**In scope (measure)**
-
-- Palace-side retrieve that can seed from **several** `SessionID`s (or “all sessions in this palace / conv”) without dropping keyword gold past `Limit`
-- Time-aware expansion that does **not** classify ordinary count questions as a calendar window and hide gold
-- Optional: assemble `ExtractedFacts` / facts-as-of across sessions before the reader (kernel helper, not an LLM) — **shipped** (`AssembleCountEvidence` unique-entity clusters + `AssembleTemporalEvidence` dated bullets)
-- Re-run locked mixed **n=12** (same IDs) then **n=60** (`testdata/longmemeval_baseline_ids_n60.json`) after the change
-
-**Out of scope**
-
-- Publishing a LongMemEval leaderboard number
-- Changing default embedder to Qwen3
-- Multi-process writers / flock
-
-**Done when:** `multi-session` on the locked n=12 list is no longer 0/2 on MiniLM **and** BGE (hash may still lag). Same judge pin. Isolated palace per embed mode.
+**Out of scope:** publishing a LongMemEval leaderboard number; default embedder Qwen3; flock.
 
 ### T2 — Event-time index beyond patch
 
-**Why:** Original K2 residual. Patch + durable snapshot are enough for laptop palaces. First list after process start still walks JSON.
+**Why:** First list after process start still walks JSON when the durable stamp mismatches.
 
-**In scope:** optional btree / tag secondary if `MetaIndexRebuilds` or list latency shows up in T1 benches. Keep FS as source of truth.
+**Bench shipped:** [#128](https://github.com/iome-sh/memory/pull/128) `376dd69` — `BenchmarkListMemoryWithOptions_SessionTimeLimit` (MetaIndex vs `DisableMetaIndex`) and `BenchmarkSearchMemoryWithOptions_CountQuery` (skip-vector vs `QueryVec`).
+
+**Start btree / tag secondaries when:** that bench (or `MetaIndexRebuilds` in a laptop-palace dogfood) shows **rebuild**, not filter/Limit, as the limiter. In-flight [#131](https://github.com/iome-sh/memory/pull/131) (Apple M4) measured warmed MetaIndex **792540 ns/op** vs DisableMetaIndex **5125908 ns/op** at N=200; first-list rebuild is **not** the limiter. btree stays **parked**. Laptop palaces of a few thousand entries stay on the patch.
+
+**In scope:** optional btree / tag secondary; keep FS as source of truth; opt-out flags stay.
 
 **Measure (2026-09-12):** warmed `ListMemoryWithOptions` at N=200 is ~1ms on the meta index; first-list rebuild is not the limiter vs filter/load of survivors. N=2000 warmed stays ~1ms (same session+time survivor set). btree / tag secondaries **parked**. Search/count candidates now reuse the list meta index for session/time/tier (`DisableMetaIndex` opt-out).
 
@@ -167,30 +207,92 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 
 ### T3 — Temporal relation edges
 
-**Why:** Original K4/A2 residual. `AddEntityRelationship` is untimed adjacency. As-of graph walk needs `valid_from` / `valid_until` on edges, not only on entries.
+**Why:** `AddEntityRelationship` is untimed adjacency. As-of graph walk needs `valid_from` / `valid_until` on **edges**, not only entries.
 
-**Start only if** T1 still misses after session-set retrieve — i.e. the gold lives on a **relation** that should have expired.
+**Sketch (do not ship until gated):**
 
-### T4 — Compaction vs validity
+```text
+edge: { from, to, rel, valid_from?, valid_until? }
+walk: skip edges where !validAt(asOf)
+```
 
-**Why:** Ingest children stamp `valid_from`; compaction products stamp. MERGE / SUMMARIZE / ARCHIVE must not drop or invent validity windows.
+**Start only if** a measured miss is an **expired relation** (gold lives on an edge that should have closed). n=12/n=60 misses so far are counts, dated events, and latest-value — **not** expired edges. Park.
 
-**In scope:** compaction tests that `ListFactsAsOf` after MERGE/SUMMARIZE still matches `EntryValidAt`. No new dual-clock store.
+### T4 — Compaction vs validity (tests shipped)
+
+**Why:** Ingest children stamp `valid_from`; MERGE / SUMMARIZE / ARCHIVE must not drop or invent validity windows.
+
+**Shipped:** `applyParentSessionAndValidFrom` on SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE products; unit tests that the product has `valid_from` and `EntryValidAt(now)`.
+
+**T4 tests shipped** ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`):
+
+- `ListFactsAsOf` after MERGE/SUMMARIZE still returns the product
+- sources archived, not current-tier
+- no invented `valid_until`
+- ARCHIVE tier-move stays valid at now (`IncludeArchival` to see it)
+
+Dual-clock store is **not** this slice (see **T8**). T4-perf (`ListFactsAsOf` still scans facts) stays parked until a measured as-of list is the limiter.
 
 ### T5 — Embedding profiles (original K3)
 
-Keep **BGE-small-en-v1.5 384-d** as the documented ONNX default. MiniLM is the in-tree fallback when BGE is missing. `PersistEmbeddings` stays default **off**.
+Keep **BGE-small-en-v1.5 384-d** as the documented ONNX default. MiniLM is the in-tree fallback. `PersistEmbeddings` stays default **off**.
 
-Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concrete consumer needs it. Document re-index if Qdrant collection dim changes. No silent default flip.
+Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concrete consumer needs it. Document re-index if Qdrant collection dim changes. No silent default flip. Last, consumer-driven.
+
+### T6 — Dated-span text-date delta (**shipped**)
+
+**Why:** n=60 TR class includes how-many-days-between. Dated bullets already exist (`AssembleTemporalEvidence` labels the **text** date phrase separately from ingest `Timestamp`). The reader still had to do arithmetic of **parsed text dates**. Using ingest `Timestamp` as the delta is the wrong clock.
+
+**Shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`):
+
+- Dated-span queries with **≥2 parsed text times** append `text dates N days apart (phrase → phrase)`
+- N is the UTC calendar-day difference of those parsed text times, **not** of ingest `Timestamp`
+- One dated bullet → no delta line; which-first stays bullets-only
+- Does **not** invent gold (“the answer is N”)
+- Does **not** treat how-many-days-between as a calendar-window filter
+
+Remesure of n=60 TR days-between is **TBD**.
+
+### T7 — Generalized unique-entity clusters
+
+**Why:** n=60 kits / hours miss. Current unique-entity path uses small catalogs (B-29, Spitfire, Outer Banks, …). That overfits the locked slice.
+
+**In scope:**
+
+- Hours: destination after `N hours to/in/for/at` (not only the dest catalog)
+- Kits: `… kit` noun phrases (repeated identity still one cluster)
+- Existing catalogs stay as **aliases**, not the only matcher
+
+**Out of scope:** clothing path changes; `(N distinct items)` on unique-entity; inventing “the answer is N”.
+
+**Status:** next slice. No kernel PR cited on `main` as of this doc.
+
+### T8 — Dual-clock store (parked)
+
+Three clocks are easy to conflate:
+
+| Clock | What it is in this kernel today |
+|-------|----------------------------------|
+| Event time | `Timestamp` (when the turn happened) |
+| Validity window | `valid_from` / `valid_until` tags (`EntryValidAt`) |
+| Transaction time | **Not stored.** Write time is not a first-class as-of axis. |
+
+A dual-clock store would record **when the row was written** separately from event time and from the validity window, so “what did the palace believe on date T?” can differ from “what was true in the world on date T?”.
+
+**Start only if** a measured miss is an **expired window** / compaction that ate gold because transaction time and validity were the same field. T4 tests already lock `ListFactsAsOf` after MERGE/SUMMARIZE. n=12/n=60 misses so far are not that class. Park.
 
 ---
 
 ## Suggested implementation order
 
-1. **T1** multi-session retrieve (API + ingest + ranking shipped) — Wave H n=12 on `#120` recorded; clothes still reader-side; next locked mixed **n=60** (do not invent remesure scores)
-2. **T2** only if timeline list / rebuild cost is the limiter
-3. **T3 / T4** when T1 evidence says edges or compaction ate the gold
-4. **T5** last, consumer-driven
+1. **Remesure n=12** after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) (do not invent)
+2. **Remesure n=60** after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129) (do not invent; the v1.5.12 n=60 row above is **before** #119)
+3. **T6** dated-span text-date delta — **shipped** [#129](https://github.com/iome-sh/memory/pull/129)
+4. **T7** generalized unique-entity
+5. **T2 btree** only if the [#128](https://github.com/iome-sh/memory/pull/128) bench says rebuild is the limiter — [#131](https://github.com/iome-sh/memory/pull/131) measure parks it
+6. **T3** typed edges only if gold is an expired relation
+7. **T8** dual-clock only if an expired-window miss shows up
+8. **T5** Qwen3 last, consumer-driven
 
 ---
 
@@ -199,3 +301,14 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 - Prefer new options fields and methods over breaking `SearchMemory` signatures
 - Embedding dimension changes require Qdrant collection recreation; note in the release
 - v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card · v1.5.12 T1 SessionIDs / conv tags / count assembly
+- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta
+
+---
+
+## Honesty
+
+- Eval numbers in this document are **unpublished**. They are not a README number and not official V1 (official V1 remains mixed n=500 + BGE-small-en-v1.5 + judge `gpt-4o-2024-08-06`, reproduced twice — see [LONGMEMEVAL.md](./LONGMEMEVAL.md)).
+- `PersistEmbeddings` defaults **off**. Hash / empty / `"hash"` models **never** persist `GenerateSimpleEmbedding` vectors as stored vectors or as `QueryVec`.
+- Flock is **not** shipped. Supported topology is **one process per palace root**.
+- Do not start Qwen3 or a dual-clock knowledge graph to chase n=12 clothes. That miss is reader assembly (clusters are in retrieve; the reader still summed 2). Numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)) are a kernel nudge, not a gold answer.
+- btree / typed edges / Qwen3 default stay gated as written above.
