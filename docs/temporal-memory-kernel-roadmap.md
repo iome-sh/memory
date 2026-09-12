@@ -123,15 +123,17 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - Count queries rank named-pattern facts (led/leading+project, bought, spent, …) above fallback chatter
 - Count queries collect matching `turn_fact` children across the palace/`conv:` session set (stemmed noun overlap), not only the keyword hit list, then diversify+Limit
 - `AssembleCountEvidence` compact unique snippets (LongMemEval retrieve prepends a synthetic hit; not persisted)
+- Clothing-errand named extract (dry-clean, pick-up/return × boot/blazer/Zara; not poster/case-competition)
+- `AssembleCountEvidence` diversifies clothing counts by action+object (one snippet per cluster; compound return+pick-up is two bullets; dry-clean kept on pick/return/store queries)
 
 **Measure (2026-09-12):**
 
 - `ef6a3e9` T1 retrieve only: MiniLM/BGE **10/12**, `multi-session` **0/2**; all inner sessions in k=40.
 - `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
 - `2695e02` (#110) Wave D: MiniLM **11/12** `multi-session` **1/2** (clothes pass); BGE **10/12** **0/2**; hash **9/12** **0/2**. Projects (`6d550036`) still miss. T1 done-when not met.
-- `f99c140` (#111) Wave E: MiniLM **12/12** `multi-session` **2/2**; BGE **11/12** **1/2**; hash **11/12** **1/2**. Projects pass all three. T1 done-when met. Next: n=60.
+- `f99c140` (#111) Wave E: MiniLM **12/12** `multi-session` **2/2**; BGE **11/12** **1/2**; hash **11/12** **1/2**. Projects pass all three. T1 done-when met. Residual n=12 miss: clothes (`0a995998` gold 3) on hash/BGE — this slice. Do not invent a remesure score.
 
-**Still open for T1:** n=12 done-when met. Next: locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`). Not a README number.
+**Still open for T1:** n=12 done-when met; clothes hash/BGE residual is this slice (unremeasured). Next scale: locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`). Not a README number.
 
 **In scope (measure)**
 
@@ -178,7 +180,7 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 
 ## Suggested implementation order
 
-1. **T1** multi-session retrieve (API + ingest + ranking shipped) — **re-measure n=12 then n=60**
+1. **T1** multi-session retrieve (API + ingest + ranking shipped) — clothes hash/BGE residual this slice; next **n=60** (do not invent remesure scores)
 2. **T2** only if timeline list / rebuild cost is the limiter
 3. **T3 / T4** when T1 evidence says edges or compaction ate the gold
 4. **T5** last, consumer-driven

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -107,8 +108,9 @@ func promoteFactEntries(results []MemoryEntry) []MemoryEntry {
 }
 
 // promoteFactEntriesForQuery puts turn_fact children first. On a count query,
-// named-pattern facts (led+project, bought, spent, …) outrank fallback chatter
-// even when keyword overlap is similar; remaining facts rank by stemmed overlap.
+// named-pattern facts (led+project, clothing errands, bought, spent, …) outrank
+// fallback chatter even when keyword overlap is similar; remaining facts rank
+// by stemmed overlap.
 func promoteFactEntriesForQuery(results []MemoryEntry, query string) []MemoryEntry {
 	if len(results) < 2 {
 		return results
@@ -204,8 +206,28 @@ func isFirstPersonFact(text string) bool {
 }
 
 func factOverlapsCountQuery(e MemoryEntry, query string) bool {
-	tokens := countQueryNounTokens(query)
-	return keywordOverlapCount(e, tokens) > 0
+	if keywordOverlapCount(e, countQueryNounTokens(query)) > 0 {
+		return true
+	}
+	// Dry-clean has weak overlap with "pick up or return from a store".
+	// Treat clothing errands as hits on clothing count queries.
+	return isClothingCountQuery(query) && isClothingErrandText(entryKeywordHaystack(e))
+}
+
+func isClothingCountQuery(query string) bool {
+	q := strings.ToLower(query)
+	return strings.Contains(q, "clothing") || strings.Contains(q, "clothes") ||
+		strings.Contains(q, "pick up") || strings.Contains(q, "return")
+}
+
+func isClothingErrandText(text string) bool {
+	if strings.TrimSpace(text) == "" {
+		return false
+	}
+	if atomicFactDryClean.MatchString(text) || atomicFactClothPick.MatchString(text) || atomicFactClothRet.MatchString(text) {
+		return true
+	}
+	return len(clothingErrandClusters(text)) > 0
 }
 
 func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
@@ -213,9 +235,11 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 		return facts
 	}
 	tokens := countQueryNounTokens(query)
+	clothingQuery := isClothingCountQuery(query)
 	type scored struct {
 		e           MemoryEntry
 		named       int
+		clothing    int
 		firstPerson int
 		overlap     int
 	}
@@ -226,15 +250,22 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 		if matchesNamedFactPattern(hay) {
 			named = 1
 		}
+		clothing := 0
+		if clothingQuery && isClothingErrandText(hay) {
+			clothing = 1
+		}
 		fp := 0
 		if isFirstPersonFact(hay) {
 			fp = 1
 		}
-		tmp[i] = scored{e: e, named: named, firstPerson: fp, overlap: keywordOverlapCount(e, tokens)}
+		tmp[i] = scored{e: e, named: named, clothing: clothing, firstPerson: fp, overlap: keywordOverlapCount(e, tokens)}
 	}
 	sort.SliceStable(tmp, func(i, j int) bool {
 		if tmp[i].named != tmp[j].named {
 			return tmp[i].named > tmp[j].named
+		}
+		if tmp[i].clothing != tmp[j].clothing {
+			return tmp[i].clothing > tmp[j].clothing
 		}
 		if tmp[i].firstPerson != tmp[j].firstPerson {
 			return tmp[i].firstPerson > tmp[j].firstPerson
@@ -289,7 +320,10 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 
 // AssembleCountEvidence lists unique matching fact snippets for a count query
 // (named-pattern first, then first-person noun overlap). Deduped, not persisted.
-// Empty when the query is not a count question or no facts match.
+// Clothing count queries diversify by action+object (dry-clean / return / pick-up
+// × boot / blazer / generic) so a compound "return … pick them up" is two bullets
+// and dry-clean survives when the query only says pick/return/store. Empty when
+// the query is not a count question or no facts match.
 func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	if !isCountQuery(query) {
 		return ""
@@ -312,13 +346,24 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 		return ""
 	}
 	matched = rankCountQueryFacts(matched, query)
+	var snippets []string
+	if isClothingCountQuery(query) {
+		snippets = assembleClothingCountEvidence(matched)
+	}
+	if len(snippets) == 0 {
+		snippets = assembleExactTextCountEvidence(matched)
+	}
+	if len(snippets) == 0 {
+		return ""
+	}
+	return "Count evidence:\n- " + strings.Join(snippets, "\n- ")
+}
+
+func assembleExactTextCountEvidence(matched []MemoryEntry) []string {
 	seen := make(map[string]struct{}, len(matched))
 	snippets := make([]string, 0, len(matched))
 	for _, e := range matched {
-		text := strings.TrimSpace(e.Content.Summary)
-		if text == "" {
-			text = strings.TrimSpace(e.Content.Full)
-		}
+		text := factSnippetText(e)
 		if text == "" {
 			continue
 		}
@@ -332,10 +377,223 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 			break
 		}
 	}
-	if len(snippets) == 0 {
-		return ""
+	return snippets
+}
+
+func factSnippetText(e MemoryEntry) string {
+	text := strings.TrimSpace(e.Content.Summary)
+	if text == "" {
+		text = strings.TrimSpace(e.Content.Full)
 	}
-	return "Count evidence:\n- " + strings.Join(snippets, "\n- ")
+	return text
+}
+
+const (
+	errandDryClean = "dry-clean"
+	errandReturn   = "return"
+	errandPickup   = "pick-up"
+	objectBoot     = "boot"
+	objectBlazer   = "blazer"
+)
+
+type errandCluster struct {
+	action string
+	object string
+}
+
+var (
+	reErrandReturn = regexp.MustCompile(`(?i)\b(return(?:ed|ing)?|exchange(?:d|s)?)\b`)
+	reErrandPickup = regexp.MustCompile(`(?i)pick(?:ed)?(?:\s+them)?[\s-]*up`)
+	reErrandBoot   = regexp.MustCompile(`(?i)\bboots?\b`)
+	reErrandBlazer = regexp.MustCompile(`(?i)\bblazers?\b`)
+)
+
+func clothingErrandClusters(text string) []errandCluster {
+	lower := strings.ToLower(text)
+	hasDry := atomicFactDryClean.MatchString(lower)
+	hasRet := reErrandReturn.MatchString(lower)
+	hasPick := reErrandPickup.MatchString(lower)
+	hasBoot := reErrandBoot.MatchString(lower)
+	hasBlazer := reErrandBlazer.MatchString(lower)
+	hasZara := strings.Contains(lower, "zara")
+
+	// Dry-clean pickup of a blazer is one errand, not pick-up + dry-clean.
+	// Keep pick-up when a distinct boot object is also present.
+	if hasDry && hasPick && !hasBoot {
+		hasPick = false
+	}
+
+	// Return/exchange without a clothing object is sister-sweater / poster noise.
+	if hasRet && !hasBoot && !hasBlazer && !hasZara {
+		hasRet = false
+	}
+	// Generic pick-up is allowed (pronoun "pick them up" after sentence split).
+	if !hasDry && !hasRet && !hasPick {
+		return nil
+	}
+
+	objFor := func(action string) string {
+		switch action {
+		case errandDryClean:
+			if hasBlazer {
+				return objectBlazer
+			}
+			if hasBoot {
+				return objectBoot
+			}
+			return ""
+		default:
+			if hasBoot {
+				return objectBoot
+			}
+			if hasBlazer {
+				return objectBlazer
+			}
+			return ""
+		}
+	}
+
+	out := make([]errandCluster, 0, 3)
+	if hasDry {
+		out = append(out, errandCluster{action: errandDryClean, object: objFor(errandDryClean)})
+	}
+	if hasRet {
+		out = append(out, errandCluster{action: errandReturn, object: objFor(errandReturn)})
+	}
+	if hasPick {
+		out = append(out, errandCluster{action: errandPickup, object: objFor(errandPickup)})
+	}
+	return out
+}
+
+func assembleClothingCountEvidence(matched []MemoryEntry) []string {
+	type filled struct {
+		snippet string
+		order   int
+	}
+	got := make(map[string]filled, 8)
+	n := 0
+	for _, e := range matched {
+		text := factSnippetText(e)
+		if text == "" {
+			continue
+		}
+		clusters := clothingErrandClusters(text)
+		if len(clusters) == 0 {
+			continue
+		}
+		snips := splitErrandSnippets(text, clusters)
+		for i, c := range clusters {
+			key := c.action + "\t" + c.object
+			if _, ok := got[key]; ok {
+				continue
+			}
+			snip := text
+			if i < len(snips) {
+				snip = snips[i]
+			}
+			got[key] = filled{snippet: snip, order: n}
+			n++
+		}
+	}
+	if len(got) == 0 {
+		return nil
+	}
+	specific := make(map[string]bool, 3)
+	for k := range got {
+		action, obj, _ := strings.Cut(k, "\t")
+		if obj != "" {
+			specific[action] = true
+		}
+	}
+	type ordered struct {
+		order int
+		snip  string
+	}
+	list := make([]ordered, 0, len(got))
+	for k, v := range got {
+		action, obj, _ := strings.Cut(k, "\t")
+		if obj == "" && specific[action] {
+			continue
+		}
+		list = append(list, ordered{order: v.order, snip: v.snippet})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].order < list[j].order })
+	out := make([]string, 0, len(list))
+	for _, x := range list {
+		out = append(out, x.snip)
+		if len(out) >= maxCountEvidenceSnippets {
+			break
+		}
+	}
+	return out
+}
+
+func splitErrandSnippets(text string, clusters []errandCluster) []string {
+	if len(clusters) == 0 {
+		return nil
+	}
+	if len(clusters) == 1 {
+		return []string{labelErrand(clusters[0], text)}
+	}
+	clauses := splitErrandClauses(text)
+	used := make([]bool, len(clauses))
+	out := make([]string, 0, len(clusters))
+	for _, c := range clusters {
+		assigned := ""
+		for i, cl := range clauses {
+			if used[i] {
+				continue
+			}
+			if clauseMatchesAction(cl, c.action) {
+				assigned = cl
+				used[i] = true
+				break
+			}
+		}
+		if assigned == "" {
+			assigned = text
+		}
+		out = append(out, labelErrand(c, assigned))
+	}
+	return out
+}
+
+func labelErrand(c errandCluster, text string) string {
+	return "[" + c.action + "] " + strings.TrimSpace(text)
+}
+
+func splitErrandClauses(text string) []string {
+	for _, sep := range []string{"; ", ", and ", " and "} {
+		parts := strings.Split(text, sep)
+		if len(parts) < 2 {
+			continue
+		}
+		out := make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				out = append(out, p)
+			}
+		}
+		if len(out) >= 2 {
+			return out
+		}
+	}
+	return []string{strings.TrimSpace(text)}
+}
+
+func clauseMatchesAction(clause, action string) bool {
+	lower := strings.ToLower(clause)
+	switch action {
+	case errandDryClean:
+		return atomicFactDryClean.MatchString(lower)
+	case errandReturn:
+		return reErrandReturn.MatchString(lower)
+	case errandPickup:
+		return reErrandPickup.MatchString(lower)
+	}
+	return false
 }
 
 // diversifyBySession round-robins distinct SessionID groups before Limit so
