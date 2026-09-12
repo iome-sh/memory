@@ -20,6 +20,7 @@ Kernel-only · not Memory GA · dual_write OFF.
 - **Default write path unchanged:** `PersistEmbeddings` defaults false; hash SearchMemory / ingest behavior is unchanged unless a caller opts into a non-hash model. Kernel-only · not Memory GA · dual_write OFF.
 - **Buyer table + naming collision (docs):** README states when to use Palace versus Mem0 / Graphiti / Letta / Cognee / LangMem, and that MemPalace/`mempalace` is an unrelated Python project.
 - **Single-writer contract (docs):** README + SECURITY.md name one process per palace root as the supported topology (multi-process writers unsupported — product contract).
+- **gofmt / EditorConfig:** `.editorconfig` pins `*.go` to **tabs** (`indent_style=tab`, `indent_size=8`) — the `gofmt` standard. `embedding_persist.go` and the rest of the tree are `gofmt -w` / `make fmt-check` clean (tabs, not spaces). Kernel-only · not Memory GA · dual_write OFF.
 
 ## [1.5.10] — 2026-09-10
 
