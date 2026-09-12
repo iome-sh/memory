@@ -366,11 +366,13 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // quantity queries cluster by distinctive object (kit identity, plant name,
 // hour+destination) so a repeated B-29 is one kit and two plants in one turn
 // are two clusters. Clothing action×object clusters prefix
-// "Count evidence (N distinct items):" because those clusters are designed to
-// equal gold 3. Unique-entity and exact-text paths prefix "Count evidence:"
-// without N (cluster count is not gold). Dated-span “how many days
+// "Count evidence (N distinct items):" and numbered bullets (1. 2. 3. in
+// cluster order) so a reader can enumerate clusters. Unique-entity and
+// exact-text paths prefix "Count evidence:" without N and stay unnumbered
+// (cluster count is not gold). Dated-span “how many days
 // between” is not assembled here (see AssembleTemporalEvidence). Empty when
-// the query is not a count question or no facts match.
+// the query is not a count question or no facts match. Does not invent a
+// numeric gold.
 func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	if !isCountQuery(query) || isDatedSpanQuery(query) || isLatestValueQuery(query) {
 		return ""
@@ -409,15 +411,36 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 		return ""
 	}
 	if fromClothing {
-		return formatEvidenceBlock("Count evidence", len(snippets), "items", snippets)
+		return formatNumberedEvidenceBlock("Count evidence", len(snippets), "items", snippets)
 	}
 	return "Count evidence:\n- " + strings.Join(snippets, "\n- ")
 }
 
-// formatEvidenceBlock prefixes a bullet list with the cluster count so a
+// formatEvidenceBlock prefixes a dash bullet list with the cluster count so a
 // reader can count distinct items/events. It does not print a gold answer.
 func formatEvidenceBlock(title string, n int, noun string, snippets []string) string {
 	return title + " (" + strconv.Itoa(n) + " distinct " + noun + "):\n- " + strings.Join(snippets, "\n- ")
+}
+
+// formatNumberedEvidenceBlock is the clothing count path: (N distinct items)
+// plus 1. 2. 3. bullets in cluster order. It does not print a gold answer.
+func formatNumberedEvidenceBlock(title string, n int, noun string, snippets []string) string {
+	var b strings.Builder
+	b.WriteString(title)
+	b.WriteString(" (")
+	b.WriteString(strconv.Itoa(n))
+	b.WriteString(" distinct ")
+	b.WriteString(noun)
+	b.WriteString("):\n")
+	for i, s := range snippets {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(strconv.Itoa(i + 1))
+		b.WriteString(". ")
+		b.WriteString(s)
+	}
+	return b.String()
 }
 
 func assembleExactTextCountEvidence(matched []MemoryEntry) []string {
