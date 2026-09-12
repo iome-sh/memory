@@ -19,11 +19,10 @@ import (
 func setupIngestHarness(t *testing.T, baseDir string) {
 	t.Helper()
 	t.Setenv(memory.EnvONNXModelPath, "")
-	embeddingDim = memory.DefaultHashEmbeddingDim
-	globalStore = memory.NewPalaceStoreWithConfig(memory.PalaceConfig{
-		BaseDir:       baseDir,
-		EmbeddingFunc: memory.GenerateSimpleEmbedding,
-	})
+	t.Setenv(envPersistEmbeddings, "")
+	h := hashHarnessEmbed()
+	embeddingDim = h.Dim
+	globalStore = memory.NewPalaceStoreWithConfig(palaceConfigFromEmbed(baseDir, h))
 	globalVectorStore = memory.NewVectorStore("", "longmemeval_memory")
 	*flagEnableTurnGranularity = true
 	*flagEnableTimeAware = false

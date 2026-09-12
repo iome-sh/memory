@@ -21,27 +21,25 @@ func setupTestHarness(t *testing.T) {
 
 	modelDir := onnxModelDirForLongMemEvalTest(t)
 	t.Setenv(memory.EnvONNXModelPath, modelDir)
+	t.Setenv(envPersistEmbeddings, "")
 
 	baseDir := filepath.Join(t.TempDir(), "longmemeval_palace_v2")
 	if err := os.MkdirAll(baseDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	modelPath := strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath))
-	embeddingDim = memory.ResolveEmbeddingDim(modelPath)
-	embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
+	h, err := loadHarnessEmbedder()
 	if err != nil {
 		t.Fatalf("onnx embedding init failed: %v", err)
 	}
-	if embeddingDim != memory.MiniLMEmbeddingDim {
-		t.Fatalf("embedding dim = %d, want %d", embeddingDim, memory.MiniLMEmbeddingDim)
+	if !h.ONNX || h.Batch == nil {
+		t.Fatal("onnx harness must set EmbeddingFunc and BatchEmbeddingFunc")
 	}
-
-	cfg := memory.PalaceConfig{
-		BaseDir:       baseDir,
-		EmbeddingFunc: embedFn,
+	if h.Dim != memory.MiniLMEmbeddingDim {
+		t.Fatalf("embedding dim = %d, want %d", h.Dim, memory.MiniLMEmbeddingDim)
 	}
-	globalStore = memory.NewPalaceStoreWithConfig(cfg)
+	embeddingDim = h.Dim
+	globalStore = memory.NewPalaceStoreWithConfig(palaceConfigFromEmbed(baseDir, h))
 
 	// Smoke gate must not depend on Qdrant; file-based hybrid SearchMemory is enough.
 	globalVectorStore = memory.NewVectorStore("", "longmemeval_memory")

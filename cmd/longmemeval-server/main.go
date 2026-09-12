@@ -27,6 +27,19 @@ import (
 //   -fact-augmentation-level     0=off, 1=facts, 2=facts+keyphrases (default 2)
 //   -enable-chain-of-note        Use ReadWithChainOfNote for answer synthesis
 //
+// Env:
+//   MEMORY_ONNX_MODEL_PATH            ONNX model dir or .onnx file (empty = hash)
+//   LONGMEMEVAL_PERSIST_EMBEDDINGS    1/true = persist ONNX vectors on palace JSON
+//                                     (ignored for hash; default unset = off)
+//   LONGMEMEVAL_PALACE_ROOT           palace base dir
+//   LONGMEMEVAL_QDRANT_URL            optional Qdrant sidecar
+//   LONGMEMEVAL_ADDR                  listen addr (default :8765)
+//
+// ONNX mode sets PalaceConfig.EmbeddingFunc and BatchEmbeddingFunc (same as
+// cmd/longmemeval-bench) so retrieve scores candidates in one forward pass
+// when PersistEmbeddings is off (library default). Hash embeddings are never
+// persisted.
+//
 // Endpoints:
 //   POST /ingest     - Persist conversation turns (IngestTurn when enabled). Failed palace persist is not status ok.
 //   POST /retrieve   - File-based hybrid retrieval; Qdrant only if LONGMEMEVAL_QDRANT_URL is set
@@ -34,6 +47,8 @@ import (
 //   GET  /health
 //
 // Output format is compatible with LongMemEval official JSONL submission.
+//
+// Health embed_mode is hash / onnx-minilm-l6-v2 / onnx-bge-small-en-v1.5.
 
 // MemoryHit is the benchmark DTO.
 type MemoryHit struct {
@@ -99,6 +114,8 @@ type SynthesizeResponse struct {
 	JSON   string `json:"json,omitempty"`
 }
 
+const envPersistEmbeddings = "LONGMEMEVAL_PERSIST_EMBEDDINGS"
+
 var (
 	globalStore       *memory.PalaceStore
 	globalVectorStore *memory.VectorStore
@@ -111,6 +128,81 @@ var (
 	flagEnableChainOfNote     = flag.Bool("enable-chain-of-note", true, "Use ReadWithChainOfNote for synthesis")
 )
 
+// harnessEmbed is the LME server embedder (ONNX with batch, or hash fallback).
+type harnessEmbed struct {
+	Func    memory.EmbeddingFunc
+	Batch   memory.BatchEmbeddingFunc
+	Dim     int
+	ModelID string
+	ONNX    bool
+}
+
+func hashHarnessEmbed() harnessEmbed {
+	return harnessEmbed{
+		Func: memory.GenerateSimpleEmbedding,
+		Dim:  memory.DefaultHashEmbeddingDim,
+	}
+}
+
+func persistEmbeddingsRequested() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(envPersistEmbeddings))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func embeddingModelID(modelPath string) string {
+	base := strings.ToLower(filepath.Base(strings.TrimSpace(modelPath)))
+	switch {
+	case strings.Contains(base, "bge"):
+		return "bge-small-en-v1.5"
+	case strings.Contains(base, "minilm"):
+		return "all-MiniLM-L6-v2"
+	default:
+		return "onnx"
+	}
+}
+
+func palaceConfigFromEmbed(baseDir string, h harnessEmbed) memory.PalaceConfig {
+	cfg := memory.PalaceConfig{
+		BaseDir:            baseDir,
+		EmbeddingFunc:      h.Func,
+		BatchEmbeddingFunc: h.Batch,
+		EmbeddingDim:       h.Dim,
+	}
+	if !h.ONNX {
+		return cfg
+	}
+	cfg.EmbeddingModel = h.ModelID
+	if persistEmbeddingsRequested() {
+		cfg.PersistEmbeddings = true
+	}
+	return cfg
+}
+
+func loadHarnessEmbedder() (harnessEmbed, error) {
+	modelPath := strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath))
+	if modelPath == "" {
+		return hashHarnessEmbed(), nil
+	}
+	emb, err := memory.NewGONNXEmbedder(memory.GONNXOptions{
+		ModelPath: modelPath,
+		Strict:    os.Getenv(memory.EnvEmbeddingStrict) == "1" || strings.EqualFold(os.Getenv(memory.EnvEmbeddingStrict), "true"),
+	})
+	if err != nil {
+		return harnessEmbed{}, err
+	}
+	return harnessEmbed{
+		Func:    emb.Func(),
+		Batch:   emb.BatchFunc(),
+		Dim:     memory.ResolveEmbeddingDim(modelPath),
+		ModelID: embeddingModelID(modelPath),
+		ONNX:    true,
+	}, nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -120,24 +212,18 @@ func main() {
 	}
 	_ = os.MkdirAll(baseDir, 0755)
 
-	modelPath := strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath))
-	embeddingDim = memory.ResolveEmbeddingDim(modelPath)
-	embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
+	h, err := loadHarnessEmbedder()
 	if err != nil {
 		log.Printf("onnx embedding init failed (%v); falling back to hash dim=%d", err, memory.DefaultHashEmbeddingDim)
-		embedFn = memory.GenerateSimpleEmbedding
-		embeddingDim = memory.DefaultHashEmbeddingDim
-	} else if modelPath == "" {
-		log.Printf("embedding mode=hash dim=%d (set %s for ONNX MiniLM)", embeddingDim, memory.EnvONNXModelPath)
+		h = hashHarnessEmbed()
+	} else if !h.ONNX {
+		log.Printf("embedding mode=hash dim=%d (set %s for ONNX MiniLM)", h.Dim, memory.EnvONNXModelPath)
 	} else {
-		log.Printf("embedding mode=onnx dim=%d model=%s", embeddingDim, modelPath)
+		log.Printf("embedding mode=onnx dim=%d model=%s batch=1 persist=%v",
+			h.Dim, strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath)), persistEmbeddingsRequested())
 	}
-
-	cfg := memory.PalaceConfig{
-		BaseDir:       baseDir,
-		EmbeddingFunc: embedFn,
-	}
-	globalStore = memory.NewPalaceStoreWithConfig(cfg)
+	embeddingDim = h.Dim
+	globalStore = memory.NewPalaceStoreWithConfig(palaceConfigFromEmbed(baseDir, h))
 
 	// Qdrant is opt-in. Empty URL keeps ingest file-based (not live hybrid ingest).
 	// Palace persist is the ingest truth.
@@ -148,18 +234,7 @@ func main() {
 		log.Printf("qdrant opt-in url=%s (sidecar only; not live ingest)", qdrantURL)
 	}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]any{
-			"status":     "ok",
-			"embed_mode": embedMode(),
-			"features": map[string]any{
-				"turn_granularity":  *flagEnableTurnGranularity,
-				"time_aware":        *flagEnableTimeAware,
-				"fact_augmentation": *flagFactAugLevel,
-				"chain_of_note":     *flagEnableChainOfNote,
-			},
-		})
-	})
+	http.HandleFunc("/health", handleHealth)
 
 	http.HandleFunc("/ingest", handleIngest)
 	http.HandleFunc("/retrieve", handleRetrieve)
@@ -301,7 +376,9 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 
 	// File-based hybrid. Official QA must pass session_id so a shared palace
 	// is not other-session dominated (#55). Overlap-ranked keyword hits keep
-	// gold phrases ahead of OR-any-token flood (#56).
+	// gold phrases ahead of OR-any-token flood (#56). Always pass QueryVec
+	// (including count queries); the kernel still ranks keyword hits first.
+	// BatchEmbeddingFunc scores remaining candidates in one ONNX pass when set.
 	queryVec := globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
 	keywordResults := globalStore.SearchMemoryWithOptions(req.Query, memory.SearchMemoryOptions{
 		SessionID: sessionID,
@@ -360,6 +437,19 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(RetrieveResponse{Memories: hits})
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":     "ok",
+		"embed_mode": embedMode(),
+		"features": map[string]any{
+			"turn_granularity":  *flagEnableTurnGranularity,
+			"time_aware":        *flagEnableTimeAware,
+			"fact_augmentation": *flagFactAugLevel,
+			"chain_of_note":     *flagEnableChainOfNote,
+		},
+	})
 }
 
 func embedMode() string {

@@ -17,15 +17,14 @@ import (
 func setupHashHarness(t *testing.T) {
 	t.Helper()
 	t.Setenv(memory.EnvONNXModelPath, "")
+	t.Setenv(envPersistEmbeddings, "")
 	baseDir := filepath.Join(t.TempDir(), "lme_hash")
 	if err := os.MkdirAll(baseDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	embeddingDim = memory.DefaultHashEmbeddingDim
-	globalStore = memory.NewPalaceStoreWithConfig(memory.PalaceConfig{
-		BaseDir:       baseDir,
-		EmbeddingFunc: memory.GenerateSimpleEmbedding,
-	})
+	h := hashHarnessEmbed()
+	embeddingDim = h.Dim
+	globalStore = memory.NewPalaceStoreWithConfig(palaceConfigFromEmbed(baseDir, h))
 	globalVectorStore = memory.NewVectorStore("", "longmemeval_memory")
 	*flagEnableTurnGranularity = true
 	*flagEnableTimeAware = false
@@ -82,6 +81,52 @@ func TestLongMemEval_HealthReportsEmbedMode(t *testing.T) {
 	setupHashHarness(t)
 	if got := embedMode(); got != "hash" {
 		t.Fatalf("embedMode = %q want hash", got)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", handleHealth)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("health status = %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := body["embed_mode"].(string); got != "hash" {
+		t.Fatalf("health embed_mode = %q want hash", got)
+	}
+}
+
+func TestLongMemEval_HealthEmbedModeDistinguishesONNX(t *testing.T) {
+	t.Setenv(memory.EnvONNXModelPath, "")
+	embeddingDim = memory.DefaultHashEmbeddingDim
+	if got := embedMode(); got != "hash" {
+		t.Fatalf("empty path embedMode = %q want hash", got)
+	}
+
+	embeddingDim = memory.MiniLMEmbeddingDim
+	t.Setenv(memory.EnvONNXModelPath, "/tmp/KnightsAnalytics_all-MiniLM-L6-v2")
+	if got := embedMode(); got != "onnx-minilm-l6-v2" {
+		t.Fatalf("minilm embedMode = %q", got)
+	}
+
+	t.Setenv(memory.EnvONNXModelPath, "/tmp/BAAI_bge-small-en-v1.5")
+	if got := embedMode(); got != "onnx-bge-small-en-v1.5" {
+		t.Fatalf("bge embedMode = %q", got)
+	}
+
+	embeddingDim = memory.DefaultHashEmbeddingDim
+	t.Setenv(memory.EnvONNXModelPath, "/tmp/BAAI_bge-small-en-v1.5")
+	if got := embedMode(); got != "hash" {
+		t.Fatalf("onnx path with hash dim embedMode = %q want hash (fallback)", got)
 	}
 }
 
