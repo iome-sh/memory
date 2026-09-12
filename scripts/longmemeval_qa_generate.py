@@ -109,7 +109,7 @@ def ingest_history(session: requests.Session, conv_id: str, history: List[Dict[s
         for turn in history
     ]
     payload = {"conv_id": conv_id, "turns": turns}
-    r = session.post(f"{SERVER_URL}/ingest", json=payload, timeout=120)
+    r = session.post(f"{SERVER_URL}/ingest", json=payload, timeout=int(os.environ.get("LONGMEMEVAL_INGEST_TIMEOUT", "300")))
     r.raise_for_status()
 
 
@@ -122,7 +122,7 @@ def retrieve_memories(
     payload: Dict[str, Any] = {"query": query, "limit": k}
     if session_id:
         payload["session_id"] = session_id
-    r = session.post(f"{SERVER_URL}/retrieve", json=payload, timeout=60)
+    r = session.post(f"{SERVER_URL}/retrieve", json=payload, timeout=int(os.environ.get("LONGMEMEVAL_RETRIEVE_TIMEOUT", "120")))
     r.raise_for_status()
     return r.json().get("memories", [])
 
@@ -230,6 +230,11 @@ def main() -> None:
     )
     parser.add_argument("--workers", type=int, default=4, help="Parallel OpenAI+HTTP workers")
     parser.add_argument(
+        "--ids-file",
+        default=os.environ.get("LONGMEMEVAL_IDS_FILE", ""),
+        help="JSON object with question_ids (locked mixed slice). Overrides --limit/--sample.",
+    )
+    parser.add_argument(
         "--server",
         default=os.environ.get("LONGMEMEVAL_SERVER", "http://localhost:8765"),
         help="LongMemEval server base URL",
@@ -257,7 +262,29 @@ def main() -> None:
         sys.exit(1)
 
     examples = load_dataset(args.dataset)
-    examples = apply_limit(examples, args.limit, args.sample, warn=lambda m: print(m, file=sys.stderr))
+    ids_file = (args.ids_file or "").strip()
+    if ids_file:
+        raw = json.loads(Path(ids_file).read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            want = [str(x) for x in (raw.get("question_ids") or raw.get("ids") or [])]
+        elif isinstance(raw, list):
+            want = [str(x) for x in raw]
+        else:
+            print(f"error: ids-file {ids_file} must be a JSON list or object with question_ids", file=sys.stderr)
+            sys.exit(2)
+        by_id = {}
+        for ex in examples:
+            qid = str(ex.get("question_id") or ex.get("id") or ex.get("qid") or "")
+            if qid:
+                by_id[qid] = ex
+        missing = [qid for qid in want if qid not in by_id]
+        if missing:
+            print(f"error: ids-file missing from dataset: {missing[:8]}", file=sys.stderr)
+            sys.exit(1)
+        examples = [by_id[qid] for qid in want]
+        print(f"ids-file={ids_file} n={len(examples)} (locked; ignores --limit/--sample)", file=sys.stderr)
+    else:
+        examples = apply_limit(examples, args.limit, args.sample, warn=lambda m: print(m, file=sys.stderr))
     hist = type_histogram(examples)
     print(f"slice n={len(examples)} sample={args.sample} types={hist}", file=sys.stderr)
 

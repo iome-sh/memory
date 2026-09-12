@@ -12,6 +12,13 @@ Companion walking skeleton (consume-clock / TTFH / cite-both) is
 [`examples/ttfh_rca`](../examples/ttfh_rca). A LongMemEval number does not move
 those clocks.
 
+Locked mixed **n=12** hash vs MiniLM vs BAAI BGE comparison (same IDs, same
+judge): [`docs/LONGMEMEVAL_BASELINE.md`](LONGMEMEVAL_BASELINE.md). That table is
+an **improvement baseline**, not official V1 and not a README number.
+`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face repo
+(auth 404). Comparable BGE ONNX is `BAAI/bge-small-en-v1.5` reshaped into
+hugot layout (`make longmemeval-baseline`).
+
 ## What official means
 
 | Label | What it is | What it is not |

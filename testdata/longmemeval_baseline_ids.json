@@ -1,0 +1,27 @@
+{
+  "n": 12,
+  "sample": "mixed",
+  "note": "Locked mixed slice from longmemeval_oracle.json via scripts/longmemeval_sample.py sample_mixed(n=12). Same IDs for hash vs MiniLM vs BAAI BGE. Not official V1 (n=12, not 500). Not a README number. Not Memory GA.",
+  "question_ids": [
+    "6a1eabeb",
+    "0a995998",
+    "7161e7e2",
+    "8a2466db",
+    "e47becba",
+    "gpt4_2655b836",
+    "6aeb4375",
+    "6d550036",
+    "c4f10528",
+    "06878be2",
+    "118b2229",
+    "gpt4_2487a7cb"
+  ],
+  "histogram": {
+    "knowledge-update": 2,
+    "multi-session": 2,
+    "single-session-assistant": 2,
+    "single-session-preference": 2,
+    "single-session-user": 2,
+    "temporal-reasoning": 2
+  }
+}
