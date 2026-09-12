@@ -3,7 +3,7 @@
 Ship from `main` via PR; cut annotated semver tags for Go module consumers.
 
 Public module: `github.com/iome-sh/memory`  
-Consumers: `go get github.com/iome-sh/memory@vX.Y.Z` (module proxy). This is a **library**, not product Memory GA.
+Consumers: `go get github.com/iome-sh/memory@vX.Y.Z` (module proxy). This is a **library**.
 
 ## When to bump and tag
 
@@ -13,7 +13,7 @@ Consumers: `go get github.com/iome-sh/memory@vX.Y.Z` (module proxy). This is a *
 |---------|------|----------|
 | New exported API surface (search/list/multihop/supersession/…) | **minor** or **patch** within `v1.5.x` as appropriate | `ListFactsAsOf`, `MultiHopRetrieve` options |
 | Breaking exported API (document clearly) | **minor** (pre-stability policy) or **major** | Rename/remove public funcs |
-| Docs-only / residual honesty pins | usually **no** tag | Ops residual gates, OSS process docs |
+| Docs-only / residual pins | usually **no** tag | Ops residual gates, OSS process docs |
 | Security fix on latest line | **patch** (`v1.5.y`) | CVE follow-up |
 
 Checklist items that must move with the tag:
@@ -28,7 +28,7 @@ Checklist items that must move with the tag:
 2. [ ] GitHub Actions **ci-success** green on the release commit  
 3. [ ] [CHANGELOG.md](CHANGELOG.md) updated  
 4. [ ] No secrets or palace data in tree  
-5. [ ] Honesty locks intact: kernel-only · not Memory GA · dual_write OFF product path  
+5. [ ] Scope intact: library kernel on a local filesystem palace  
 6. [ ] Annotated tag `vX.Y.Z` pushed  
 
 ## Tag and publish (maintainers)
@@ -55,7 +55,7 @@ git push origin vX.Y.Z
 
 ## Support / version policy
 
-Clear support window for **`github.com/iome-sh/memory`** so integrators know what is maintained. Support docs ≠ product Memory GA and ≠ forever-green release machinery.
+Clear support window for **`github.com/iome-sh/memory`** so integrators know what is maintained. Support docs are not forever-green release machinery.
 
 ### What is supported
 
@@ -112,11 +112,9 @@ Reporting: private Security Advisory or **security@iome.sh** — see [SECURITY.m
 
 ### What this policy does **not** mean
 
-| Non-claim | Honesty |
+| Non-claim | Meaning |
 |-----------|---------|
-| docs ≠ invent **Memory GA** | Kernel library support ≠ sold “Memory GA” |
 | docs ≠ invent **forever-green signed releases** | Tags + `go get` / `go.sum` / proxy; no invent cosign-on-library or always-green peer GoReleaser |
-| docs ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
 | docs ≠ invent **live dogfood** | No invent operator dogfood green from docs |
 | Docs-only change | **No release tag invented** by documentation |
 
@@ -143,7 +141,7 @@ This package is a **Go library module**. The primary release artifact is an **an
 
 ## Signing / release matrix
 
-How library consumers verify releases, and how this module peers with binary hosts. **Docs ≠ invent cosign on this library** · **≠ invent Memory GA**.
+How library consumers verify releases, and how this module peers with binary hosts. **Docs ≠ invent cosign on this library**.
 
 ### Matrix (this module vs binary peers)
 
@@ -172,7 +170,7 @@ go mod download github.com/iome-sh/memory@vX.Y.Z
 
 - **No `GOPRIVATE` / PAT** required for this public module.  
 - Prefer **semver tags** over floating `@main` in production `go.mod`.  
-- CI on this repo (`make ci` / GitHub Actions **ci-success**) gates what lands on `main` before maintainers cut tags — it is **not** a substitute for product Memory GA or signed forever-green binary releases.
+- CI on this repo (`make ci` / GitHub Actions **ci-success**) gates what lands on `main` before maintainers cut tags — it is **not** a substitute for signed forever-green binary releases.
 
 ### Peer packaging (mention only — not invent green)
 
@@ -183,14 +181,10 @@ Binary edge hosts that *consume* this library ship their **own** release packagi
 
 ### What this matrix does **not** mean
 
-| Non-claim | Honesty |
+| Non-claim | Meaning |
 |-----------|---------|
 | docs ≠ invent **cosign on the library** | Library trust = tag + `go get` / `go.sum` / proxy checksum DB |
 | docs ≠ invent **signed forever-green releases** | Neither this module’s tags nor peer GoReleaser runs are invented green |
-| docs ≠ invent **Memory GA** | Kernel library only |
-| docs ≠ invent **dual_write ON** | dual_write **OFF** on the product path elsewhere |
 | Public MIT | Visibility already **public**; docs ≠ re-flip |
 
-## Honesty
-
-Tags describe the **kernel library**, not product Memory GA. This is a local filesystem library. Hosted Palace sunset and dual_write product defaults live outside this module. **Public MIT** · dual_write **OFF** product path · open boxes stay open · docs invent **no** release tag.
+Tags describe the **kernel library**. This is a local filesystem library. Hosted Palace sunset lives outside this module. **Public MIT** · open boxes stay open · docs invent **no** release tag.

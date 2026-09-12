@@ -20,7 +20,7 @@ type ContextItem struct {
 
 // PalaceMemory is an Insert/Query adapter over PalaceStore for the official V2 harness.
 // Text steps only. Images are ignored. Hash embeddings are the no-dep default
-// when the store was constructed without ONNX. dual_write stays off. Not Memory GA.
+// when the store was constructed without ONNX.
 type PalaceMemory struct {
 	Store *memory.PalaceStore
 	TopK  int

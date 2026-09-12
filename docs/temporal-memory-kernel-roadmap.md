@@ -5,20 +5,20 @@
 Identifiers such as `sNNN` below are **historical engineering pins**, not a public product ledger.  
 **Last Updated**: 2026-08-05
 
-This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes private control-plane / broker / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
+This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes private control-plane / broker / mesh add-on claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
 
 ---
 
-## Honesty boundaries
+## Scope
 
 | Concern | This package (`memory`) | Host (MCP / product surfaces) |
 |---------|-------------------------|-------------------------------------|
 | Storage model | Single-tenant filesystem Palace (`PalaceStore` + tier dirs) | Multi-tenant isolation, org/agent paths, collection naming |
 | API surface | Go types + `PalaceStore` methods | MCP, HTTP sidecar, mesh streams, console UX |
 | Embeddings | Pluggable `EmbeddingFunc` / ONNX (local) | May prefer remote embed workers or fleet models |
-| Product Memory add-on | **Not** claimed GA by this repo | Host owns packaging, quotas, and GA gates |
+| Hosted Memory product | **Not** claimed by this repo | Host owns packaging and quotas |
 
-Do **not** treat kernel completeness as product Memory GA. Do **not** invent multi-tenant guarantees in this library: callers must enforce tenant boundaries above `PalaceStore`.
+Do **not** treat kernel completeness as a hosted Memory product. Do **not** invent multi-tenant guarantees in this library: callers must enforce tenant boundaries above `PalaceStore`.
 
 ---
 
@@ -31,7 +31,7 @@ Do **not** treat kernel completeness as product Memory GA. Do **not** invent mul
 | **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
 | **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
 | **K4** | **Partial shipped** (s616 / v1.5.4; A3 supersession s632 / v1.5.6) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`) + entity-key supersession (`SupersedeEntityFacts`); not full temporal KG |
-| **A2** | **Partial shipped** (s619 / v1.5.5; hop ranking s1067; residual honesty s1278) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags + hop-distance ranking lite; not full Zep KG; not product Memory GA |
+| **A2** | **Partial shipped** (s619 / v1.5.5; hop ranking s1067; residual pin s1278) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags + hop-distance ranking lite; not full Zep KG |
 | **A3** | **Partial shipped** (s632 / v1.5.6) | Fact supersession lite: close prior open validity windows for an entity key on write; not NLP contradiction / full KG |
 
 ---
@@ -138,7 +138,7 @@ Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Arc
 - Incremental / btree **event-time index residual** (avoid O(n) rebuild walk after every dirty write)
 - Optional secondary indexes for tags if FS cost becomes the bottleneck
 
-**Honesty**: FS Palace remains source of truth. Durable snapshot is best-effort and optional; rebuild-on-dirty is still **O(n)**. This slice does not invent multi-tenant or product Memory GA.
+**Note**: FS Palace remains source of truth. Durable snapshot is best-effort and optional; rebuild-on-dirty is still **O(n)**. This slice does not invent multi-tenant isolation.
 
 ### Non-goals for K2
 
@@ -152,7 +152,7 @@ Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Arc
 
 **Goal**: Optional embedding **preset** for denser local vectors, without forcing host architecture.
 
-### Dual-path honesty
+### Dual-path notes
 
 | Path | Who owns it | Notes |
 |------|-------------|--------|
@@ -211,13 +211,13 @@ Tag format (host-written, e.g. host `applyTemporalToEntry`): `valid_from:<RFC333
 - Ordering: **Semantic first**, then event time descending within rank
 - Entity filter: substring on `entity:` tags when value has no `:`; exact `entity:type:id` when value contains `:`
 
-### Honesty / non-goals (still open)
+### Non-goals (still open)
 
 This is **bi-temporal lite** (validity window on entries via tags), **not**:
 
 - Full Graphiti-style dual clocks (transaction time + validity time as first-class stores)
 - Temporal knowledge graph with edge validity
-- Multi-tenant product Memory GA
+- Multi-tenant hosted Memory
 
 ### Shipped (s632) — A3 supersession first slice (K4 write path)
 
@@ -244,7 +244,7 @@ func (ps *PalaceStore) WriteAndSupersede(entry MemoryEntry, supersedeKeys []stri
 | Tag write | Add/replace `valid_until:<RFC3339>`; preserve `valid_from` and other tags |
 | Empty key | No-op (0, nil) |
 
-#### Honesty / non-goals (A3)
+#### Non-goals (A3)
 
 This is **competitive lite supersession** (explicit entity keys + validity tags), **not**:
 
@@ -308,28 +308,28 @@ Path-aware ranking lite: prefer shorter BFS hop distance from seed when ordering
 - Entry hop = min hop among matched expanded entity keys
 - Still **not** typed-edge weights, embedding-guided walks, or Zep/Graphiti path scores
 
-### Residual honesty pin (s1278) — closed residual-honest
+### Residual pin (s1278)
 
-Free eng residual pin for A2 hop-distance ranking honesty (memory serial **s1278**; continuum with host free eng floor **s1276+** / peer **s1277**). Documents:
+Free eng residual pin for A2 hop-distance ranking (memory serial **s1278**; continuum with host free eng floor **s1276+** / peer **s1277**). Documents:
 
 - `PreferShorterHops` default **true**; explicit false = legacy seed-match-first (does not prefer shorter hops)
-- multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG · not product Memory GA · kernel-only
+- multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG
 - TUI related `hop_distance` display: host surface mention only
 
 Canonical residual SSOT: [`operations/multi-hop-hop-distance-ranking-residual.md`](./operations/multi-hop-hop-distance-ranking-residual.md).
 
-### Honesty / non-goals (still open)
+### Non-goals (still open)
 
 This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect + hop-distance sort), **not**:
 
 - Full Zep / Graphiti temporal knowledge graph with typed edges and edge validity
 - Community detection, full path scoring, or embedding-guided graph walk
-- Multi-tenant product Memory GA
+- Multi-tenant hosted Memory
 
 Residual for later A2 slices:
 
 - Bidirectional / typed relation edges
-- ~~Path-aware ranking (prefer shorter hops)~~ — **done** s1067 (hop-distance ranking lite; not full path scoring); residual honesty **s1278**
+- ~~Path-aware ranking (prefer shorter hops)~~ — **done** s1067 (hop-distance ranking lite; not full path scoring); residual pin **s1278**
 - Indexes if O(n) FS scans + graph BFS become the bottleneck
 
 ---

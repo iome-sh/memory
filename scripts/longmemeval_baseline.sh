@@ -5,8 +5,8 @@
 # session_id=conv_id, isolated palace per embed mode.
 #
 # Not official V1 (n=12, not 500; MiniLM column is not the BGE pin).
-# Not a README number. Not Memory GA. Hash-overlap unpublished.
-# dual_write OFF. Optional; not part of make ci.
+# Not a README number. Hash-overlap unpublished.
+# Optional; not part of make ci.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -218,7 +218,7 @@ def fmt_mode(mode, sc):
 lines = []
 lines.append("# LongMemEval locked mixed baseline (internal)")
 lines.append("")
-lines.append("Kernel-only · **not Memory GA** · dual_write **OFF** · **not a README number** · **not official V1**.")
+lines.append("**Not a README number** · **not official V1**.")
 lines.append("")
 lines.append("Comparable columns on the **same 12 question IDs** (stratified mixed, 2 of each type).")
 lines.append("Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. `session_id` = official `conv_id`.")
@@ -257,11 +257,11 @@ lines.append("")
 lines.append("Hash is keyword-first retrieve (default embedder). MiniLM is in-tree ONNX, **not** the official V1 embed pin.")
 lines.append("BGE is BAAI ONNX in hugot layout (root `model.onnx`). Improve the **BGE** column on this ID list; then scale n=60 / n=500.")
 lines.append("")
-lines.append("## Honesty")
+lines.append("## Notes")
 lines.append("")
-lines.append("- leftover_is_bind OPEN · dual_write OFF · not Memory GA · hash-overlap unpublished")
+lines.append("- hash-overlap unpublished")
 lines.append("- n=12 is not overall V1 · prefix-n is not mixed · do not put these rates on the README")
-lines.append("- E-G1 is a laptop TTFH clock; this table does not move it")
+lines.append("- this table does not move the TTFH / cite-both walking skeleton")
 lines.append("")
 text = "\n".join(lines) + "\n"
 Path(doc_out).write_text(text)

@@ -1,15 +1,15 @@
-# K2 event-time index residual honesty (s1303)
+# K2 event-time index residual pin (s1303)
 
-**Status:** residual-honest closed (kernel docs + offline gate pin) · **2026-08-18**  
+**Status:** residual pin closed (kernel docs + offline gate pin) · **2026-08-18**  
 **Free eng residual pin:** **s1303**  
 **Free eng concurrent:** **s1301+** after free-floor **s1299** · lag **s1300**  
-**Scope:** kernel-only offline residual SSOT for **K2 `ListMemoryWithOptions` / timeline path** — durable snapshot shipped (#44) · incremental Write/unlink patch shipped (#63) · btree/tag **event-time index residual**; does **not** invent index green or product Memory GA
+**Scope:** kernel-only offline residual SSOT for **K2 `ListMemoryWithOptions` / timeline path** — durable snapshot shipped (#44) · incremental Write/unlink patch shipped (#63) · btree/tag **event-time index residual**; does **not** invent index green
 
-> **Non-claim (read first):** This pin freezes residual honesty for the K2 timeline list path. Closing residual honesty documents that **filters before Limit** is shipped, a **best-effort durable snapshot** (`indexes/event-time.json`) is shipped (#44), an **incremental Write/unlink patch** is shipped (#63), and that a **btree/tag event-time index residual** remains (O(n) rebuild-on-dirty fallback class remains). It does **not** invent index green, promote the snapshot to product GA, or invent **product Memory GA**. Host dual_write is a host concern (**OFF**). Residual PASS ≠ live dogfood · residual ≠ invent index green · **no invent GA**.
+> **Non-claim (read first):** This pin freezes residual documentation for the K2 timeline list path. Closing it documents that **filters before Limit** is shipped, a **best-effort durable snapshot** (`indexes/event-time.json`) is shipped (#44), an **incremental Write/unlink patch** is shipped (#63), and that a **btree/tag event-time index residual** remains (O(n) rebuild-on-dirty fallback class remains). It does **not** invent index green. Residual PASS ≠ live dogfood · residual ≠ invent index green · **no invent GA**.
 
 ## Why this residual exists
 
-Host/TUI agent MCP timeline surfaces (`memory_timeline`, TUI `/memory timeline`) rest on kernel `ListMemoryWithOptions`. Free-eng continuum work can over-read s611/s1066 slices as a shipped full event-time index or Memory GA. This pin freezes residual honesty so claims stay accurate:
+Host/TUI agent MCP timeline surfaces (`memory_timeline`, TUI `/memory timeline`) rest on kernel `ListMemoryWithOptions`. Free-eng continuum work can over-read s611/s1066 slices as a shipped full event-time index. This pin freezes residual documentation so claims stay accurate:
 
 | Surface | Truth class |
 |---------|-------------|
@@ -34,7 +34,7 @@ Host/TUI agent MCP timeline surfaces (`memory_timeline`, TUI `/memory timeline`)
 | Btree/tag **event-time index residual** | **Residual** · **not shipped** | Residual honesty pin **s1303** leftover |
 | O(n) FS scan class | **Residual-honest** | Rebuild fallback remains O(n); do **not** invent index green |
 | Host `memory_timeline` list path | **Peer** (mention only) | Filters before limit residual-honest when wired to kernel |
-| Product Memory GA | **No** | Kernel ≠ product Memory GA |
+| Library kernel | **Yes** | `ListMemoryWithOptions` / `ListMemoryOptions` |
 
 ### Shipped signature (reference)
 
@@ -61,21 +61,19 @@ Order of operations (list path): collect candidates → session → time → tag
 | Peer surface | Role (mention only) |
 |--------------|---------------------|
 | **`memory_timeline`** | Host MCP / agent timeline over `ListMemoryWithOptions` |
-| **TUI s1296** | `/memory timeline` + compact-status (host UI peer · not kernel GA) |
+| **TUI s1296** | `/memory timeline` + compact-status (host UI peer) |
 | **Concurrent s1301** | Host/TUI free-eng concurrent peer (mention only · not this repo) |
 
-Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in the private control-plane continuum when claimed.
+Kernel pin closes residual documentation **inside** `github.com/iome-sh/memory`. Host SRED triad / dual-repo ledger lives in the private control-plane continuum when claimed.
 
-## Honesty / non-goals
+## Non-goals
 
 | Claim people might over-read | Truth |
 |------------------------------|-------|
 | Full event-time index shipped | Durable snapshot **shipped** (#44) · incremental Write/unlink **shipped** (#63) · btree/tag **event-time index residual** · residual ≠ invent index green |
-| O(n) FS scan gone | **No** — rebuild-on-dirty fallback O(n) class residual-honest |
+| O(n) FS scan gone | **No** — rebuild-on-dirty fallback O(n) class remains |
 | Filters after limit (underfill) | **No** — filters **before** limit **shipped** |
-| Meta index = product index GA | **No** — best-effort kernel cache only when present |
-| Product Memory GA | **No** — kernel ≠ product Memory GA · **not Memory GA** |
-| dual_write | Host concern · **dual_write OFF** (not a kernel product flag) |
+| Meta index = product index | **No** — best-effort kernel cache only when present |
 | Residual / gate PASS | Offline tree SSOT only · **PASS ≠ live dogfood** · **no invent GA** |
 | Free eng pin | **s1303** · concurrent **s1301+** after free-floor **s1299** · lag **s1300** |
 
@@ -83,9 +81,9 @@ Kernel pin closes residual honesty **inside** `github.com/iome-sh/memory`. Host 
 
 | Residual | Role |
 |----------|------|
-| [`advanced-agent-inventory-residual.md`](advanced-agent-inventory-residual.md) | s1297 kernel advanced agent inventory honesty pin (peer · includes ListMemoryWithOptions row) |
-| [`recmem-compaction-residual.md`](recmem-compaction-residual.md) | s1313 RecMem / compaction residual honesty pin (peer · AutoRecMemCompaction partial · trigger advisory · HITL) |
-| [`multi-hop-hop-distance-ranking-residual.md`](multi-hop-hop-distance-ranking-residual.md) | s1278 hop-distance ranking honesty pin (peer) |
+| [`advanced-agent-inventory-residual.md`](advanced-agent-inventory-residual.md) | s1297 kernel advanced agent inventory residual pin (peer · includes ListMemoryWithOptions row) |
+| [`recmem-compaction-residual.md`](recmem-compaction-residual.md) | s1313 RecMem / compaction residual pin (peer · AutoRecMemCompaction partial · trigger advisory · HITL) |
+| [`multi-hop-hop-distance-ranking-residual.md`](multi-hop-hop-distance-ranking-residual.md) | s1278 hop-distance ranking residual pin (peer) |
 | Host dual-agent MCP residual | timeline / inventory host wire (mention only · not this repo) |
 | TUI s1296 timeline/compact-status | Host UI peer (mention only) |
 
@@ -101,25 +99,23 @@ make k2-event-time-index-residual-gate
 # Soft skip (CI nest / operator opt-out):
 SKIP_K2_EVENT_TIME_INDEX=1 ./scripts/k2_event_time_index_residual_gate.sh
 
-# Optional unit honesty (cheap focus; not required for residual gate):
+# Optional unit focus (cheap; not required for residual gate):
 go test . -count=1 -run 'ListMemory'
 ```
 
-Offline PASS proves **tree SSOT for K2 ListMemoryWithOptions residual honesty + this residual doc** — **not** product Memory GA · **not** invent index green · durable snapshot shipped · incremental Write/unlink shipped · btree/tag **event-time index residual** · **PASS ≠ live dogfood**.
+Offline PASS proves **tree SSOT for K2 ListMemoryWithOptions residual pin + this residual doc** — **not** invent index green · durable snapshot shipped · incremental Write/unlink shipped · btree/tag **event-time index residual** · **PASS ≠ live dogfood** · **no invent GA**.
 
-## Honesty footer
+## Pin summary
 
 | Claim | Truth |
 |-------|-------|
-| Free eng residual pin | **s1303** closed residual-honest (this doc + gate + README pin) |
+| Free eng residual pin | **s1303** closed (this doc + gate + README pin) |
 | Free eng concurrent | **s1301+** after free-floor **s1299** · lag **s1300** |
 | Kernel surface | `ListMemoryWithOptions` / `ListMemoryOptions` (s611 / K2) |
 | Filters before limit | **Shipped** (underfill class) |
 | Full event-time index | Durable snapshot shipped (#44) · incremental Write/unlink shipped (#63) · btree/tag **event-time index residual** · residual ≠ invent index green |
-| O(n) FS scan | Rebuild-on-dirty fallback residual-honest class remains |
+| O(n) FS scan | Rebuild-on-dirty fallback class remains |
 | Host peer | `memory_timeline` · TUI s1296 / concurrent s1301 mention only |
-| Product Memory GA | **No** — kernel ≠ product Memory GA · **not Memory GA** |
-| dual_write | **OFF** (host concern) · **no invent GA** |
-| Gate result | **RESULT PASS** / honesty chain · residual PASS ≠ live dogfood |
+| Gate result | **RESULT PASS** · residual PASS ≠ live dogfood · **no invent GA** |
 
-*s1303 · 2026-08-18 · K2 event-time index residual free-eng pin · free eng concurrent s1301+ after free-floor s1299 · lag s1300 · ListMemoryWithOptions filters before limit shipped · durable snapshot #44 shipped · incremental Write/unlink #63 shipped · O(n) rebuild-on-dirty fallback · btree/tag event-time index residual · residual ≠ invent index green · host memory_timeline / TUI s1296 / concurrent s1301 mention only · kernel ≠ product Memory GA · dual_write OFF · no invent GA · PASS ≠ live dogfood · RESULT PASS*
+*s1303 · 2026-08-18 · K2 event-time index residual free-eng pin · free eng concurrent s1301+ after free-floor s1299 · lag s1300 · ListMemoryWithOptions filters before limit shipped · durable snapshot #44 shipped · incremental Write/unlink #63 shipped · O(n) rebuild-on-dirty fallback · btree/tag event-time index residual · residual ≠ invent index green · host memory_timeline / TUI s1296 / concurrent s1301 mention only · no invent GA · PASS ≠ live dogfood · RESULT PASS*

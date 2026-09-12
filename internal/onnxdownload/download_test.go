@@ -54,7 +54,7 @@ func TestRun_FetchBAAIAfter404(t *testing.T) {
 		t.Fatalf("stdout = %q want %q", stdout.String(), baai)
 	}
 	errOut := stderr.String()
-	for _, needle := range []string{"404", "BAAI/bge-small-en-v1.5", "not a KnightsAnalytics export", "Not Memory GA"} {
+	for _, needle := range []string{"404", "BAAI/bge-small-en-v1.5", "not a KnightsAnalytics export", "Not a leaderboard number"} {
 		if !strings.Contains(errOut, needle) {
 			t.Fatalf("stderr missing %q: %q", needle, errOut)
 		}
@@ -109,7 +109,7 @@ func TestRun_FailSoft(t *testing.T) {
 				mini,
 				"not the official LongMemEval V1",
 				"Hash-overlap unpublished",
-				"Not Memory GA",
+				"Not a leaderboard number",
 				"using MiniLM fallback",
 			},
 			notErr: []string{"TTFH cost-max is the hash embedder"},
@@ -129,7 +129,7 @@ func TestRun_FailSoft(t *testing.T) {
 				"Hugging Face 401/404 is expected",
 				"not the official LongMemEval V1",
 				"Hash-overlap unpublished",
-				"Not Memory GA",
+				"Not a leaderboard number",
 				"TTFH cost-max is the hash embedder (no ONNX required)",
 			},
 			notErr: []string{"using MiniLM fallback"},

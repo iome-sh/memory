@@ -17,7 +17,7 @@
 - [ ] `make check` or `make ci` (or CI green: lint, test, build, govulncheck)
 - [ ] New/changed behavior covered by unit tests
 - [ ] No secrets / palace data in tree
-- [ ] Honesty locks intact (kernel-only · not Memory GA) if docs touch product narrative
+- [ ] Scope intact (library kernel · local filesystem palace) if docs touch product narrative
 
 ## Security checklist (if touching FS roots, embeddings, network clients)
 

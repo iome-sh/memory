@@ -70,8 +70,7 @@ func normalizeIngestSourceHint(hint string) string {
 
 // ensurePrivateIngestSource stamps an observable private source class on a
 // local-palace IngestTurn when the caller did not already supply mesh or
-// private provenance. Mesh-class hints stay distinct. dual_write is not a
-// kernel flag and is not touched.
+// private provenance. Mesh-class hints stay distinct.
 func ensurePrivateIngestSource(e *MemoryEntry) {
 	if e == nil {
 		return

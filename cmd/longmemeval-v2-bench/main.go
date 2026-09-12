@@ -23,7 +23,7 @@ func main() {
 	}
 
 	fmt.Fprintln(os.Stderr, "longmemeval-v2-bench: Insert/Query adapter over Palace (text steps only).")
-	fmt.Fprintln(os.Stderr, "longmemeval-v2-bench: printed overlap is judge-free string overlap. Not official V2 LAFS. Not V1 gpt-4o QA. Hash default. dual_write OFF. Not Memory GA.")
+	fmt.Fprintln(os.Stderr, "longmemeval-v2-bench: printed overlap is judge-free string overlap. Not official V2 LAFS. Not V1 gpt-4o QA. Hash default. Not a leaderboard number.")
 
 	ds, err := longmemeval.LoadV2(*dataRoot, *tier)
 	if err != nil {

@@ -1,10 +1,10 @@
 # Open-source readiness audit
 
-**Maintainer process residual** — not a product spec and not a user guide. Visibility is already **public MIT**. **Public MIT ≠ Memory GA.** Operators: [README.md](../README.md) · [SECURITY.md](../SECURITY.md).
+**Maintainer process residual** — not a product spec and not a user guide. Visibility is already **public MIT**. Operators: [README.md](../README.md) · [SECURITY.md](../SECURITY.md).
 
 Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace kernel) vs public **iomesh-tui**. Visibility flip is **complete** (public MIT). Re-run before each major release. Sibling MCP host **`iomesh-memory-mcp`** is already public (separate act).
 
-> Operator residual + offline gate live in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Public MIT** (flip complete). **Public MIT ≠ Memory GA.** **Residual PASS ≠ public flip.** Gate PASS ≠ product GA. Readiness ≠ invent Memory GA / dual_write ON.
+> Operator residual + offline gate live in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Public MIT** (flip complete). **Residual PASS ≠ public flip.** Gate PASS is not a product release.
 
 ## Visibility
 
@@ -12,8 +12,8 @@ Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace k
 |-------|--------|
 | Repository visibility | **Public** (MIT) — flipped deliberately. Flip complete is current fact. See [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). |
 | Private vulnerability reporting path documented | Pass (SECURITY.md · security@iome.sh · advisory) |
-| No accidental “we are public Memory GA” claims | Pass (honesty locks below) |
-| Residual PASS ≠ public flip | Pass (gate PASS ≠ product GA) |
+| No accidental hosted-product claims | Pass (scope locks below) |
+| Residual PASS ≠ public flip | Pass |
 
 ## Security
 
@@ -23,27 +23,26 @@ Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace k
 | Local Palace FS treated as user data in SECURITY.md | Pass |
 | Multi-process shared root **not** claimed as multi-tenant isolation | Pass |
 | Optional embeddings / model load residual risks documented | Pass |
-| Kernel-only · not Memory GA residual risks documented | Pass |
+| Library-kernel residual risks documented | Pass |
 | Vulnerability reporting path (advisory + security@iome.sh) | Pass |
 | `.gitignore` covers local data / binaries / env | Pass (existing) |
 | govulncheck in CI | Pass |
 | Residual: git history may contain internal ledger serials | **Partial** — do not rewrite history; forward policy in CONTRIBUTING |
 
-## Honesty locks (product narrative)
+## Scope locks (product narrative)
 
 | Claim | Status |
 |-------|--------|
-| Kernel-only · **not product Memory GA** · **not Memory GA** · public MIT ≠ Memory GA | Pass |
-| Local filesystem library · local-primary Memory path | Pass |
-| dual_write OFF (host policy default elsewhere, **not** a kernel product flag) | Pass (docs/CONTRIBUTING/SECURITY) |
+| Library kernel · local filesystem palace · public MIT | Pass |
+| Local-primary Memory path | Pass |
 | Hosted Palace sunset until scale | Pass |
 | Mesh optional (TUI / ops packs) | Pass |
 | Public MCP host named **iomesh-memory-mcp** | Pass |
 | This library does **not** implement mesh `X-IOMesh-Org` or cloud multi-tenant security | Pass |
-| Residual PASS ≠ live dogfood / invent GA | Pass |
-| Residual PASS ≠ public flip | Pass (gate PASS ≠ product GA) |
+| Residual PASS ≠ live dogfood | Pass |
+| Residual PASS ≠ public flip | Pass |
 | Open **kernel first**, then MCP; sibling flip was a separate deliberate act | Pass |
-| Open boxes stay open | Pass (Partial rows remain honest) |
+| Open boxes stay open | Pass (Partial rows remain) |
 
 ## Open-source process artifacts
 
@@ -65,7 +64,7 @@ Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace k
 | Makefile `ci` / `check` / `vuln` / `fmt-check` | Present |
 | Makefile `public-flip-readiness-gate` | Present |
 | `docs/PUBLIC_FLIP_READINESS.md` | Present |
-| README badges + links + honesty locks | Present |
+| README badges + links + scope locks | Present |
 
 ## Process-bar audit vs iomesh-tui
 
@@ -82,7 +81,7 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 | Public repository policy in CONTRIBUTING | Pass |
 | Branch protection recommended documented | Pass |
 | No committed secrets | Pass |
-| Repo description honesty | Pass after settings (document) |
+| Repo description | Pass after settings (document) |
 | CodeQL | Partial / recommended; not claimed green |
 | Visibility public MIT | Pass (flip complete) |
 | residual PASS ≠ public flip | Pass |
@@ -95,7 +94,7 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 - **History serials:** residual docs may still stamp continuum serials; CONTRIBUTING public repository policy governs the **forward** PR surface. Do not rewrite published history lightly.  
 - **Repo description / topics / homepage / delete-branch-on-merge:** maintainer GitHub settings — see [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) post-flip steps.  
 - **GoReleaser:** N/A for this library; primary artifact is annotated git tag + `go get` (see [RELEASING.md](../RELEASING.md)). Binary products (iomesh-tui / iomesh-memory-mcp) differ.  
-- **Signing / matrix:** library consumers verify via `go.sum` / module proxy checksum DB — **not** cosign on this package. Peer binary cosign/SBOM is mention-only; docs ≠ invent cosign-on-library · ≠ invent Memory GA (see [RELEASING.md](../RELEASING.md#signing--release-matrix)).
+- **Signing / matrix:** library consumers verify via `go.sum` / module proxy checksum DB — **not** cosign on this package. Peer binary cosign/SBOM is mention-only; docs ≠ invent cosign-on-library (see [RELEASING.md](../RELEASING.md#signing--release-matrix)).
 
 ## Residual risks (Fail / Partial notes)
 
@@ -120,14 +119,14 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 4. (Optional) topics: `golang`, `memory`, `rag`, `embeddings`, `qdrant`  
 5. CONTRIBUTING **public repository policy** already present — enforce on forward PRs  
 6. (Optional recommended) Enable CodeQL default setup  
-7. Do **not** publish private monorepo install paths or invent Memory GA  
-8. Flip order (historical): **this kernel first** (done), then **`iomesh-memory-mcp`** public (done as a separate act; never invent Memory GA from residual PASS). Do not re-run a visibility flip.
+7. Do **not** publish private monorepo install paths  
+8. Flip order (historical): **this kernel first** (done), then **`iomesh-memory-mcp`** public (done as a separate act). Do not re-run a visibility flip.
 
 ## Out of scope for this kernel package
 
 - Multitenant hosted Palace / cloud Memory SLA  
 - Mesh `X-IOMesh-Org` HTTP headers (mesh clients, not this library)  
-- Product Memory GA edge binary (→ **iomesh-memory-mcp**)  
+- Hosted Memory product binary (→ **iomesh-memory-mcp**)  
 - Guarantees about third-party Qdrant / model hubs  
 - Re-doing the visibility flip (deliberate maintainer act already done · residual PASS ≠ public flip)  
 - GoReleaser binary shipping (library module; tags + go get)
@@ -137,13 +136,13 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 | Dimension | Verdict |
 |-----------|---------|
 | Process bar vs iomesh-tui | **Pass** (artifacts + CI spirit + public policy) |
-| Public-flip **readiness** docs + offline gate | **Pass** (public MIT · gate PASS ≠ product GA) |
+| Public-flip **readiness** docs + offline gate | **Pass** (public MIT) |
 | Visibility public flip | **Done** — **public MIT** |
-| Product honesty | **Pass** — public MIT ≠ Memory GA · local filesystem library |
+| Product narrative | **Pass** — public MIT · local filesystem library |
 | Security docs | **Pass** |
 | Live dogfood / rates | N/A — residual PASS ≠ dogfood; no SKU or dollar figures here; mesh optional; no freemium Palace invent |
 
-**Overall:** Flip complete (**public MIT**). **Public MIT ≠ Memory GA.** **Residual PASS ≠ public flip.** Gate PASS ≠ product GA. Kernel first, then MCP. **not Memory GA** · dual_write OFF (host policy, not kernel flag) · open boxes stay open · Palace sunset.
+**Overall:** Flip complete (**public MIT**). **Residual PASS ≠ public flip.** Kernel first, then MCP. Open boxes stay open · Palace sunset.
 
 
 ## Public import

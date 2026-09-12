@@ -1,8 +1,7 @@
-// TTFH-shaped walking skeleton for the palace kernel (not Memory GA).
+// TTFH-shaped walking skeleton for the palace kernel.
 //
 // Ingest three RCA-shaped turns, retrieve in the same process, list facts-as-of,
 // and print provenance.source_hint. Hash embedder · no Qdrant · no cloud palace.
-// dual_write OFF.
 //
 //	go run ./examples/ttfh_rca
 package main

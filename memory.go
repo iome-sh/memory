@@ -1156,7 +1156,6 @@ func extractKeyphrases(text string) []string {
 //
 // Partial persist is the contract: a child Write error does not roll back the parent or earlier
 // facts already written. A non-nil error does not mean nothing persisted. Not all-or-nothing.
-// Not Memory GA. dual_write OFF.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)

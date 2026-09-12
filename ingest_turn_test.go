@@ -240,7 +240,7 @@ func TestIngestTurn_FactChildrenInheritCallerLongmemeval(t *testing.T) {
 
 // TTFH-shaped walking skeleton (README / examples/ttfh_rca): three RCA turns,
 // retrieve in the same process, facts-as-of, observable source_hint=private.
-// A green unit test is not E-G1 (real laptop). Kernel-only · not Memory GA.
+// A green unit test is not a live laptop PULSE run.
 func TestIngestTurn_TTFHShapedWalkingSkeleton(t *testing.T) {
 	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
 	session := "inc-webhook-5xx"

@@ -4,7 +4,7 @@
 // (that repo does not exist). Next: reshape public BAAI/bge-small-en-v1.5
 // ONNX into hugot layout. MiniLM is a local unpublished fallback, not the
 // official LongMemEval V1 BGE pin. TTFH cost-max is the hash embedder.
-// Hash-overlap unpublished. Not Memory GA. dual_write OFF.
+// Hash-overlap unpublished. Not a leaderboard number.
 package onnxdownload
 
 import (
@@ -119,7 +119,7 @@ func Run(ctx context.Context, stdout, stderr io.Writer, cfg Config) int {
 		if berr == nil && strings.TrimSpace(baai) != "" {
 			fmt.Fprintf(stderr, "using BAAI/bge-small-en-v1.5 hugot layout: %s\n", baai)
 			fmt.Fprintln(stderr, "this is BAAI ONNX (onnx/model.onnx reshaped to root model.onnx), not a KnightsAnalytics export.")
-			fmt.Fprintln(stderr, "Hash-overlap unpublished. Not Memory GA. dual_write OFF.")
+			fmt.Fprintln(stderr, "Hash-overlap unpublished. Not a leaderboard number.")
 			fmt.Fprintln(stdout, strings.TrimSpace(baai))
 			return 0
 		}
@@ -129,7 +129,7 @@ func Run(ctx context.Context, stdout, stderr io.Writer, cfg Config) int {
 	}
 
 	fmt.Fprintf(stderr, "MiniLM fallback %s is not the official LongMemEval V1 BGE-small-en-v1.5 pin.\n", miniLM)
-	fmt.Fprintln(stderr, "Hash-overlap unpublished. Not Memory GA. dual_write OFF.")
+	fmt.Fprintln(stderr, "Hash-overlap unpublished. Not a leaderboard number.")
 
 	if miniLMExists(stat, miniLM) {
 		fmt.Fprintf(stderr, "using MiniLM fallback: %s\n", miniLM)

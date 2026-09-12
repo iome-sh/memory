@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # recmem_compaction_residual_gate.sh — s1313 offline residual
 # free eng residual pin s1313 · free eng concurrent s1311+ after free-floor s1309 · lag s1310
-# SSOT for RecMem / compaction kernel path residual honesty:
+# SSOT for RecMem / compaction kernel path residual:
 #   AutoRecMemCompaction / PerformCompaction / CompactionConfig exist as kernel primitives
 #   AutoRecMemCompaction shipped partial · host memory_trigger_compact advisory (publish trigger)
-#   TUI requires HITL (peer s1311) · Compaction PASS ≠ invent Memory GA token-reduction
-#   Phase 3 semantic refine residual if still planned · dual_write OFF host concern
-# Honesty: kernel ≠ product Memory GA · not Memory GA · dual_write OFF · no invent GA ·
-#   residual PASS ≠ live dogfood · RESULT PASS / RESULT OK honesty chain
+#   TUI requires HITL (peer s1311) · Compaction PASS ≠ invent token-reduction
+#   Phase 3 semantic refine residual if still planned
+# Pin: no invent GA · residual PASS ≠ live dogfood · RESULT PASS / RESULT OK pin chain
 # Soft skip: SKIP_RECMEM_COMPACTION=1
 #
 # Usage:
@@ -31,12 +30,12 @@ fail() { log "FAIL: $*"; FAIL=$((FAIL + 1)); }
 if [[ "${SKIP_RECMEM_COMPACTION:-}" == "1" ]]; then
   log "SKIP_RECMEM_COMPACTION=1 soft skip"
   log "RESULT OK (soft skip)"
-  log "non-claim: soft skip ≠ invent Memory GA · Compaction PASS ≠ invent Memory GA token-reduction · residual PASS ≠ live dogfood"
+  log "non-claim: soft skip ≠ invent GA · Compaction PASS ≠ invent token-reduction · residual PASS ≠ live dogfood"
   exit 0
 fi
 
-log "offline residual SSOT for RecMem / compaction kernel path (no dogfood / Memory GA invent required)"
-log "non-claim: AutoRecMemCompaction shipped partial · trigger advisory host · HITL on TUI · Compaction PASS ≠ invent Memory GA token-reduction · kernel ≠ product Memory GA · not Memory GA"
+log "offline residual SSOT for RecMem / compaction kernel path (no dogfood invent required)"
+log "non-claim: AutoRecMemCompaction shipped partial · trigger advisory host · HITL on TUI · Compaction PASS ≠ invent token-reduction"
 
 DOC="docs/operations/recmem-compaction-residual.md"
 PLAN="docs/recmem-integration-plan.md"
@@ -74,7 +73,7 @@ need_tree_grep() {
   fi
 }
 
-# Residual doc presence + honesty needles
+# Residual doc presence + pin needles
 need_path "$DOC" "recmem compaction residual SSOT"
 need_path "$GATE_SCRIPT" "recmem compaction residual gate script"
 need_path "$PLAN" "recmem integration plan (historical)"
@@ -95,17 +94,13 @@ need_grep "$DOC" 'HITL' "doc TUI HITL"
 need_grep "$DOC" 'Phase 3' "doc Phase 3 semantic refine residual"
 need_grep "$DOC" 'semantic refine' "doc semantic refine residual class"
 need_grep "$DOC" 'token-reduction' "doc token-reduction non-claim"
-need_grep "$DOC" 'Memory GA' "doc Memory GA honesty"
-need_grep "$DOC" 'not Memory GA' "doc not Memory GA"
-need_grep "$DOC" 'kernel ≠ product Memory GA' "doc kernel ≠ product Memory GA"
-need_grep "$DOC" 'dual_write OFF' "doc dual_write OFF"
 need_grep "$DOC" 'no invent GA' "doc no invent GA"
 need_grep "$DOC" 'PASS ≠ live dogfood' "doc PASS ≠ live dogfood"
 need_grep "$DOC" 'recmem-integration-plan.md' "doc link historical plan"
 need_grep "$DOC" 'SKIP_RECMEM_COMPACTION' "doc soft skip env"
 need_grep "$DOC" 'residual-gate' "doc Makefile residual-gate target"
 need_grep "$DOC" 'recmem-compaction-residual-gate' "doc Makefile recmem residual-gate target"
-need_grep "$DOC" 'RESULT PASS' "doc RESULT PASS honesty chain"
+need_grep "$DOC" 'RESULT PASS' "doc RESULT PASS pin chain"
 
 # Kernel tree symbols (Go) — at least one of AutoRecMemCompaction / PerformCompaction / CompactionConfig
 TREE_HIT=0
@@ -155,5 +150,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK honesty chain: AutoRecMemCompaction shipped partial · PerformCompaction · CompactionConfig · memory_trigger_compact advisory · TUI HITL s1311 · Compaction PASS ≠ invent Memory GA token-reduction · Phase 3 semantic refine residual · kernel ≠ product Memory GA · dual_write OFF · no invent GA · residual PASS ≠ live dogfood"
+log "RESULT OK pin chain: AutoRecMemCompaction shipped partial · PerformCompaction · CompactionConfig · memory_trigger_compact advisory · TUI HITL s1311 · Compaction PASS ≠ invent token-reduction · Phase 3 semantic refine residual · no invent GA · residual PASS ≠ live dogfood"
 exit 0

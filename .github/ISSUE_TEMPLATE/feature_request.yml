@@ -27,5 +27,5 @@ body:
       label: Scope notes
       options:
         - label: Fits local-primary kernel trust model (not multi-tenant hosted Palace)
-        - label: Does not invent product Memory GA / freemium hosted palace
+        - label: Does not invent a freemium hosted palace
         - label: I am willing to help implement / test

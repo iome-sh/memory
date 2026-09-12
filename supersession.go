@@ -14,7 +14,7 @@ import (
 // key from EntryEntityKeys equals that normalized form (also lower-cased).
 // Empty entityKey is a no-op (returns 0, nil).
 //
-// Honesty: bi-temporal lite supersession — not automatic NLP contradiction
+// Bi-temporal lite supersession — not automatic NLP contradiction
 // detection, not full Zep dual-clock KG. Callers pass explicit entity keys.
 //
 // Returns the count of updated entries.
