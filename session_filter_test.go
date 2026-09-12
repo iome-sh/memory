@@ -303,6 +303,9 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesFactsAcrossSessions(t *testi
 	if !strings.Contains(lower, "solo project") {
 		t.Fatalf("assembly missing solo fact: %q", evidence)
 	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("project unique-entity path must not label N distinct items: %q", evidence)
+	}
 }
 
 func TestAssembleCountEvidence_SkipsNonCountQuery(t *testing.T) {
@@ -502,8 +505,8 @@ func TestAssembleCountEvidence_FiveKitsDedupeB29(t *testing.T) {
 			t.Fatalf("missing %s in %q", key, got)
 		}
 	}
-	if !strings.Contains(lower, "5 distinct") {
-		t.Fatalf("assembly must label 5 distinct kit clusters: %q", got)
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("kit unique-entity path must not label N distinct items: %q", got)
 	}
 }
 
@@ -528,6 +531,9 @@ func TestAssembleCountEvidence_ThreeHourDestinations(t *testing.T) {
 	if !strings.Contains(lower, "tennessee") {
 		t.Fatalf("missing Tennessee destination: %q", got)
 	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("hour unique-entity path must not label N distinct items: %q", got)
+	}
 }
 
 func TestAssembleCountEvidence_ThreePlantsOneTurnTwoNames(t *testing.T) {
@@ -545,6 +551,9 @@ func TestAssembleCountEvidence_ThreePlantsOneTurnTwoNames(t *testing.T) {
 		if !strings.Contains(lower, key) {
 			t.Fatalf("missing %s in %q", key, got)
 		}
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("plant unique-entity path must not label N distinct items: %q", got)
 	}
 }
 
@@ -598,8 +607,8 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesFiveKits(t *testing.T) {
 	if strings.Count(lower, "[kit:b-29]") != 1 {
 		t.Fatalf("B-29 must dedupe across sessions: %q", evidence)
 	}
-	if !strings.Contains(lower, "5 distinct") {
-		t.Fatalf("search assembly must label 5 distinct kit clusters: %q", evidence)
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("kit unique-entity path must not label N distinct items: %q", evidence)
 	}
 }
 

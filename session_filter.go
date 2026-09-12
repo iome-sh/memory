@@ -365,9 +365,10 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // and dry-clean survives when the query only says pick/return/store. Other
 // quantity queries cluster by distinctive object (kit identity, plant name,
 // hour+destination) so a repeated B-29 is one kit and two plants in one turn
-// are two clusters. The header labels how many clusters were assembled
-// ("Count evidence (N distinct items):") so a reader can count them; it does
-// not invent a numeric gold ("the answer is 3"). Dated-span “how many days
+// are two clusters. Clothing action×object clusters prefix
+// "Count evidence (N distinct items):" because those clusters are designed to
+// equal gold 3. Unique-entity and exact-text paths prefix "Count evidence:"
+// without N (cluster count is not gold). Dated-span “how many days
 // between” is not assembled here (see AssembleTemporalEvidence). Empty when
 // the query is not a count question or no facts match.
 func AssembleCountEvidence(query string, facts []MemoryEntry) string {
@@ -393,8 +394,10 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	}
 	matched = rankCountQueryFacts(matched, query)
 	var snippets []string
+	fromClothing := false
 	if isClothingCountQuery(query) {
 		snippets = assembleClothingCountEvidence(matched)
+		fromClothing = len(snippets) > 0
 	}
 	if len(snippets) == 0 {
 		snippets = assembleUniqueEntityCountEvidence(query, matched)
@@ -405,7 +408,10 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	if len(snippets) == 0 {
 		return ""
 	}
-	return formatEvidenceBlock("Count evidence", len(snippets), "items", snippets)
+	if fromClothing {
+		return formatEvidenceBlock("Count evidence", len(snippets), "items", snippets)
+	}
+	return "Count evidence:\n- " + strings.Join(snippets, "\n- ")
 }
 
 // formatEvidenceBlock prefixes a bullet list with the cluster count so a
