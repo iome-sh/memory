@@ -24,6 +24,7 @@ type ingestTurn struct {
 	Content   string
 	Timestamp time.Time
 	Cycle     int
+	SessionID string
 }
 
 func TestLongMemEval_RecallGate_MultiCase(t *testing.T) {
@@ -141,6 +142,7 @@ func postIngest(baseURL, convID string, turns []ingestTurn) error {
 		payloadTurns[i].Content = turn.Content
 		payloadTurns[i].Timestamp = turn.Timestamp.Format(time.RFC3339)
 		payloadTurns[i].Cycle = turn.Cycle
+		payloadTurns[i].SessionID = turn.SessionID
 	}
 
 	body, err := json.Marshal(IngestRequest{ConvID: convID, Turns: payloadTurns})
