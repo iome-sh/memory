@@ -48,27 +48,33 @@ func BAAILayoutComplete(dir string) bool {
 	return true
 }
 
-// HTTPGetToFile streams url to destPath. Optional HF_TOKEN as Bearer.
-func HTTPGetToFile(ctx context.Context, url, destPath string) error {
+func hfBearerToken() string {
+	if tok := strings.TrimSpace(os.Getenv("HF_TOKEN")); tok != "" {
+		return tok
+	}
+	return strings.TrimSpace(os.Getenv("HUGGING_FACE_HUB_TOKEN"))
+}
+
+// httpDo is the HTTP seam (tests swap this). Production uses a 30-minute client.
+var httpDo = func(req *http.Request) (*http.Response, error) {
+	client := &http.Client{Timeout: 30 * time.Minute}
+	return client.Do(req)
+}
+
+func doGet(ctx context.Context, url, token string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("User-Agent", "github.com/iome-sh/memory onnxdownload")
-	if tok := strings.TrimSpace(os.Getenv("HF_TOKEN")); tok != "" {
-		req.Header.Set("Authorization", "Bearer "+tok)
-	} else if tok := strings.TrimSpace(os.Getenv("HUGGING_FACE_HUB_TOKEN")); tok != "" {
-		req.Header.Set("Authorization", "Bearer "+tok)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	client := &http.Client{Timeout: 30 * time.Minute}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
+	return httpDo(req)
+}
+
+func writeResponseFile(resp *http.Response, destPath string) error {
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GET %s: HTTP %d", url, resp.StatusCode)
-	}
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return err
 	}
@@ -88,6 +94,34 @@ func HTTPGetToFile(ctx context.Context, url, destPath string) error {
 		return closeErr
 	}
 	return os.Rename(tmp, destPath)
+}
+
+// HTTPGetToFile streams url to destPath.
+//
+// Auth: BAAI/bge-small-en-v1.5 is public — no token required. HF_TOKEN /
+// HUGGING_FACE_HUB_TOKEN is optional (higher rate limits). If a token is set
+// and Hugging Face returns 401/403, retry once without Authorization so a
+// bad/expired/wrong-type token cannot block the public ONNX. 404 is not
+// retried (KnightsAnalytics/bge-small-en-v1.5 is a missing repo, not an
+// auth miss). OPENAI_API_KEY is unrelated (generate/judge only).
+func HTTPGetToFile(ctx context.Context, url, destPath string) error {
+	token := hfBearerToken()
+	resp, err := doGet(ctx, url, token)
+	if err != nil {
+		return err
+	}
+	if (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) && token != "" {
+		_ = resp.Body.Close()
+		resp, err = doGet(ctx, url, "")
+		if err != nil {
+			return fmt.Errorf("GET %s: token 401/403 then unauth retry: %w", url, err)
+		}
+	}
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return fmt.Errorf("GET %s: HTTP %d", url, resp.StatusCode)
+	}
+	return writeResponseFile(resp, destPath)
 }
 
 func baaIResolveURL(rel string) string {

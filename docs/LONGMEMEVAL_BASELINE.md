@@ -39,7 +39,22 @@ Reproduce (needs gitignored `data/longmemeval_oracle.json` + `OPENAI_API_KEY`; O
 
 ```bash
 make longmemeval-baseline
+# next scale (not official V1): LONGMEMEVAL_IDS_FILE=testdata/longmemeval_baseline_ids_n60.json make longmemeval-baseline
 ```
+
+## Auth requirements (checked 2026-09-12)
+
+| Resource | Auth | Live check |
+|----------|------|------------|
+| `BAAI/bge-small-en-v1.5` ONNX | **None.** Public. `HF_TOKEN` optional (rate limits). | API **200** with and without token. `config.json` resolve **200** unauth. |
+| `KnightsAnalytics/bge-small-en-v1.5` | N/A — **repo missing** | Unauth **401** (HF generic wall). **Valid token → 404 Repository not found.** Not a login miss. |
+| `KnightsAnalytics/all-MiniLM-L6-v2` | None (public). In-tree copy needs no network. | API **200** with and without token. |
+| Oracle `data/longmemeval_oracle.json` | None. Local gitignored file (~15 MB). | No network. |
+| Generate (`gpt-4o-mini`) | **`OPENAI_API_KEY` required** | Unset → generate exits 1. |
+| Judge (`gpt-4o-2024-08-06`) | **`OPENAI_API_KEY` required** | Unset → judge SKIP exit 0 (not a CI failure). |
+| Invalid/expired `HF_TOKEN` | Must not block public BAAI | Helper retries **once without** `Authorization` on HTTP 401/403. 404 is not retried. |
+
+`leftover_is_bind` / `IOMESH_*_WEBHOOK_SECRET` / YAML APPLY are **unrelated** to this kernel bench. dual_write OFF.
 
 ## Honesty
 

@@ -147,7 +147,12 @@ def generate_answer(
         context = "No relevant memories retrieved."
     else:
         lines = []
-        for m in memories[:15]:
+        try:
+            reader_k = int(os.environ.get("LONGMEMEVAL_READER_K", "0") or "0")
+        except ValueError:
+            reader_k = 0
+        used = memories if reader_k <= 0 else memories[:reader_k]
+        for m in used:
             full = m.get("full") or m.get("summary") or ""
             score = m.get("score", 0.0)
             ts = m.get("timestamp") or ""
@@ -213,7 +218,7 @@ def process_example(example: Dict[str, Any], retrieve_k: int) -> Optional[Dict[s
         "hypothesis": answer,
         "question_date": question_date,
         "question_type": str(example.get("question_type") or ""),
-        "retrieve": [snippet_from_memory(m) for m in memories[:15]],
+        "retrieve": [snippet_from_memory(m) for m in memories[: max(15, len(memories))]],
     }
 
 
