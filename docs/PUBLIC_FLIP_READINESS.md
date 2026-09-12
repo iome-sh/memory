@@ -54,7 +54,7 @@ Gate is **offline greps only** — it does **not** change GitHub visibility, doe
 Closeout checklist used on flip day (**historical**). Completing this list was **not** the flip — a human changed visibility. **Flip complete (public MIT).** Remaining open boxes (CodeQL, etc.) stay open.
 
 - [ ] Re-run `make public-flip-readiness-gate` + `make ci` (both green) 
-- [ ] [`OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) **Final TUI-parity audit ()** section green (Partial rows honest: CodeQL, history) 
+- [ ] [`OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) **Final TUI-parity audit** section green (Partial rows honest: CodeQL, history) 
 - [ ] CONTRIBUTING **Public repository policy** present (forward PR surface) 
 - [ ] Fix GitHub description if it still names a personal maintainer handle (maintainer: `gh repo edit`) 
 - [ ] Homepage **https://iome.sh** 
