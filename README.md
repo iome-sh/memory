@@ -250,7 +250,7 @@ Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC33
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
 | [SUPPORT.md](SUPPORT.md) | How to get help; scope (library kernel) and related host |
-| [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (K0–K4 style) |
+| [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (shipped vs T1–T5 next TODOs) |
 | [docs/TTFH.md](docs/TTFH.md) | Operator TTFH walking skeleton |
 | [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology card (no published official number) |
 | [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | Maintainer OSS process residual (not a product spec) |

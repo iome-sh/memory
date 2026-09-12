@@ -6,7 +6,7 @@
 
 This document reorganizes improvements by **highest business/engineering impact first**, grouped into logical rollout categories suitable for a standalone, importable Go package.
 
-**Temporal kernel track**: see the dedicated roadmap → [`docs/temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) (K0 shipped … K4 later). Do not conflate this library with a hosted Memory product.
+**Temporal kernel track**: see the dedicated roadmap → [`docs/temporal-memory-kernel-roadmap.md`](./temporal-memory-kernel-roadmap.md) (K0–K4 / A2–A3 lite shipped at v1.5.11; next TODO is T1 multi-session retrieve).
 
 ---
 

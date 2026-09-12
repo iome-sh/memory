@@ -1,377 +1,171 @@
 # Temporal Memory Kernel Roadmap
 
-**Repository**: `github.com/iome-sh/memory`  
-**Scope**: Temporal features **inside this package** (Palace kernel), not host product surfaces  
-Identifiers such as `sNNN` below are **historical engineering pins**, not a public product ledger.  
-**Last Updated**: 2026-08-05
+**Repository:** [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory)  
+**Scope:** Temporal features **inside this package** (`PalaceStore`), not MCP/TUI hosts.  
+**As of:** 2026-09-12 · tagged **v1.5.11** (docs after the tag are unreleased)
 
-This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes private control-plane / broker / mesh add-on claims, multi-tenant product packaging, and host MCP/sidecar surfaces.
+This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui), [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp)) are optional.
 
----
-
-## Scope
-
-| Concern | This package (`memory`) | Host (MCP / product surfaces) |
-|---------|-------------------------|-------------------------------------|
-| Storage model | Single-tenant filesystem Palace (`PalaceStore` + tier dirs) | Multi-tenant isolation, org/agent paths, collection naming |
-| API surface | Go types + `PalaceStore` methods | MCP, HTTP sidecar, mesh streams, console UX |
-| Embeddings | Pluggable `EmbeddingFunc` / ONNX (local) | May prefer remote embed workers or fleet models |
-| Hosted Memory product | **Not** claimed by this repo | Host owns packaging and quotas |
-
-Do **not** treat kernel completeness as a hosted Memory product. Do **not** invent multi-tenant guarantees in this library: callers must enforce tenant boundaries above `PalaceStore`.
+Related: [TTFH walking skeleton](./TTFH.md) · [LongMemEval methodology](./LONGMEMEVAL.md) · [locked mixed baseline](./LONGMEMEVAL_BASELINE.md) · [package improvements](./memory-refactor-improvements.md)
 
 ---
 
-## Phase overview
+## Re-evaluation (original plan vs v1.5.11)
 
-| Phase | Status | Focus |
-|-------|--------|--------|
-| **K0** | **Shipped** | Temporal fields, decay, multi-factor score, `IngestTurn`, hybrid `SearchMemory` |
-| **K1** | **Shipped** (s586 / v1.5.2) | `SearchMemoryWithOptions` session/time filters + temporal re-rank |
-| **K2** | **Partial shipped** (s611 / v1.5.3) | `ListMemoryWithOptions` timeline API + tag helpers; full FS event-time index residual |
-| **K3** | Planned | Optional Qwen3-0.6B 1024-d embedding profile (dual-path with host workers) |
-| **K4** | **Partial shipped** (s616 / v1.5.4; A3 supersession s632 / v1.5.6) | Facts-as-of / validity window (`ListFactsAsOf`, `EntryValidAt`) + entity-key supersession (`SupersedeEntityFacts`); not full temporal KG |
-| **A2** | **Partial shipped** (s619 / v1.5.5; hop ranking s1067; residual pin s1278) | Multi-hop / associative retrieval lite over EntityGraph + entry entity tags + hop-distance ranking lite; not full Zep KG |
-| **A3** | **Partial shipped** (s632 / v1.5.6) | Fact supersession lite: close prior open validity windows for an entity key on write; not NLP contradiction / full KG |
+The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/A3**. Most of that surface is now in the tree. What moved after v1.5.7 is index patching, palace file modes, retrieve default tiers, private `source_hint`, optional ONNX persist, TTFH, and a locked LongMemEval mixed slice.
 
----
+| Original phase | Original intent | Status at v1.5.11 | Still open |
+|----------------|-----------------|-------------------|------------|
+| **K0** | Event time, decay, `IngestTurn`, hybrid search | **Shipped** | — |
+| **K1** | `SearchMemoryWithOptions` session/time + temporal re-rank | **Shipped** (v1.5.2) | — |
+| **K2** | Event-time timeline list + tag helpers; FS index | **Mostly shipped** — list API v1.5.3; durable `indexes/event-time.json`; in-memory patch on Write/unlink (v1.5.8). First list / stamp mismatch still rebuilds. | btree / tag secondaries if O(n) rebuild is the bottleneck |
+| **K3** | Optional Qwen3-0.6B **1024-d** local preset | **Not started** (and not blocking). Default ONNX remains BGE-small **384-d**; MiniLM is the in-tree fallback; `PersistEmbeddings` is opt-in (default off). | Only if a consumer needs 1024-d |
+| **K4** | Facts-as-of / validity windows | **Shipped lite** (v1.5.4) — `ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf` | Temporal **edges**; transaction-time + validity as first-class stores |
+| **A2** | Multi-hop / associative retrieve | **Shipped lite** (v1.5.5–1.5.7) — `MultiHopRetrieve`, hop-distance ranking | Typed / bidirectional edges; full path scoring |
+| **A3** | Fact supersession | **Shipped lite** (v1.5.6) — `SupersedeEntityFacts`, `WriteAndSupersede` | Auto entity extract; NLP contradiction |
 
-## K0 — Shipped (kernel baseline)
+**Eval evidence (not a leaderboard number):** locked mixed LongMemEval n=12, same IDs, judge `gpt-4o-2024-08-06`. Hash 9/12, MiniLM 10/12, BGE 10/12. **`multi-session` is 0/2 on every embedder.** Gold answers are counts across sessions. The reader now uses full retrieve-k (was 15 of 40). The remaining miss is a **kernel retrieve / temporal-aggregation** problem, not “missing K1 filters.”
 
-Core temporal primitives are present and used by LongMemEval harnesses and production-style ingest.
-
-### MemoryEntry temporal fields
-
-On `MemoryEntry` (`memory.go`):
-
-- `Timestamp` — event time for temporal reasoning (distinct from `CreatedAt` / `UpdatedAt`)
-- `SessionID` — multi-session grouping
-- `TemporalTags` — cycle / calendar-style tags (see `PopulateTemporalTags`)
-- Related turn granularity: `TurnID`, `ExtractedFacts`, `Keyphrases`, `OriginalText`
-
-### Scoring & decay
-
-- `CalculateTemporalDecay(entry)` — H-Mem-style exponential forgetting (hours since last access)
-- `CalculateRecencyBoost` / `CalculateRelevanceScore` — recency + decay + usage combined with score impact
-- `MultiFactorScore(entry, queryVec)` — semantic + temporal + robustness blend (s + t + r)
-
-`ListEntriesInTier` sorts by `CalculateRelevanceScore` (descending).
-
-### Ingest & search
-
-- `IngestTurn` — primary turn ingest path (defaults timestamp/IDs, fact-augmented child writes that inherit parent `Content.Tags` plus `fact_augmented`/`from_turn`, session/timestamp propagation). Local-palace ingest stamps `provenance.source_hint=private` and tag `source_hint:private` when the caller does not already supply a classifiable mesh or private source; mesh-class hints stay distinct.
-- `SearchMemory(query, tier, limit, vec)` — hybrid keyword + vector re-rank when a query embedding is supplied; keyword hits stay ahead of cosine rank (hash `QueryVec` must not drop a literal token past `Limit`); embedding path uses configured `EmbeddingFunc` / batch embed
-
-### Compaction touchpoints
-
-- Temporal window filtering in compaction (`filterByTemporalWindow`) — H-Mem-inspired windowing on the compaction path
-
-**K0 is not “temporal retrieval complete.”** Session/time **filters** and explicit temporal **re-rank options** are K1; a dedicated event-time **index** is K2.
+**Walking skeleton:** `go run ./examples/ttfh_rca` — ingest three RCA turns, same-process retrieve, `ListFactsAsOf`, print `source_hint`. That path exercises K0 + K1 session retrieve + K4 as-of. It does not exercise multi-session count questions.
 
 ---
 
-## K1 — Search options — **Shipped** (s586 / v1.5.2)
+## Shipped surface (keep these contracts)
 
-**Goal**: First-class filtered temporal retrieval without callers reimplementing post-filters.
+### K0 — Baseline
 
-Shipped surface:
+On `MemoryEntry`: `Timestamp` (event time), `SessionID`, `TemporalTags`, turn fields (`TurnID`, `ExtractedFacts`, `Keyphrases`, `OriginalText`). Provenance: `IngestTurn` stamps `source_hint=private` when the caller does not already supply a classifiable mesh or private source.
+
+Scoring: `CalculateTemporalDecay`, `CalculateRecencyBoost`, `CalculateRelevanceScore`, `MultiFactorScore`.
+
+Ingest/search: `IngestTurn`; `SearchMemory` hybrid keyword-first + optional `QueryVec`. Hash embeddings never persist as stored vectors.
+
+Topology: **one process per palace root**. `writeMu` serializes `relations/entity-graph.json` and `indexes/event-time.json`. Flock is not shipped.
+
+### K1 — Filtered search
 
 ```go
 type SearchMemoryOptions struct {
-    SessionID       string
-    TimeFrom        *time.Time // inclusive event time (entryEventTime)
-    TimeTo          *time.Time // inclusive
-    AsOf            *time.Time // optional; when set, EntryValidAt filter before Limit (s616)
-    Limit           int        // default 10
+    SessionID, TimeFrom, TimeTo *… // session + inclusive event-time window
+    AsOf            *time.Time     // EntryValidAt before Limit
+    Limit           int            // default 10
     Tier            *MemoryTier
-    QueryVec        []float32
+    QueryVec        []float32      // keyword hits stay ahead of cosine
     ReRankTemporal  bool
-    IncludeArchival bool // when Tier==nil, also include Archival
+    IncludeArchival bool           // default tiers: Working+Contextual+Semantic
 }
-
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry
 ```
 
-### Acceptance (met)
+Filters apply **before** Limit. `SearchMemory` remains a thin wrapper.
 
-- Filter by `SessionID` when set
-- Filter by event-time window via `entryEventTime` (`Timestamp` else `CreatedAt` else `LastAccessed`); inclusive bounds
-- Optional `ReRankTemporal` after vector/keyword scoring (`CalculateRelevanceScore`)
-- Filters apply **before** Limit (underfill class)
-- Backward compatible: `SearchMemory` remains a thin wrapper
-- Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Archival** unless `IncludeArchival`, explicit Archival `Tier`, or empty default-tier keyword hits / low-confidence fallback — #87)
-- Tests: session isolation, window edges, re-rank order, wrapper parity, default-tier archival skip
-
----
-
-## K2 — Timeline list & tag helpers — **Partial shipped** (s611 / v1.5.3)
-
-**Goal**: First-class event-time ordered listing (timeline) with session/time/tag/query filters applied before Limit; light tag helpers. Durable snapshot shipped (#44); incremental/btree event-time index residual.
-
-### Shipped (s611)
+### K2 — Timeline list + meta index
 
 ```go
 type ListMemoryOptions struct {
-    SessionID       string
-    TimeFrom        *time.Time // inclusive on entryEventTime
-    TimeTo          *time.Time // inclusive
-    Tag             string     // exact match TemporalTags or Content.Tags
-    TagPrefix       string     // strings.HasPrefix on either tag set
-    Query           string     // case-insensitive substring Summary/Full/OriginalText
-    Limit           int        // default 50 when <= 0
-    Tier            *MemoryTier
-    IncludeArchival bool       // when Tier==nil, also include Archival
-    Ascending       bool       // false = newest first (default)
+    SessionID, TimeFrom, TimeTo *…
+    Tag, TagPrefix, Query string
+    Limit int            // default 50
+    Tier *MemoryTier
+    IncludeArchival, Ascending bool
 }
-
 func (ps *PalaceStore) ListMemoryWithOptions(opts ListMemoryOptions) []MemoryEntry
-func EntryHasTag(e MemoryEntry, tag string) bool
-func EntryHasTagPrefix(e MemoryEntry, prefix string) bool
 ```
 
-Order of operations: collect candidates → session → time → tag filters → query → sort by `entryEventTime` → limit.
+`Write` / unlink **patch** a clean in-memory meta index (and optional durable snapshot). Dirty/missing index rebuilds lazily from tier JSON (O(n)). `DisableMetaIndex` / `DisableDurableIndex` exist for tests. FS files remain source of truth.
 
-Default tiers when `Tier == nil`: Working + Contextual + Semantic (**exclude Archival** unless `IncludeArchival`).
-
-### Residual / later within K2
-
-- Incremental / btree **event-time index residual** (avoid O(n) rebuild walk after every dirty write)
-- Optional secondary indexes for tags if FS cost becomes the bottleneck
-
-**Note**: FS Palace remains source of truth. Durable snapshot is best-effort and optional; rebuild-on-dirty is still **O(n)**. This slice does not invent multi-tenant isolation.
-
-### Non-goals for K2
-
-- Cross-tenant indexes
-- Distributed timeline stores
-- Full temporal KG (see K4)
-
----
-
-## K3 — Qwen3-0.6B 1024-d embedding profile (planned)
-
-**Goal**: Optional embedding **preset** for denser local vectors, without forcing host architecture.
-
-### Dual-path notes
-
-| Path | Who owns it | Notes |
-|------|-------------|--------|
-| **Library preset** | `memory` package | Optional ONNX/hugot profile: Qwen3-0.6B → **1024-d**; caller sets `EmbeddingFunc` + collection dim |
-| **Host worker path** | host (and fleet) | Host may prefer remote/embed-worker pipelines, model routing, or different dims; **must not** assume library default is Qwen3 |
-
-Default production ONNX path today is **BGE-small-en-v1.5 (384-d)** (see README / `BGESmallEmbeddingDim`). Hash fallback remains **768-d** when ONNX is unset.
-
-K3 must:
-
-- Ship as **opt-in** preset (env or constructor), not silent default flip that breaks existing 384-d collections
-- Document dimension mismatches and re-index requirements
-- State clearly that hosts may ignore this preset and inject their own `EmbeddingFunc`
-
----
-
-## K4 — Entity validity windows / temporal KG — **Partial shipped** (s616 / v1.5.4)
-
-**Goal**: First-class **as-of validity** (bi-temporal lite) so hosts that write `valid_from:` / `valid_until:` TemporalTags can list and search facts valid at a point in time.
-
-### Shipped (s616) — facts-as-of first slice
+### K4 lite — Validity windows
 
 ```go
 func ParseValidityWindow(e MemoryEntry) (from, until *time.Time)
 func EntryValidAt(e MemoryEntry, asOf time.Time) bool
-
-type FactsAsOfOptions struct {
-    AsOf            time.Time // zero = Now UTC
-    Query           string
-    SessionID       string
-    Entity          string    // entity: TemporalTags filter
-    Limit           int       // default 50
-    Tier            *MemoryTier
-    IncludeArchival bool
-}
-
 func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry
-// SearchMemoryOptions.AsOf *time.Time — filter !EntryValidAt before Limit
 ```
 
-#### Validity rules (`EntryValidAt`)
+Tags: `valid_from:<RFC3339>` inclusive start; `valid_until:<RFC3339>` **exclusive** end. No tags → valid if event time is zero or `!eventTime.After(asOf)`.
 
-| Case | Rule |
-|------|------|
-| Zero `asOf` | Treated as `time.Now().UTC()` |
-| `valid_from` set | Invalid if `asOf.Before(from)` (inclusive start) |
-| `valid_until` set | Invalid if `!asOf.Before(until)` — **exclusive end** (`asOf == until` is invalid) |
-| No validity tags | “Known by asOf”: valid if `entryEventTime` is zero **or** `!entryEventTime.After(asOf)` |
-
-Tag format (host-written, e.g. host `applyTemporalToEntry`): `valid_from:<RFC3339>`, `valid_until:<RFC3339>`.
-
-#### ListFactsAsOf
-
-- Default tiers: Working + Contextual + Semantic (+ Archival if `IncludeArchival`)
-- Filters (session, entity, query, validity) apply **before** Limit (underfill class)
-- Ordering: **Semantic first**, then event time descending within rank
-- Entity filter: substring on `entity:` tags when value has no `:`; exact `entity:type:id` when value contains `:`
-
-### Non-goals (still open)
-
-This is **bi-temporal lite** (validity window on entries via tags), **not**:
-
-- Full Graphiti-style dual clocks (transaction time + validity time as first-class stores)
-- Temporal knowledge graph with edge validity
-- Multi-tenant hosted Memory
-
-### Shipped (s632) — A3 supersession first slice (K4 write path)
-
-When a newer fact for the same **entity key** is written, close prior open validity windows by setting `valid_until` (exclusive end, same semantics as `EntryValidAt`). Entries are not deleted.
+### A3 lite — Supersession
 
 ```go
-// SupersedeEntityFacts finds entries matching entityKey (EntryEntityKeys /
-// entity: tags) that are still EntryValidAt(asOf), and writes valid_until=asOf.
-// Empty entityKey is a no-op. Returns count of updated entries.
 func (ps *PalaceStore) SupersedeEntityFacts(entityKey string, asOf time.Time) (int, error)
-
-// WriteAndSupersede writes entry first (stamps valid_from=now when unset), then
-// supersedes each key excluding the new entry's ID.
 func (ps *PalaceStore) WriteAndSupersede(entry MemoryEntry, supersedeKeys []string) error
 ```
 
-#### Rules
+Closes prior open windows for an explicit entity key. Does not delete entries. Does not run NLP.
 
-| Concern | Behavior |
-|---------|----------|
-| Entity match | `EntryEntityKeys` contains key after lower-case trim normalization |
-| Skip self | `WriteAndSupersede` excludes the newly written entry ID |
-| Open only | Only entries currently `EntryValidAt(asOf)` are updated |
-| Tag write | Add/replace `valid_until:<RFC3339>`; preserve `valid_from` and other tags |
-| Empty key | No-op (0, nil) |
-
-#### Non-goals (A3)
-
-This is **competitive lite supersession** (explicit entity keys + validity tags), **not**:
-
-- Automatic NLP contradiction detection
-- Full Zep dual-clock knowledge graph
-- Silent host-wide supersession without caller-supplied keys
-
-Residual for later K4 / A3 slices (when product demand is explicit):
-
-- Temporal edges on relations for KG-style recall
-- Compaction consistency with validity tags (ingest children stamped; compaction products now stamped; not dual-clock ingest)
-- Optional indexes if O(n) FS scans become the bottleneck
-- Auto-extract entity keys from new writes (still explicit keys in this slice)
-
----
-
-## A2 — Multi-hop / associative retrieval — **Partial shipped** (s619 / v1.5.5; hop ranking s1067; residual honesty s1278)
-
-**Goal**: Competitive multi-hop lite over the existing EntityGraph (`AddEntityRelationship` / `GetRelatedEntities`) and entry Relations / entity tags — not a full Zep / Graphiti knowledge graph.
-
-### Shipped (s619) — multi-hop first slice
+### A2 lite — Multi-hop
 
 ```go
-type MultiHopOptions struct {
-    SeedEntity        string     // starting entity key (prefer exact graph node keys)
-    SeedQuery         string     // optional: derive seeds from SearchMemoryWithOptions hits
-    MaxHops           int        // default 2; clamp 1..4 (hop 0 = seed)
-    Limit             int        // default 20; AFTER expansion + collect + filters
-    SessionID         string
-    AsOf              *time.Time // optional EntryValidAt filter
-    Tier              *MemoryTier
-    IncludeArchival   bool
-    QueryVec          []float32  // pass-through when seeding via SeedQuery
-    PreferShorterHops *bool      // default true (nil); false = legacy seed-match-first
-}
-
-func (ps *PalaceStore) ExpandRelatedEntities(seed string, maxHops int) []string
-func (ps *PalaceStore) ExpandRelatedEntitiesHops(seed string, maxHops int) map[string]int // entity → min hop
 func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry
-func EntryEntityKeys(e MemoryEntry) []string // entity: / subject: / RelatedConcepts
+func (ps *PalaceStore) ExpandRelatedEntitiesHops(seed string, maxHops int) map[string]int
 ```
 
-#### Order of operations (`MultiHopRetrieve`)
-
-1. Resolve seeds (`SeedEntity` and/or entity keys from `SeedQuery` search hits via `EntryEntityKeys`)
-2. `ExpandRelatedEntitiesHops` BFS for each seed over `GetRelatedEntities` up to `MaxHops` (min hop across seeds)
-3. Collect entries from default tiers matching any expanded entity (`TemporalTags` `entity:*`, `Content.Tags`, `Relations.RelatedConcepts`); assign **min hop** among matched entity keys
-4. Optional `SessionID` + `AsOf` filters **before** Limit (underfill class)
-5. Sort (default): **lower hop first** (seed = hop 0), then event time descending within hop; opt-out via `PreferShorterHops=false` → legacy seed-match first then event time
-6. Limit
-
-Default tiers when `Tier == nil`: Working + Contextual + Semantic (+ Archival if `IncludeArchival`).
-
-`AddEntityRelationship` ensures `BaseDir/relations` exists before writing the graph file.
-
-### Shipped (s1067 / v1.5.7 continuum) — hop-distance ranking lite
-
-Path-aware ranking lite: prefer shorter BFS hop distance from seed when ordering multi-hop hits. Improves host TUI / MCP multi-hop recall quality without a full path-scoring graph.
-
-- `ExpandRelatedEntitiesHops` returns entity → min hop (seed at 0)
-- Entry hop = min hop among matched expanded entity keys
-- Still **not** typed-edge weights, embedding-guided walks, or Zep/Graphiti path scores
-
-### Residual pin (s1278)
-
-Free eng residual pin for A2 hop-distance ranking (memory serial **s1278**; continuum with host free eng floor **s1276+** / peer **s1277**). Documents:
-
-- `PreferShorterHops` default **true**; explicit false = legacy seed-match-first (does not prefer shorter hops)
-- multi-hop lite · not full Zep/Graphiti path scoring · not full graph RAG
-- TUI related `hop_distance` display: host surface mention only
-
-Canonical residual SSOT: [`operations/multi-hop-hop-distance-ranking-residual.md`](./operations/multi-hop-hop-distance-ranking-residual.md).
-
-### Non-goals (still open)
-
-This is **multi-hop lite** (BFS on a simple directed adjacency map + tag collect + hop-distance sort), **not**:
-
-- Full Zep / Graphiti temporal knowledge graph with typed edges and edge validity
-- Community detection, full path scoring, or embedding-guided graph walk
-- Multi-tenant hosted Memory
-
-Residual for later A2 slices:
-
-- Bidirectional / typed relation edges
-- ~~Path-aware ranking (prefer shorter hops)~~ — **done** s1067 (hop-distance ranking lite; not full path scoring); residual pin **s1278**
-- Indexes if O(n) FS scans + graph BFS become the bottleneck
+BFS on `GetRelatedEntities`, collect by `entity:` tags, default **shorter hop first**. Not typed-edge weights.
 
 ---
 
-## How this relates to other docs
+## Future phases (next TODOs)
 
-| Doc | Role |
-|-----|------|
-| [memory-refactor-improvements.md](./memory-refactor-improvements.md) | Broader package improvement backlog (stability, vectors, embeddings, RecMem-adjacent) |
-| [recmem-integration-plan.md](./recmem-integration-plan.md) | RecMem density / phase-transition integration |
-| `README.md` | Public usage, ONNX backends, LongMemEval harness |
+Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand → T5 last**. Do not start K3/Qwen3 or a dual-clock KG before T1 is measured.
 
-**This file** is the canonical **temporal kernel** roadmap for `github.com/iome-sh/memory`.
+### T1 — Multi-session temporal retrieve (next)
+
+**Why:** Original K1 session filter is single-`SessionID`. LongMemEval `multi-session` items need facts **spread across several haystack sessions** in one `conv_id` palace. Today retrieve returns on-topic chatter; the count gold (`3` clothes, `2` projects) is not assembled.
+
+**In scope**
+
+- Palace-side retrieve that can seed from **several** `SessionID`s (or “all sessions in this palace / conv”) without dropping keyword gold past `Limit`
+- Time-aware expansion that does **not** classify ordinary count questions as a calendar window and hide gold
+- Optional: assemble `ExtractedFacts` / facts-as-of across sessions before the reader (kernel helper, not an LLM)
+- Re-run locked mixed **n=12** (same IDs) then **n=60** (`testdata/longmemeval_baseline_ids_n60.json`) after the change
+
+**Out of scope**
+
+- Publishing a LongMemEval leaderboard number
+- Changing default embedder to Qwen3
+- Multi-process writers / flock
+
+**Done when:** `multi-session` on the locked n=12 list is no longer 0/2 on MiniLM **and** BGE (hash may still lag). Same judge pin. Isolated palace per embed mode.
+
+### T2 — Event-time index beyond patch
+
+**Why:** Original K2 residual. Patch + durable snapshot are enough for laptop palaces. First list after process start still walks JSON.
+
+**In scope:** optional btree / tag secondary if `MetaIndexRebuilds` or list latency shows up in T1 benches. Keep FS as source of truth.
+
+**Out of scope:** flock; cross-process writers; distributed timelines.
+
+### T3 — Temporal relation edges
+
+**Why:** Original K4/A2 residual. `AddEntityRelationship` is untimed adjacency. As-of graph walk needs `valid_from` / `valid_until` on edges, not only on entries.
+
+**Start only if** T1 still misses after session-set retrieve — i.e. the gold lives on a **relation** that should have expired.
+
+### T4 — Compaction vs validity
+
+**Why:** Ingest children stamp `valid_from`; compaction products stamp. MERGE / SUMMARIZE / ARCHIVE must not drop or invent validity windows.
+
+**In scope:** compaction tests that `ListFactsAsOf` after MERGE/SUMMARIZE still matches `EntryValidAt`. No new dual-clock store.
+
+### T5 — Embedding profiles (original K3)
+
+Keep **BGE-small-en-v1.5 384-d** as the documented ONNX default. MiniLM is the in-tree fallback when BGE is missing. `PersistEmbeddings` stays default **off**.
+
+Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concrete consumer needs it. Document re-index if Qdrant collection dim changes. No silent default flip.
 
 ---
 
 ## Suggested implementation order
 
-1. ~~Finish **K1** (`SearchMemoryWithOptions` + tests)~~ — **done** s586 / v1.5.2  
-2. **K2** first slice (`ListMemoryWithOptions` + tag helpers) — **done** s611 / v1.5.3; durable snapshot **done** #44; residual: incremental/btree event-time index residual  
-
-3. **K4** first slice (facts-as-of / validity window) — **done** s616 / v1.5.4; residual: temporal edges / full dual-clock KG  
-4. **A2** first slice (multi-hop / associative retrieval) — **done** s619 / v1.5.5; hop-distance ranking lite **done** s1067; residual honesty pin **s1278**; residual: typed edges / full path scoring / full Zep KG  
-5. **A3** first slice (entity-key fact supersession) — **done** s632 / v1.5.6; residual: auto entity extract / NLP contradiction / full dual-clock KG  
-6. **K3** only when a concrete consumer needs 1024-d Qwen3 locally (keep BGE-small default until then; no silent flip)
+1. **T1** multi-session retrieve + re-measure n=12 (then n=60) — **next TODO**
+2. **T2** only if timeline list / rebuild cost is the limiter
+3. **T3 / T4** when T1 evidence says edges or compaction ate the gold
+4. **T5** last, consumer-driven
 
 ---
 
-## Versioning notes
+## Versioning
 
-- Kernel temporal APIs should remain backward compatible within major module versions where practical  
-- New options structs and methods are preferred over breaking `SearchMemory` signatures  
-- Embedding dimension changes require collection recreation when using Qdrant; document in release notes  
-- **v1.5.2**: K1 `SearchMemoryWithOptions`  
-- **v1.5.3**: K2 partial `ListMemoryWithOptions` + `EntryHasTag` / `EntryHasTagPrefix`  
-- **v1.5.4**: K4 partial facts-as-of (`ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`)  
-- **v1.5.5**: A2 partial multi-hop / associative (`MultiHopRetrieve`, `ExpandRelatedEntities`, `EntryEntityKeys`)  
-- **v1.5.6**: A3 / K4 partial fact supersession (`SupersedeEntityFacts`, `WriteAndSupersede`)  
-- **v1.5.7 continuum**: A2 residual hop-distance ranking (`ExpandRelatedEntitiesHops`, `PreferShorterHops` default true) — s1067; residual honesty pin **s1278**  
-- BGE-small-en-v1.5 (384-d) remains the default ONNX profile; Qwen3 1024-d is K3 residual  
-
----
-
-*s587 roadmap anchor; K1 shipped s586/v1.5.2; K2 partial shipped s611/v1.5.3; K4 partial shipped s616/v1.5.4; A2 partial shipped s619/v1.5.5; A3 partial shipped s632/v1.5.6; A2 hop ranking s1067 (v1.5.7 continuum); hop ranking residual honesty s1278.*
-
+- Prefer new options fields and methods over breaking `SearchMemory` signatures
+- Embedding dimension changes require Qdrant collection recreation; note in the release
+- v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card
