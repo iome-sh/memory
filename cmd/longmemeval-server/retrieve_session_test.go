@@ -275,3 +275,54 @@ func TestLongMemEval_RetrieveTemporalEvidencePrependsDatedEvents(t *testing.T) {
 		t.Fatalf("webinar must list before workshop: %#v", out.Memories[0])
 	}
 }
+
+func TestLongMemEval_RetrieveLatestValueEvidencePrefersLaterAmount(t *testing.T) {
+	setupHashHarness(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ingest", handleIngest)
+	mux.HandleFunc("/retrieve", handleRetrieve)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	conv := "ku-wells-fargo"
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role:      "user",
+		Content:   "I'm actually buying a $325,000 house, and I got pre-approved for $350,000 from Wells Fargo.",
+		Timestamp: time.Date(2023, 8, 11, 5, 59, 0, 0, time.UTC),
+		Cycle:     1,
+		SessionID: "hay-aug",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role:      "user",
+		Content:   "remember when I got pre-approved for $400,000 from Wells Fargo?",
+		Timestamp: time.Date(2023, 11, 30, 12, 13, 0, 0, time.UTC),
+		Cycle:     1,
+		SessionID: "hay-nov",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	q := "What was the amount I was pre-approved for when I got my mortgage from Wells Fargo?"
+	out, err := postRetrieveSession(srv.URL, q, 8, conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Memories) == 0 {
+		t.Fatal("expected retrieved memories")
+	}
+	if out.Memories[0].ID != "latest-value-evidence" {
+		t.Fatalf("latest-value query should lead with synthetic assembly, got id=%q summary=%q", out.Memories[0].ID, out.Memories[0].Summary)
+	}
+	blob := strings.ToLower(out.Memories[0].Summary + " " + out.Memories[0].Full)
+	i400 := strings.Index(blob, "400,000")
+	i350 := strings.Index(blob, "350,000")
+	if i400 < 0 {
+		t.Fatalf("assembly missing later $400,000: %#v", out.Memories[0])
+	}
+	if i350 >= 0 && i400 > i350 {
+		t.Fatalf("$400,000 must list before $350,000: %#v", out.Memories[0])
+	}
+}

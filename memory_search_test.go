@@ -528,6 +528,128 @@ func TestSearchMemoryWithOptions_LowConfidenceIncludesArchival(t *testing.T) {
 	}
 }
 
+func TestSkipVectorScoring(t *testing.T) {
+	if !SkipVectorScoring("How many projects have I led?") {
+		t.Fatal("count query must skip vector")
+	}
+	if !SkipVectorScoring("Which event did I attend first, the workshop or the webinar?") {
+		t.Fatal("temporal-order query must skip vector")
+	}
+	if !SkipVectorScoring("How many days had passed between the mass and the service?") {
+		t.Fatal("dated-span query must skip vector")
+	}
+	if SkipVectorScoring("What was the amount I was pre-approved for when I got my mortgage from Wells Fargo?") {
+		t.Fatal("latest-value amount query is not a count/temporal skip class")
+	}
+	if SkipVectorScoring("What is the name of my golden retriever?") {
+		t.Fatal("ordinary fact query must still score by vector")
+	}
+}
+
+func TestSearchMemoryWithOptions_CountQuerySkipsVectorScoring(t *testing.T) {
+	var embedCalls, batchCalls atomic.Int64
+	panicEmbed := func(text string, dim int) []float32 {
+		embedCalls.Add(1)
+		panic("EmbeddingFunc must not run on count queries")
+	}
+	store := NewPalaceStoreWithConfig(PalaceConfig{
+		BaseDir:       t.TempDir(),
+		EmbeddingFunc: panicEmbed,
+		BatchEmbeddingFunc: func(texts []string, dim int) ([][]float32, error) {
+			batchCalls.Add(1)
+			panic("BatchEmbeddingFunc must not run on count queries")
+		},
+	})
+	conv := "count-skip-vec"
+	gold := MemoryEntry{
+		ID:        "fact-led-two",
+		Tier:      TierSemantic,
+		SessionID: "s2",
+		Type:      "turn_fact",
+		Content: MemoryContent{
+			Summary: "Currently leading two data analysis projects",
+			Full:    "Currently leading two data analysis projects at work.",
+			Tags:    []string{ConvTag(conv), "fact_augmented", "from_turn"},
+		},
+	}
+	if err := store.Write(gold); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 6; i++ {
+		e := MemoryEntry{
+			ID:        "chatter-" + string(rune('a'+i)),
+			Tier:      TierContextual,
+			SessionID: "s1",
+			Type:      "conversation_turn",
+			Content: MemoryContent{
+				Summary: "how many clustering methods elbow silhouette analysis",
+				Tags:    []string{ConvTag(conv)},
+			},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	noisy := GenerateSimpleEmbedding("unrelated revenue forecast", 8)
+	q := "How many projects have I led?"
+	hits := store.SearchMemoryWithOptions(q, SearchMemoryOptions{
+		SessionID: conv,
+		Limit:     5,
+		QueryVec:  noisy,
+	})
+	if embedCalls.Load() != 0 || batchCalls.Load() != 0 {
+		t.Fatalf("embedder invoked on count query: embed=%d batch=%d", embedCalls.Load(), batchCalls.Load())
+	}
+	if len(hits) == 0 || hits[0].ID != "fact-led-two" {
+		t.Fatalf("count query with noisy QueryVec should keep keyword gold first, ids=%v", idsOf(hits))
+	}
+}
+
+func TestSearchMemoryWithOptions_TemporalQuerySkipsVectorScoring(t *testing.T) {
+	var embedCalls atomic.Int64
+	store := NewPalaceStoreWithConfig(PalaceConfig{
+		BaseDir: t.TempDir(),
+		EmbeddingFunc: func(text string, dim int) []float32 {
+			embedCalls.Add(1)
+			panic("EmbeddingFunc must not run on temporal-order queries")
+		},
+	})
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	conv := "temporal-skip-vec"
+	if err := store.Write(MemoryEntry{
+		ID: "webinar", Type: "turn_fact", Tier: TierSemantic,
+		SessionID: "s-web", Timestamp: ts,
+		Content: MemoryContent{
+			Summary: "I participated in a webinar on Data Analysis using Python two months ago.",
+			Tags:    []string{ConvTag(conv), "fact_augmented"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Write(MemoryEntry{
+		ID: "workshop", Type: "turn_fact", Tier: TierSemantic,
+		SessionID: "s-work", Timestamp: ts,
+		Content: MemoryContent{
+			Summary: "I attended the workshop on Effective Time Management last Saturday.",
+			Tags:    []string{ConvTag(conv), "fact_augmented"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	q := "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?"
+	hits := store.SearchMemoryWithOptions(q, SearchMemoryOptions{
+		SessionID: conv,
+		Limit:     6,
+		QueryVec:  GenerateSimpleEmbedding("noise", 8),
+	})
+	if embedCalls.Load() != 0 {
+		t.Fatalf("embedder invoked on temporal query: %d", embedCalls.Load())
+	}
+	if !entryHasID(hits, "webinar") || !entryHasID(hits, "workshop") {
+		t.Fatalf("temporal keyword gold missing; ids=%v", idsOf(hits))
+	}
+}
+
 func TestKeywordTokens_HyphenNeedle(t *testing.T) {
 	got := keywordTokens("zircon-lantern-4829")
 	want := []string{"zircon", "lantern", "4829"}

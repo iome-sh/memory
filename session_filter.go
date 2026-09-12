@@ -95,6 +95,14 @@ func isCountQuery(query string) bool {
 	return strings.Contains(q, "how many") || strings.Contains(q, "how much")
 }
 
+// SkipVectorScoring reports whether SearchMemoryWithOptions ignores QueryVec
+// and does not call scoreEntriesByVector. True for count (how many / how much)
+// and temporal-order / dated-span queries. Keyword-first retrieve plus
+// AssembleCountEvidence / AssembleTemporalEvidence is the gold path.
+func SkipVectorScoring(query string) bool {
+	return isCountQuery(query) || isTemporalEvidenceQuery(query)
+}
+
 func isFactEntry(e MemoryEntry) bool {
 	if e.Type == "turn_fact" || e.Type == "atomic_fact" {
 		return true
@@ -316,7 +324,7 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 // (stemmed). Keyword search alone can miss "solo project" when the query says
 // "projects".
 func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []MemoryEntry {
-	if !isCountQuery(query) || isDatedSpanQuery(query) {
+	if !isCountQuery(query) || isDatedSpanQuery(query) || isLatestValueQuery(query) {
 		return hits
 	}
 	seen := make(map[string]struct{}, len(hits)+len(candidates))
@@ -363,7 +371,7 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // between” is not assembled here (see AssembleTemporalEvidence). Empty when
 // the query is not a count question or no facts match.
 func AssembleCountEvidence(query string, facts []MemoryEntry) string {
-	if !isCountQuery(query) || isDatedSpanQuery(query) {
+	if !isCountQuery(query) || isDatedSpanQuery(query) || isLatestValueQuery(query) {
 		return ""
 	}
 	matched := make([]MemoryEntry, 0, len(facts))

@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Unique-entity count clusters:** `AssembleCountEvidence` clusters kits, plants, and hour+destination facts by distinctive object (repeated B-29 is one kit; two plants in one turn are two clusters; word numbers). Clothing action×object clustering is unchanged.
 - **Temporal dated-event evidence:** `AssembleTemporalEvidence` lists unique dated bullets with the text date phrase labeled separately from ingest `Timestamp` (RFC3339) for which-first / how-many-days-between queries. Search promotes entries that mention either event name; LongMemEval retrieve prepends a synthetic `temporal_evidence` hit (not persisted). Dated-span how-many is still not a calendar window.
+- **Latest-value evidence:** `AssembleLatestValueEvidence` lists dollar/scalar values matching the query entity, later `Timestamp` first, for amount / pre-approved / how-much-was-I questions. Search unions matching amount facts across sessions and ranks later sessions first. LongMemEval retrieve prepends a synthetic `latest_value_evidence` hit (not persisted). Does not NLP-supersede.
 
 ### Changed
 - **Count-evidence cluster count:** `AssembleCountEvidence` prefixes `Count evidence (N distinct items):` so the reader can count clusters (clothing pickup+return stay separate). `AssembleTemporalEvidence` prefixes `N distinct events` when multiple bullets. Does not invent a numeric gold.
+- **Skip vector on count/temporal retrieve:** `SearchMemoryWithOptions` does not call `scoreEntriesByVector` for count or temporal-order/dated-span queries even when `QueryVec` is set (keyword + evidence assembly). LongMemEval retrieve skips computing `QueryVec` for those classes.
 
 ## [1.5.12] — 2026-09-12
 

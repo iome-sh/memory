@@ -169,14 +169,18 @@ func TestHandleRetrieve_UsesBatchEmbeddingFunc(t *testing.T) {
 }
 
 func TestHandleRetrieve_CountQueryKeepsKeywordFirstWithBatch(t *testing.T) {
-	var batchCalls int
+	var embedCalls, batchCalls int
+	embedFn := func(text string, dim int) []float32 {
+		embedCalls++
+		panic("EmbeddingFunc must not run on count retrieve")
+	}
 	batchFn := func(texts []string, dim int) ([][]float32, error) {
 		batchCalls++
-		return fakeBatchEmbed(texts, dim)
+		panic("BatchEmbeddingFunc must not run on count retrieve")
 	}
 	embeddingDim = memory.DefaultHashEmbeddingDim
 	globalStore = memory.NewPalaceStoreWithConfig(palaceConfigFromEmbed(t.TempDir(), harnessEmbed{
-		Func:    memory.GenerateSimpleEmbedding,
+		Func:    embedFn,
 		Batch:   batchFn,
 		Dim:     embeddingDim,
 		ModelID: "test-onnx",
@@ -224,8 +228,8 @@ func TestHandleRetrieve_CountQueryKeepsKeywordFirstWithBatch(t *testing.T) {
 	if out.Memories[0].ID != "count-evidence" {
 		t.Fatalf("count query should lead with synthetic assembly, got id=%q summary=%q", out.Memories[0].ID, out.Memories[0].Summary)
 	}
-	if batchCalls < 1 {
-		t.Fatal("count retrieve should still pass QueryVec so batch scoring runs")
+	if embedCalls != 0 || batchCalls != 0 {
+		t.Fatalf("count retrieve must skip QueryVec/embedder; embed=%d batch=%d", embedCalls, batchCalls)
 	}
 	blob := strings.ToLower(out.Memories[0].Summary + " " + out.Memories[0].Full)
 	if !strings.Contains(blob, "led the data analysis") {
@@ -233,6 +237,59 @@ func TestHandleRetrieve_CountQueryKeepsKeywordFirstWithBatch(t *testing.T) {
 	}
 	if !strings.Contains(blob, "solo project") {
 		t.Fatalf("assembly missing solo-project gold: %#v", out.Memories[0])
+	}
+}
+
+func TestHandleRetrieve_TemporalQuerySkipsEmbeddingFunc(t *testing.T) {
+	var embedCalls int
+	embedFn := func(text string, dim int) []float32 {
+		embedCalls++
+		panic("EmbeddingFunc must not run on temporal retrieve")
+	}
+	embeddingDim = memory.DefaultHashEmbeddingDim
+	globalStore = memory.NewPalaceStoreWithConfig(palaceConfigFromEmbed(t.TempDir(), harnessEmbed{
+		Func:    embedFn,
+		Batch:   nil,
+		Dim:     embeddingDim,
+		ModelID: "test-onnx",
+		ONNX:    true,
+	}))
+	globalVectorStore = memory.NewVectorStore("", "longmemeval_memory")
+	*flagEnableTurnGranularity = true
+	*flagEnableTimeAware = false
+	*flagFactAugLevel = 0
+	*flagEnableChainOfNote = false
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ingest", handleIngest)
+	mux.HandleFunc("/retrieve", handleRetrieve)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	conv := "temporal-skip-embed"
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role: "user", Content: "I participated in a webinar on Data Analysis using Python two months ago.",
+		Timestamp: ts, Cycle: 1, SessionID: "hay-web",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role: "user", Content: "I attended the workshop on Effective Time Management last Saturday.",
+		Timestamp: ts, Cycle: 1, SessionID: "hay-work",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := postRetrieveSession(srv.URL, "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?", 8, conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if embedCalls != 0 {
+		t.Fatalf("temporal retrieve must skip QueryVec/embedder; embed=%d", embedCalls)
+	}
+	if len(out.Memories) == 0 || out.Memories[0].ID != "temporal-evidence" {
+		t.Fatalf("temporal query should lead with synthetic assembly, got %#v", out.Memories)
 	}
 }
 
