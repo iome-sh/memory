@@ -25,6 +25,8 @@ if [[ -z "${OPENAI_API_KEY:-}" ]]; then
   log "to run full 500-q eval with OpenAI judge:"
   log "  export OPENAI_API_KEY=sk-..."
   log "  export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5"
+  log "  # If BGE is unavailable (HF may 401), in-tree MiniLM is the local ONNX path:"
+  log "  #   testdata/models/KnightsAnalytics_all-MiniLM-L6-v2 (not official V1 BGE pin)"
   log "  go run cmd/longmemeval-server/main.go &"
   log "  make longmemeval-qa-generate LONGMEMEVAL_QA_LIMIT=500"
   log "  make longmemeval-judge"
@@ -35,6 +37,8 @@ log "phase 3 — QA generation + official judge (requires running server)"
 if ! curl -fsS "http://localhost:8765/health" >/dev/null 2>&1; then
   log "server not running at http://localhost:8765 — start it first:"
   log "  export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5"
+  log "  # If BGE is unavailable (HF may 401), in-tree MiniLM is the local ONNX path:"
+  log "  #   testdata/models/KnightsAnalytics_all-MiniLM-L6-v2 (not official V1 BGE pin)"
   log "  go run cmd/longmemeval-server/main.go"
   log "then: make longmemeval-qa-generate && make longmemeval-judge"
   exit 0

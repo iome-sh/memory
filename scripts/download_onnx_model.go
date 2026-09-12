@@ -1,5 +1,11 @@
 // Download the default KnightsAnalytics bge-small-en-v1.5 ONNX model for local Palace recall.
 //
+// Hugging Face BGE download may 401. In that case use the in-tree MiniLM ONNX path:
+//
+//	testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+//
+// MiniLM is a local 384-d fallback, not the official LongMemEval V1 BGE-small-en-v1.5 pin.
+//
 // Usage:
 //
 //	go run ./scripts/download_onnx_model.go

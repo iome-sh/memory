@@ -118,6 +118,7 @@ longmemeval-qa-generate:
 
 # Official V1 judge pin is gpt-4o-2024-08-06 (docs/LONGMEMEVAL.md).
 # Default gpt-4o-mini is a cheap local path — not official V1.
+# Upstream evaluate_qa.py zoo key gpt-4o maps to that pin (scripts/longmemeval_judge.sh).
 longmemeval-judge:
 	bash scripts/longmemeval_judge.sh \
 	$${LONGMEMEVAL_JUDGE_MODEL:-gpt-4o-mini} \
@@ -129,6 +130,8 @@ longmemeval-judge:
 # testdata/longmemeval_oracle_subset.json is 3 single-session-user items — not mixed official V1.
 # Official judge pin is gpt-4o-2024-08-06. Default LONGMEMEVAL_JUDGE_MODEL=gpt-4o-mini is a cheap local path — not official V1.
 # LONGMEMEVAL_V1_RUN=1 also generates+judges a mixed sample (needs OPENAI_API_KEY + ONNX + running server).
+# Local ONNX: BGE-small-en-v1.5 if present; else in-tree testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+# (384-d). MiniLM is the local path when BGE is unavailable (HF download may 401) — not the official V1 embed pin.
 longmemeval-v1-card:
 	bash scripts/longmemeval_v1_card.sh
 
