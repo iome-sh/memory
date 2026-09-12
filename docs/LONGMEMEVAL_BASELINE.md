@@ -6,6 +6,18 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## Wave E — T1 count-assembly (kernel `f99c140` / #111, 2026-09-12T19:43Z–19:57Z)
+
+Kernel `#111` (`AssembleCountEvidence` + palace-wide count-fact union). Health `embed_mode` verified.
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **11/12** | 0.917 | `hash` | **1/2** (clothes miss, projects pass) |
+| MiniLM ONNX | **12/12** | 1.000 | `onnx-minilm-l6-v2` | **2/2** |
+| BAAI BGE ONNX | **11/12** | 0.917 | `onnx-bge-small-en-v1.5` | **1/2** (clothes miss, projects pass) |
+
+Clothes (`0a995998`, gold 3) pass on MiniLM (return + pickup exchanged boots + dry-cleaning). Hash counts pickup + dry-clean = 2; BGE counts pickup + return = 2. Projects (`6d550036`, gold 2) pass all three (Marketing Research led-team + Data Mining solo). Other types 2/2. T1 done-when (MiniLM **and** BGE multi-session no longer 0/2) **met**. Not a README number.
+
 ## Wave D — T1 overlap-rank + led extract (kernel `2695e02` / #110, 2026-09-12T19:25Z–19:36Z)
 
 Kernel `#110` only. Does **not** include `f99c140` (#111 count-assembly).
@@ -62,4 +74,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave D is kernel `2695e02` (#110 only). Next: remesure n=12 on `f99c140` (#111 count-assembly). T1 done-when not met (BGE still 0/2). Not a README number.
+- Wave E is kernel `f99c140` (#111). T1 done-when met (MiniLM 2/2, BGE 1/2). Next: n=60. Not a README number.
