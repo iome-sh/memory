@@ -105,6 +105,7 @@ def ingest_history(session: requests.Session, conv_id: str, history: List[Dict[s
             "content": turn.get("content", ""),
             "timestamp": turn.get("timestamp", ""),
             "cycle": turn.get("cycle", 0),
+            "session_id": turn.get("session_id", ""),
         }
         for turn in history
     ]

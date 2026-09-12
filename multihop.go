@@ -26,8 +26,10 @@ type MultiHopOptions struct {
 	MaxHops int
 	// Limit default 20; applied AFTER expansion + entry collect + filters.
 	Limit int
-	// SessionID, when non-empty, keeps only matching SessionID (before Limit).
+	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags (T1).
 	SessionID string
+	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
+	SessionIDs []string
 	// AsOf optional EntryValidAt filter (before Limit).
 	AsOf *time.Time
 	// Tier when non-nil: only that tier. When nil: Working+Contextual+Semantic
@@ -323,11 +325,12 @@ func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry {
 			searchLimit = 50
 		}
 		searchOpts := SearchMemoryOptions{
-			SessionID: opts.SessionID,
-			AsOf:      opts.AsOf,
-			Limit:     searchLimit,
-			Tier:      opts.Tier,
-			QueryVec:  opts.QueryVec,
+			SessionID:  opts.SessionID,
+			SessionIDs: opts.SessionIDs,
+			AsOf:       opts.AsOf,
+			Limit:      searchLimit,
+			Tier:       opts.Tier,
+			QueryVec:   opts.QueryVec,
 		}
 		hits := ps.SearchMemoryWithOptions(opts.SeedQuery, searchOpts)
 		for _, h := range hits {
@@ -384,11 +387,11 @@ func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry {
 	}
 
 	// 4) Session + AsOf filters before Limit (keep hop slice in sync)
-	if opts.SessionID != "" {
+	if opts.SessionID != "" || len(opts.SessionIDs) > 0 {
 		var filtered []MemoryEntry
 		var hops []int
 		for i, e := range results {
-			if e.SessionID == opts.SessionID {
+			if entryMatchesSessionFilter(e, opts.SessionID, opts.SessionIDs) {
 				filtered = append(filtered, e)
 				hops = append(hops, minHopByIdx[i])
 			}

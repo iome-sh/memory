@@ -68,6 +68,7 @@ func TestLongMemEval_IngestRetrieveRecall(t *testing.T) {
 			Content   string `json:"content"`
 			Timestamp string `json:"timestamp"`
 			Cycle     int    `json:"cycle"`
+			SessionID string `json:"session_id"`
 		}{
 			{
 				Role:      "user",

@@ -639,10 +639,13 @@ func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []Memo
 }
 
 // SearchMemoryOptions configures hybrid retrieval with optional session, time-window,
-// as-of validity, and temporal re-ranking filters (s586 temporal retrieval; s616 AsOf).
+// as-of validity, and temporal re-ranking filters.
 type SearchMemoryOptions struct {
-	// SessionID, when non-empty, keeps only entries with a matching SessionID.
+	// SessionID, when non-empty, keeps entries whose SessionID matches or that
+	// carry tag conv:<SessionID> (T1: inner haystack sessions under one conv).
 	SessionID string
+	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
+	SessionIDs []string
 	// TimeFrom / TimeTo filter by entry event time (see entryEventTime).
 	// Both bounds are inclusive when set.
 	TimeFrom *time.Time
@@ -712,10 +715,10 @@ func (ps *PalaceStore) collectSearchCandidates(opts SearchMemoryOptions) []Memor
 }
 
 func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []MemoryEntry {
-	if opts.SessionID != "" {
+	if opts.SessionID != "" || len(opts.SessionIDs) > 0 {
 		var filtered []MemoryEntry
 		for _, e := range results {
-			if e.SessionID == opts.SessionID {
+			if entryMatchesSessionFilter(e, opts.SessionID, opts.SessionIDs) {
 				filtered = append(filtered, e)
 			}
 		}
@@ -801,9 +804,10 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = keepKeywordHitsFirst(results, keywordHits)
 	}
 
-	// Limit
+	// Limit. Diversify distinct SessionIDs so one haystack session cannot
+	// fill every slot (T1). Single-session sets prefix Limit as before.
 	if len(results) > limit {
-		results = results[:limit]
+		results = diversifyBySession(results, limit)
 	}
 
 	return results

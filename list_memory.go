@@ -19,6 +19,9 @@ import (
 // With DisableMetaIndex, falls back to O(n) full entry scan.
 type ListMemoryOptions struct {
 	SessionID string
+	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
+	// conv:<id> tags match the same way as SearchMemoryWithOptions (T1).
+	SessionIDs []string
 	// TimeFrom / TimeTo filter by entry event time (see entryEventTime). Both inclusive when set.
 	TimeFrom *time.Time
 	TimeTo   *time.Time
@@ -148,11 +151,10 @@ func (ps *PalaceStore) listMemoryScan(opts ListMemoryOptions) []MemoryEntry {
 		}
 	}
 
-	// Session filter
-	if opts.SessionID != "" {
+	if opts.SessionID != "" || len(opts.SessionIDs) > 0 {
 		var filtered []MemoryEntry
 		for _, e := range results {
-			if e.SessionID == opts.SessionID {
+			if entryMatchesSessionFilter(e, opts.SessionID, opts.SessionIDs) {
 				filtered = append(filtered, e)
 			}
 		}

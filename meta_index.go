@@ -320,7 +320,7 @@ func filterMetaIndex(meta []entryMeta, opts ListMemoryOptions) []entryMeta {
 		if _, ok := wantTiers[m.Tier]; !ok {
 			continue
 		}
-		if opts.SessionID != "" && m.SessionID != opts.SessionID {
+		if (opts.SessionID != "" || len(opts.SessionIDs) > 0) && !metaMatchesSessionFilter(m, opts.SessionID, opts.SessionIDs) {
 			continue
 		}
 		if opts.TimeFrom != nil && m.EventTime.Before(*opts.TimeFrom) {
