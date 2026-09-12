@@ -22,7 +22,7 @@ This is a **library kernel** (posture: embeddable filesystem palace), not a memo
 
 ```bash
 go get github.com/iome-sh/memory@latest
-# or pin a release: go get github.com/iome-sh/memory@v1.5.11
+# or pin a release: go get github.com/iome-sh/memory@v1.5.12
 ```
 
 Requires the Go version in [`go.mod`](go.mod). CI uses `GOTOOLCHAIN=auto`.
