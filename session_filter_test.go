@@ -314,6 +314,140 @@ func TestAssembleCountEvidence_SkipsNonCountQuery(t *testing.T) {
 	}
 }
 
+func TestExtractAtomicFacts_ClothingErrands(t *testing.T) {
+	dry := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I still need to pick up my dry cleaning for the navy blue blazer. The closet is a mess.",
+	}})
+	if !factsContain(dry, "dry clean") || !factsContain(dry, "blazer") {
+		t.Fatalf("expected dry-clean blazer fact, got %v", dry)
+	}
+
+	ret := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I need to return some boots to Zara. Clustering notes are unrelated.",
+	}})
+	if !factsContain(ret, "return") || !factsContain(ret, "boot") {
+		t.Fatalf("expected return-boots fact, got %v", ret)
+	}
+
+	pick := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I still need to pick up the new pair of boots I exchanged at Zara.",
+	}})
+	if !factsContain(pick, "pick up") || !factsContain(pick, "boot") {
+		t.Fatalf("expected pick-up boots fact, got %v", pick)
+	}
+
+	poster := "I need to return the poster from the case competition tomorrow afternoon."
+	if atomicFactClothRet.MatchString(poster) || atomicFactClothPick.MatchString(poster) || atomicFactDryClean.MatchString(poster) {
+		t.Fatalf("poster/case-competition must not match clothing errand extract: %q", poster)
+	}
+}
+
+func TestAssembleCountEvidence_CompoundReturnAndPickup(t *testing.T) {
+	facts := []MemoryEntry{{
+		ID: "f-compound", Type: "turn_fact",
+		Content: MemoryContent{Summary: "I need to return boots and pick them up."},
+	}}
+	q := "How many items of clothing do I need to pick up or return from a store?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if !strings.Contains(lower, "[return]") {
+		t.Fatalf("compound must emit return cluster: %q", got)
+	}
+	if !strings.Contains(lower, "[pick-up]") {
+		t.Fatalf("compound must emit pick-up cluster: %q", got)
+	}
+	if strings.Count(got, "\n- ") < 2 {
+		t.Fatalf("compound should be two bullets, got %q", got)
+	}
+}
+
+func TestSearchMemoryWithOptions_CountQueryAssemblesClothingErrands(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	conv := "clothes-count"
+	if err := store.IngestTurn(MemoryEntry{
+		ID:        "turn-dry",
+		SessionID: "hay-dry",
+		Content: MemoryContent{
+			Full: "I still need to pick up my dry cleaning for the navy blue blazer I wore to a meeting.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.IngestTurn(MemoryEntry{
+		ID:        "turn-return",
+		SessionID: "hay-return",
+		Content: MemoryContent{
+			Full: "I need to return some boots to Zara that were too small, so I exchanged them.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.IngestTurn(MemoryEntry{
+		ID:        "turn-pickup",
+		SessionID: "hay-pickup",
+		Content: MemoryContent{
+			Full: "I still need to pick up the new pair of boots I exchanged at Zara.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 16; i++ {
+		if err := store.IngestTurn(MemoryEntry{
+			ID:        "turn-noise-" + strconv.Itoa(i),
+			SessionID: "hay-noise",
+			Content: MemoryContent{
+				Full: "The closet has how many hanging items and number of store receipts for seasonal clothes " + strconv.Itoa(i) + ".",
+				Tags: []string{ConvTag(conv)},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	q := "How many items of clothing do I need to pick up or return from a store?"
+	hits := store.SearchMemoryWithOptions(q, SearchMemoryOptions{SessionID: conv, Limit: 6})
+	if !searchHayContains(hits, "dry clean") {
+		t.Fatalf("missing dry-clean gold under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+	if !searchHayContains(hits, "return some boots") {
+		t.Fatalf("missing return-boots gold under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+	if !searchHayContains(hits, "pick up the new pair") {
+		t.Fatalf("missing pick-up boots gold under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+
+	evidence := AssembleCountEvidence(q, hits)
+	lower := strings.ToLower(evidence)
+	if !strings.Contains(lower, "dry-clean") && !strings.Contains(lower, "dry clean") {
+		t.Fatalf("assembly missing dry-clean cluster: %q", evidence)
+	}
+	if !strings.Contains(lower, "[return]") && !strings.Contains(lower, "return") {
+		t.Fatalf("assembly missing return cluster: %q", evidence)
+	}
+	if !strings.Contains(lower, "[pick-up]") && !strings.Contains(lower, "pick up") {
+		t.Fatalf("assembly missing pick-up cluster: %q", evidence)
+	}
+	if !strings.Contains(lower, "blazer") {
+		t.Fatalf("assembly missing blazer object: %q", evidence)
+	}
+	if !strings.Contains(lower, "boot") {
+		t.Fatalf("assembly missing boot object: %q", evidence)
+	}
+}
+
+func factsContain(facts []string, needle string) bool {
+	n := strings.ToLower(needle)
+	for _, s := range facts {
+		if strings.Contains(strings.ToLower(s), n) {
+			return true
+		}
+	}
+	return false
+}
+
 func searchHayContains(hits []MemoryEntry, needle string) bool {
 	n := strings.ToLower(needle)
 	for _, h := range hits {

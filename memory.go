@@ -1059,6 +1059,14 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 	return entries
 }
 
+// Clothing-errand named extracts. Poster / case-competition "return" lines do
+// not match: return/exchange require boot|blazer|zara.
+var (
+	atomicFactDryClean  = regexp.MustCompile(`(?i)dry[\s-]?clean`)
+	atomicFactClothPick = regexp.MustCompile(`(?i)(pick up|picked up).{0,80}(boot|blazer|dry clean|cleaning|zara)`)
+	atomicFactClothRet  = regexp.MustCompile(`(?i)(return|returned|exchange|exchanged).{0,80}(boot|blazer|zara)`)
+)
+
 // atomicFactPatterns are named extractors. Hits outrank the first-person /
 // capital-letter fallback on count queries so chatter cannot bury "I led".
 var atomicFactPatterns = []*regexp.Regexp{
@@ -1072,6 +1080,9 @@ var atomicFactPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(on .*? (birthday|anniversary|trip|vacation|wedding)|last (month|week|year)|this (month|year))`),
 	regexp.MustCompile(`(?i)(work at|job at|occupation|previous job|used to work)`),
 	regexp.MustCompile(`(?i)(\bled\b|\bleading\b).{0,80}(project|team|analysis)`),
+	atomicFactDryClean,
+	atomicFactClothPick,
+	atomicFactClothRet,
 }
 
 func matchesNamedFactPattern(text string) bool {
