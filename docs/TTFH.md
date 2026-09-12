@@ -65,6 +65,31 @@ Cite-both needs a mesh-class receipt **and** a private-class receipt in the
 digest window. Catalog list is not consume. Grant-only is not cite-both. An
 honest miss is success for this flag; inventing mesh is not.
 
+### Air-gap / no-PULSE worked miss
+
+This transcript is **docs**, not a laptop PULSE run. **E-G1 is not closed.**
+
+Air-gap: no broker, no PULSE consume, local overlay only. After three private
+RCA ingest turns (same content as `examples/ttfh_rca`), cite-both must miss
+mesh. Do **not** stamp mesh on the local overlay to force cite-both.
+Catalog / grant / `source=external` never satisfy cite-both.
+
+```text
+/memory ingest
+# turn 1: PagerDuty page: webhook ingress 5xx
+#         → provenance.source_hint=private  tag=source_hint:private
+# turn 2: HMAC-verified delivery HTTP 200 is not a consume receipt
+#         → provenance.source_hint=private  tag=source_hint:private
+# turn 3: CreateConsumer 500 when consumers.mode is NULL
+#         → provenance.source_hint=private  tag=source_hint:private
+
+/memory digest --require-sources mesh,private
+require-sources: miss · required=mesh,private · cited=private · missing=mesh · receipt window newest-first · n=3 · mesh not in this receipt set · dual_write OFF · not Memory GA · local palace on disk
+```
+
+That miss is **success** for the flag (no mesh-class receipt in an air-gap).
+A green unit test and this page still do **not** close E-G1.
+
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
 
@@ -77,7 +102,8 @@ does not prove a laptop ran them against live PULSE.
 
 This page does **not** satisfy E-G1. A unit test does **not** satisfy E-G1.
 `go run ./examples/ttfh_rca` does **not** satisfy E-G1. Optional TUI/MCP
-pins and slash-command names do **not** satisfy E-G1.
+pins and slash-command names do **not** satisfy E-G1. The air-gap /
+no-PULSE worked miss transcript above is **docs**, not a laptop PULSE run.
 
 Do not treat a docs PR, a README table row, or CI green as E-G1 closed.
 
