@@ -37,8 +37,8 @@ import (
 //
 // ONNX mode sets PalaceConfig.EmbeddingFunc and BatchEmbeddingFunc (same as
 // cmd/longmemeval-bench) so retrieve scores candidates in one forward pass
-// when PersistEmbeddings is off (library default). Hash embeddings are never
-// persisted.
+// when PersistEmbeddings is off (library default). Count and temporal-order
+// queries skip QueryVec / batch scoring. Hash embeddings are never persisted.
 //
 // Endpoints:
 //   POST /ingest     - Persist conversation turns (IngestTurn when enabled). Failed palace persist is not status ok.
@@ -356,10 +356,13 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 
 	var combined []memory.MemoryEntry
 	seen := make(map[string]bool)
+	skipVec := memory.SkipVectorScoring(req.Query)
 
-	// Vector path (with filter when time-aware is active)
-	if globalVectorStore != nil && globalVectorStore.Enabled {
-		queryVec := globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
+	// Vector path (with filter when time-aware is active). Count / temporal
+	// queries skip Qdrant and QueryVec; keyword + evidence assembly is enough.
+	var queryVec []float32
+	if globalVectorStore != nil && globalVectorStore.Enabled && !skipVec {
+		queryVec = globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
 		vecResults, _ := globalVectorStore.SearchSimilar(queryVec, req.Limit*2, filter, true)
 		for _, vr := range vecResults {
 			if entry, ok := globalStore.Load(vr.ID, memory.TierSemantic); ok {
@@ -376,10 +379,13 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 
 	// File-based hybrid. Official QA must pass session_id so a shared palace
 	// is not other-session dominated (#55). Overlap-ranked keyword hits keep
-	// gold phrases ahead of OR-any-token flood (#56). Always pass QueryVec
-	// (including count queries); the kernel still ranks keyword hits first.
-	// BatchEmbeddingFunc scores remaining candidates in one ONNX pass when set.
-	queryVec := globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
+	// gold phrases ahead of OR-any-token flood (#56). Count / temporal-order
+	// queries skip QueryVec (no ONNX over candidates). Other queries still
+	// pass QueryVec; BatchEmbeddingFunc scores remaining candidates in one
+	// ONNX pass when set.
+	if !skipVec && len(queryVec) == 0 {
+		queryVec = globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
+	}
 	keywordResults := globalStore.SearchMemoryWithOptions(req.Query, memory.SearchMemoryOptions{
 		SessionID: sessionID,
 		Limit:     req.Limit,
@@ -404,9 +410,17 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Temporal-order / dated-span and count queries: compact evidence at the
-	// front of the reader context. Synthetic hits only — not written to the palace.
+	// Latest-value / temporal-order / dated-span / count: compact evidence at
+	// the front of the reader context. Synthetic hits only — not written to the palace.
 	var synths []memory.MemoryEntry
+	if evidence := memory.AssembleLatestValueEvidence(req.Query, keywordResults); evidence != "" {
+		synths = append(synths, memory.MemoryEntry{
+			ID:        "latest-value-evidence",
+			Type:      "latest_value_evidence",
+			SessionID: sessionID,
+			Content:   memory.MemoryContent{Summary: evidence, Full: evidence},
+		})
+	}
 	if evidence := memory.AssembleTemporalEvidence(req.Query, keywordResults); evidence != "" {
 		synths = append(synths, memory.MemoryEntry{
 			ID:        "temporal-evidence",

@@ -660,6 +660,7 @@ type SearchMemoryOptions struct {
 	// QueryVec, when non-empty, ranks candidates by cosine similarity.
 	// Keyword hits (if the query has tokens of length >= 3) are kept ahead of
 	// non-hits so hash embeddings cannot drop a literal match past Limit.
+	// Ignored for count and temporal-order / dated-span queries (SkipVectorScoring).
 	QueryVec []float32
 	// ReRankTemporal, when true, sorts results by CalculateRelevanceScore descending
 	// after the keyword/vector path (before Limit). Keyword hits stay ahead of
@@ -767,6 +768,9 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 // candidate set, rank named-pattern facts above fallback chatter, then
 // session-diversify before Limit. Temporal-order / dated-span queries promote
 // entries that mention either event name, then diversify before Limit.
+// Latest-value questions (amount / pre-approved) union matching scalars and
+// rank later Timestamp first. Count and temporal-order / dated-span queries
+// skip scoreEntriesByVector even when QueryVec is set (keyword + assembly).
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
 	limit := opts.Limit
 	if limit <= 0 {
@@ -787,7 +791,9 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		keywordHits = rankKeywordHitsByOverlap(filterEntriesByKeywords(results, query), query)
 	}
 	candidates := results
-	if len(opts.QueryVec) > 0 {
+	// Count / temporal-order gold is keyword + evidence assembly. Skip the
+	// ONNX forward over all candidates even when the caller passed QueryVec.
+	if len(opts.QueryVec) > 0 && !SkipVectorScoring(query) {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
 			embedFn = GenerateSimpleEmbedding
@@ -810,7 +816,12 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = keepKeywordHitsFirst(results, keywordHits)
 	}
 
-	if isCountQuery(query) && !isDatedSpanQuery(query) {
+	if isLatestValueQuery(query) {
+		// Prefer the later matching amount (Nov $400k over Aug $350k). Additive
+		// union; does not NLP-supersede or drop the stale value.
+		results = unionLatestValueEntries(results, candidates, query)
+		results = promoteLatestValueEntries(results, query)
+	} else if isCountQuery(query) && !isDatedSpanQuery(query) {
 		// Pull matching turn_facts from the session/conv set, not only keyword
 		// hits, so "I led X" / "solo project" in another haystack session still
 		// reach Limit. Named-pattern facts outrank fallback chatter.
