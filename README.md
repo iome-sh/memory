@@ -224,9 +224,10 @@ make longmemeval-smoke
 make longmemeval-recall-gate
 make longmemeval-bench
 make longmemeval-v2-bench   # official V2 file layout; does not vendor the 7GB snapshot
+make longmemeval-v1-card    # methodology card; SKIP if oracle missing (exit 0); not make ci
 ```
 
-Official V1 scored QA: `make longmemeval-judge` (needs `OPENAI_API_KEY`). Official V2 scored runs use the upstream harness with a fixed Qwen3.5-9B reader and GPT-5.2 judge — this kernel only loads V2 files and exposes Insert/Query. Full dataset / judge flows need extra deps and keys; see comments in `Makefile` and `scripts/`.
+Official V1 scored QA: `make longmemeval-judge` (needs `OPENAI_API_KEY`). Official judge pin is **`gpt-4o-2024-08-06`**; Makefile default `gpt-4o-mini` is a cheap local path — not official V1. Methodology card (no published score): `make longmemeval-v1-card` — optional, not part of `make ci`; missing oracle is SKIP (exit 0). In-repo subset is 3 `single-session-user` items, not mixed official V1. Official V2 scored runs use the upstream harness with a fixed Qwen3.5-9B reader and GPT-5.2 judge — this kernel only loads V2 files and exposes Insert/Query. Full dataset / judge flows need extra deps and keys; see comments in `Makefile` and `scripts/`.
 
 `--limit N` on `scripts/longmemeval_qa_generate.py` is **dataset prefix order**. Official V1 starts with `temporal-reasoning`, so a small n is not a mixed V1 score. Use `--sample mixed` (or `LONGMEMEVAL_QA_SAMPLE=mixed`) for a stratified slice and print the type histogram. Prefix-n is not overall V1. overlap ≠ gpt-4o ≠ V2 LAFS.
 

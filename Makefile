@@ -1,6 +1,7 @@
 .PHONY: all build test test-race cover vet fmt fmt-check tidy vuln check ci \
 	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-v2-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
+	longmemeval-v1-card \
 	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate \
 	public-flip-readiness-gate \
 	clean
@@ -122,6 +123,14 @@ longmemeval-judge:
 	$${LONGMEMEVAL_JUDGE_MODEL:-gpt-4o-mini} \
 	$${LONGMEMEVAL_HYPOTHESES:-hypotheses.jsonl} \
 	$${LONGMEMEVAL_DATASET:-data/longmemeval_oracle.json}
+
+# Official V1 mixed-run methodology card. Optional; not part of make ci.
+# Missing data/longmemeval_oracle.json → SKIP exit 0 (not a CI failure).
+# testdata/longmemeval_oracle_subset.json is 3 single-session-user items — not mixed official V1.
+# Official judge pin is gpt-4o-2024-08-06. Default LONGMEMEVAL_JUDGE_MODEL=gpt-4o-mini is a cheap local path — not official V1.
+# LONGMEMEVAL_V1_RUN=1 also generates+judges a mixed sample (needs OPENAI_API_KEY + ONNX + running server).
+longmemeval-v1-card:
+	bash scripts/longmemeval_v1_card.sh
 
 longmemeval-full-eval:
 	bash scripts/longmemeval_full_eval.sh
