@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **README:** install pin **v1.5.12**, companion hosts TUI **v1.3.7** / MCP **v0.4.2**, table of contents, compiling quickstart, `SessionIDs` on the search table, LongMemEval details moved to `docs/`. Release badge. No published LongMemEval number.
+
 ### Added
 - **Unique-entity count clusters:** `AssembleCountEvidence` clusters kits, plants, and hour+destination facts by distinctive object (repeated B-29 is one kit; two plants in one turn are two clusters; word numbers). Clothing action×object clustering is unchanged.
 - **Temporal dated-event evidence:** `AssembleTemporalEvidence` lists unique dated bullets with the text date phrase labeled separately from ingest `Timestamp` (RFC3339) for which-first / how-many-days-between queries. Search promotes entries that mention either event name; LongMemEval retrieve prepends a synthetic `temporal_evidence` hit (not persisted). Dated-span how-many is still not a calendar window.
