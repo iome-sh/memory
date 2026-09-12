@@ -1,6 +1,6 @@
 # LongMemEval locked mixed baseline (internal)
 
-Kernel-only · **not Memory GA** · dual_write **OFF** · **not a README number** · **not official V1**.
+**Not a README number** · **not official V1**.
 
 Comparable columns on the **same 12 question IDs** (stratified mixed, 2 of each type).
 Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. `session_id` = official `conv_id`.
@@ -54,11 +54,11 @@ make longmemeval-baseline
 | Judge (`gpt-4o-2024-08-06`) | **`OPENAI_API_KEY` required** | Unset → judge SKIP exit 0 (not a CI failure). |
 | Invalid/expired `HF_TOKEN` | Must not block public BAAI | Helper retries **once without** `Authorization` on HTTP 401/403. 404 is not retried. |
 
-`leftover_is_bind` / `IOMESH_*_WEBHOOK_SECRET` / YAML APPLY are **unrelated** to this kernel bench. dual_write OFF.
+`IOMESH_*_WEBHOOK_SECRET` is **unrelated** to this kernel bench.
 
-## Honesty
+## Notes
 
-- leftover_is_bind OPEN · dual_write OFF · not Memory GA · hash-overlap unpublished
+- hash-overlap unpublished
 - n=12 is not overall V1 · prefix-n is not mixed · do not put these rates on the README
-- E-G1 is a laptop TTFH clock; this table does not move it
+- this table does not move the TTFH / cite-both walking skeleton
 

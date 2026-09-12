@@ -18,8 +18,8 @@ import (
 )
 
 // LongMemEval local bench harness for LongMemEval-S / LongMemEval-M.
-// Residual-honest: not a production memory service, not Memory GA, not live ingest.
-// dual_write OFF. Judge-free overlap / fixtures ≠ official scored close.
+// Not a production memory service and not live ingest.
+// Judge-free overlap / fixtures ≠ official scored close.
 //
 // Flags:
 //   -enable-turn-granularity     Use IngestTurn + turn-level metadata (default true)
@@ -138,7 +138,7 @@ func main() {
 	globalStore = memory.NewPalaceStoreWithConfig(cfg)
 
 	// Qdrant is opt-in. Empty URL keeps ingest file-based (not live hybrid ingest).
-	// dual_write OFF · not Memory GA · palace persist is the ingest truth.
+	// Palace persist is the ingest truth.
 	qdrantURL := strings.TrimSpace(os.Getenv("LONGMEMEVAL_QDRANT_URL"))
 	globalVectorStore = memory.NewVectorStore(qdrantURL, "longmemeval_memory")
 	if globalVectorStore.Enabled {
@@ -214,7 +214,7 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 		ingested++
 
 		// Optional Qdrant sidecar only when LONGMEMEVAL_QDRANT_URL is set.
-		// dual_write OFF: palace persist is ingest truth, not live hybrid ingest.
+		// Palace persist is ingest truth, not live hybrid ingest.
 		if globalVectorStore != nil && globalVectorStore.Enabled {
 			vec := globalStore.Config.EmbeddingFunc(t.Content, embeddingDim)
 			payload := map[string]interface{}{

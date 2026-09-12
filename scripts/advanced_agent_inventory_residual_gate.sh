@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # advanced_agent_inventory_residual_gate.sh — s1297 offline residual
 # free eng residual pin s1297 · free eng concurrent s1296+ after free-floor s1294 · lag s1295
-# SSOT for kernel advanced agent inventory (not product Memory GA):
+# SSOT for kernel advanced agent inventory:
 #   MultiHopRetrieve + PreferShorterHops (s1067/s1278) · multi-hop lite ≠ full graph RAG
 #   ListFactsAsOf / EntryValidAt · K4 bi-temporal lite ≠ dual-clock Graphiti
 #   SupersedeEntityFacts · A3 lite ≠ NLP contradiction
 #   ListMemoryWithOptions · K2 timeline filters before limit · full FS event-time index residual
 # Host/TUI peers mention only: memory_timeline · memory_related · memory_facts_as_of ·
 #   memory_supersede_entity · TUI s1296 timeline/compact-status
-# Honesty: kernel ≠ product Memory GA · dual_write OFF · no invent GA ·
-#   residual PASS ≠ live dogfood · RESULT PASS / RESULT OK honesty chain
+# Pin: no invent GA · residual PASS ≠ live dogfood · RESULT PASS / RESULT OK pin chain
 # Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1
 #
 # Usage:
@@ -32,12 +31,12 @@ fail() { log "FAIL: $*"; FAIL=$((FAIL + 1)); }
 if [[ "${SKIP_ADVANCED_AGENT_INVENTORY:-}" == "1" ]]; then
   log "SKIP_ADVANCED_AGENT_INVENTORY=1 soft skip"
   log "RESULT OK (soft skip)"
-  log "non-claim: soft skip ≠ invent Memory GA · residual PASS ≠ live dogfood"
+  log "non-claim: soft skip ≠ invent GA · residual PASS ≠ live dogfood"
   exit 0
 fi
 
-log "offline residual SSOT for kernel advanced agent inventory (no dogfood / Memory GA invent required)"
-log "non-claim: multi-hop lite ≠ full graph RAG · K4 bi-temporal lite ≠ dual-clock Graphiti · A3 lite ≠ NLP contradiction · kernel ≠ product Memory GA"
+log "offline residual SSOT for kernel advanced agent inventory (no dogfood invent required)"
+log "non-claim: multi-hop lite ≠ full graph RAG · K4 bi-temporal lite ≠ dual-clock Graphiti · A3 lite ≠ NLP contradiction"
 
 DOC="docs/operations/advanced-agent-inventory-residual.md"
 MAKEFILE="Makefile"
@@ -74,7 +73,7 @@ need_tree_grep() {
   fi
 }
 
-# Residual doc presence + honesty / inventory needles
+# Residual doc presence + inventory needles
 need_path "$DOC" "advanced agent inventory residual SSOT"
 need_path "$GATE_SCRIPT" "advanced agent inventory residual gate script"
 need_grep "$DOC" 's1297' "doc free eng residual pin s1297"
@@ -88,15 +87,12 @@ need_grep "$DOC" 'ListFactsAsOf' "doc ListFactsAsOf inventory"
 need_grep "$DOC" 'EntryValidAt' "doc EntryValidAt inventory"
 need_grep "$DOC" 'SupersedeEntityFacts' "doc SupersedeEntityFacts inventory"
 need_grep "$DOC" 'ListMemoryWithOptions' "doc ListMemoryWithOptions inventory"
-need_grep "$DOC" 'multi-hop lite' "doc multi-hop lite honesty"
-need_grep "$DOC" 'full graph RAG' "doc full graph RAG honesty"
-need_grep "$DOC" 'bi-temporal lite' "doc bi-temporal lite honesty"
-need_grep "$DOC" 'dual-clock Graphiti' "doc dual-clock Graphiti honesty"
-need_grep "$DOC" 'A3 lite' "doc A3 lite honesty"
-need_grep "$DOC" 'NLP contradiction' "doc NLP contradiction honesty"
-need_grep "$DOC" 'Memory GA' "doc Memory GA honesty"
-need_grep "$DOC" 'kernel ≠ product Memory GA' "doc kernel ≠ product Memory GA"
-need_grep "$DOC" 'dual_write OFF' "doc dual_write OFF"
+need_grep "$DOC" 'multi-hop lite' "doc multi-hop lite"
+need_grep "$DOC" 'full graph RAG' "doc full graph RAG"
+need_grep "$DOC" 'bi-temporal lite' "doc bi-temporal lite"
+need_grep "$DOC" 'dual-clock Graphiti' "doc dual-clock Graphiti"
+need_grep "$DOC" 'A3 lite' "doc A3 lite"
+need_grep "$DOC" 'NLP contradiction' "doc NLP contradiction"
 need_grep "$DOC" 'no invent GA' "doc no invent GA"
 need_grep "$DOC" 'PASS ≠ live dogfood' "doc PASS ≠ live dogfood"
 need_grep "$DOC" 'memory_timeline' "doc host peer memory_timeline mention"
@@ -105,7 +101,7 @@ need_grep "$DOC" 'memory_facts_as_of' "doc host peer memory_facts_as_of mention"
 need_grep "$DOC" 'memory_supersede_entity' "doc host peer memory_supersede_entity mention"
 need_grep "$DOC" 'SKIP_ADVANCED_AGENT_INVENTORY' "doc soft skip env"
 need_grep "$DOC" 'residual-gate' "doc Makefile residual-gate target"
-need_grep "$DOC" 'RESULT PASS' "doc RESULT PASS honesty chain"
+need_grep "$DOC" 'RESULT PASS' "doc RESULT PASS pin chain"
 
 # Kernel tree symbols (Go)
 need_tree_grep 'PreferShorterHops' "PreferShorterHops"
@@ -131,5 +127,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK honesty chain: multi-hop lite ≠ full graph RAG · K4 bi-temporal lite ≠ dual-clock Graphiti · A3 lite ≠ NLP contradiction · kernel ≠ product Memory GA · dual_write OFF · no invent GA · residual PASS ≠ live dogfood"
+log "RESULT OK pin chain: multi-hop lite ≠ full graph RAG · K4 bi-temporal lite ≠ dual-clock Graphiti · A3 lite ≠ NLP contradiction · no invent GA · residual PASS ≠ live dogfood"
 exit 0

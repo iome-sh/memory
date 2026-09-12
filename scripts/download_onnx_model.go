@@ -10,7 +10,7 @@
 //  4. else empty stdout and TTFH cost-max hash (no ONNX required)
 //
 // MiniLM is not the official LongMemEval V1 BGE pin. BAAI reshape is the
-// comparable BGE-small-en-v1.5 ONNX. Hash-overlap unpublished. Not Memory GA.
+// comparable BGE-small-en-v1.5 ONNX. Hash-overlap unpublished. Not a leaderboard number.
 // Mkdir failures still exit 1. This repo does not vendor BGE.
 //
 // Usage:

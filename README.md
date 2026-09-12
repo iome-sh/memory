@@ -6,7 +6,7 @@
 
 **Hierarchical agent memory for Go** — a portable library for durable, searchable memory entries with optional vector search and temporal APIs.
 
-This is a **library kernel** (posture: embeddable filesystem palace), not a memory SaaS, not an agent runtime, and **not Memory GA**. It is also **not** [MemPalace](https://github.com/MemPalace) / `mempalace` (an unrelated Python project). Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memory)
+This is a **library kernel** (posture: embeddable filesystem palace), not a memory SaaS and not an agent runtime. It is also **not** [MemPalace](https://github.com/MemPalace) / `mempalace` (an unrelated Python project). Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memory)
 
 ## Features
 
@@ -73,11 +73,11 @@ for _, f := range facts {
 }
 ```
 
-Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Operator page: [`docs/TTFH.md`](docs/TTFH.md). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.6** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.1** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI. This page, the example, and a unit test do **not** satisfy **E-G1** (real laptop PULSE+3 RCA+cite-both-or-miss).
+Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Operator page: [`docs/TTFH.md`](docs/TTFH.md). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.6** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.1** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI. This page, the example, and a unit test document the walking skeleton; they are not a live laptop PULSE + three RCA + cite-both-or-miss run.
 
 If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
 
-This package is a **local filesystem library**, not a cloud multi-tenant service. It does not implement mesh `X-IOMesh-Org` headers. Isolation is the directory you pass as `BaseDir` (or OS isolation around that directory). dual_write **OFF** · **not** Memory GA.
+This package is a **local filesystem library**, not a cloud multi-tenant service. It does not implement mesh `X-IOMesh-Org` headers. Isolation is the directory you pass as `BaseDir` (or OS isolation around that directory).
 
 ### Optional semantic embeddings
 
@@ -111,7 +111,7 @@ go run ./scripts/download_onnx_model.go
 export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
 ```
 
-Hugging Face **401/404** for `KnightsAnalytics/bge-small-en-v1.5` is **expected** — that repo is not published (valid token still **404**, not a login miss). The helper then downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) — **no Hugging Face login required**. `HF_TOKEN` is optional; on 401/403 with a token the helper retries **unauthenticated** so a bad token cannot block public BGE. Layout: `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored; ~127 MB; not vendored). If that fetch fails, in-tree MiniLM is the local 384-d fallback — **not** the official V1 BGE pin. Hash-overlap unpublished. If MiniLM is missing too, stdout is empty and TTFH cost-max stays the **hash embedder**. `os.Exit(1)` only for mkdir failures. Generate/judge need `OPENAI_API_KEY` (unrelated to HF). Auth matrix: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md#auth-requirements-checked-2026-09-12). Locked mixed n=12: same page (`make longmemeval-baseline`) — **not a README number**, not official V1, not Memory GA.
+Hugging Face **401/404** for `KnightsAnalytics/bge-small-en-v1.5` is **expected** — that repo is not published (valid token still **404**, not a login miss). The helper then downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) — **no Hugging Face login required**. `HF_TOKEN` is optional; on 401/403 with a token the helper retries **unauthenticated** so a bad token cannot block public BGE. Layout: `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored; ~127 MB; not vendored). If that fetch fails, in-tree MiniLM is the local 384-d fallback — **not** the official V1 BGE pin. Hash-overlap unpublished. If MiniLM is missing too, stdout is empty and TTFH cost-max stays the **hash embedder**. `os.Exit(1)` only for mkdir failures. Generate/judge need `OPENAI_API_KEY` (unrelated to HF). Auth matrix: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md#auth-requirements-checked-2026-09-12). Locked mixed n=12: same page (`make longmemeval-baseline`) — **not a README number**, not official V1.
 
 ### Optional Qdrant
 
@@ -135,7 +135,7 @@ Unit tests run without Podman/Qdrant. Integration helpers start a temporary cont
 
 ## When to use this kernel
 
-Residual-honest buyer table. Stars and vendor LongMemEval scores are a category error here.
+Stars and vendor LongMemEval scores are a category error here.
 
 | Job | Use |
 |-----|-----|
@@ -222,7 +222,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor guide and [SECURITY.m
 
 Methodology card: [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). **No official number is published.** Official V1 is upstream `evaluate_qa.py` + judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (ONNX, mixed-type, `session_id` on retrieve). Makefile default judge `gpt-4o-mini` is a cheap local path — not official V1.
 
-Offline overlap smoke/bench (no OpenAI). Printed `aggregate recall` is **top-k gold-answer string overlap** (judge-free). It is **not** official V1 and **not** V2 LAFS Gain. Hash embeddings are the no-dep default; do not publish hash overlap as a leaderboard number. dual_write stays OFF. Not Memory GA.
+Offline overlap smoke/bench (no OpenAI). Printed `aggregate recall` is **top-k gold-answer string overlap** (judge-free). It is **not** official V1 and **not** V2 LAFS Gain. Hash embeddings are the no-dep default; do not publish hash overlap as a leaderboard number.
 
 ```bash
 make longmemeval-smoke
@@ -236,7 +236,7 @@ Official V1 scored QA: `make longmemeval-judge` (needs `OPENAI_API_KEY`). Offici
 
 `--limit N` on `scripts/longmemeval_qa_generate.py` is **dataset prefix order**. Official V1 starts with `temporal-reasoning`, so a small n is not a mixed V1 score. Use `--sample mixed` (or `LONGMEMEVAL_QA_SAMPLE=mixed`) for a stratified slice and print the type histogram. Prefix-n is not overall V1. overlap ≠ gpt-4o ≠ V2 LAFS.
 
-`/retrieve` accepts `session_id` (official generate passes `conv_id` / `question_id`). Shared-palace QA without it is other-session dominated. Hypothesis JSONL keeps `question_date`, retrieve snippets, and `embed_mode` for audit. Hash default. Not a leaderboard submit. Not Memory GA.
+`/retrieve` accepts `session_id` (official generate passes `conv_id` / `question_id`). Shared-palace QA without it is other-session dominated. Hypothesis JSONL keeps `question_date`, retrieve snippets, and `embed_mode` for audit. Hash default. Not a leaderboard submit.
 
 Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC3339.
 
@@ -251,9 +251,9 @@ Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC33
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
 | [SUPPORT.md](SUPPORT.md) | How to get help; scope (library kernel) and related host |
 | [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (K0–K4 style) |
-| [docs/TTFH.md](docs/TTFH.md) | Operator TTFH walking skeleton (not E-G1 · not Memory GA) |
+| [docs/TTFH.md](docs/TTFH.md) | Operator TTFH walking skeleton |
 | [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology card (no published official number) |
-| [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | Maintainer OSS process residual (not a product claim; public MIT ≠ Memory GA) |
+| [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | Maintainer OSS process residual (not a product spec) |
 
 ## Related projects
 
@@ -262,7 +262,7 @@ Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC33
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Lean MCP host binary for this kernel |
 | [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Multi-provider agent TUI/CLI (optional mesh hooks) |
 | [iomesh-client-sdk-go](https://github.com/iome-sh/iomesh-client-sdk-go) | Official Go client for I/O Mesh |
-| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client for I/O Mesh (**Beta** / pre-1.0 — not invent 1.0 / live PyPI GA) |
+| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client for I/O Mesh (**Beta** / pre-1.0) |
 
 This module is a **library** (tags for `go get`). Binary packaging, SBOM, and cosign apply to host tools such as `iomesh-memory-mcp` — see [RELEASING.md](RELEASING.md).
 

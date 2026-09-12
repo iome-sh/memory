@@ -7,8 +7,7 @@ import (
 	"testing"
 )
 
-// dual_write stays OFF in these tests (host policy, not a kernel product flag).
-// No mesh bind, no dual-write path.
+// No mesh bind, no dual-write path. These tests stamp local ingest provenance only.
 
 func TestClassifyIngestSourceHint(t *testing.T) {
 	t.Parallel()

@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for reporting a bug. **Do not include API keys, palace contents, or private monorepo paths.**
         Security issues → private advisory or security@iome.sh (see SECURITY.md).
-        This package is **kernel-only** — not product Memory GA support.
+        This package is a **library kernel** — not hosted Memory support.
   - type: textarea
     id: summary
     attributes:
@@ -61,4 +61,4 @@ body:
       options:
         - label: I ran `make check` (or CI) and this still reproduces
         - label: I redacted secrets and palace contents from logs pasted here
-        - label: This is about the kernel library, not a request to invent hosted Memory GA
+        - label: This is about the kernel library, not a request for hosted Memory

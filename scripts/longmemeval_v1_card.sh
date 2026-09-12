@@ -27,7 +27,7 @@
 #                            BGE-small-en-v1.5 if present; else in-tree MiniLM-L6-v2
 #                            (local path when BGE unavailable — not official V1 embed pin)
 #
-# Honesty: kernel-only · not Memory GA · dual_write OFF · no published score.
+# No published score. Hash-overlap unpublished. Not a leaderboard number.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -120,11 +120,9 @@ judge_model_pin: ${OFFICIAL_JUDGE}
 makefile_default_judge: ${CHEAP_JUDGE} (cheap local path — not official V1)
 judge_script: third_party/LongMemEval/src/evaluation/evaluate_qa.py
 session_scope: session_id = official conv_id on /retrieve
-dual_write: OFF
-product_claim: not Memory GA
-label: INTERNAL unpublished · not Memory GA · not hash-overlap
+label: unpublished · not hash-overlap
 
-Honesty: missing/non-official oracle is not a CI failure. Do not treat the in-repo
+Note: missing/non-official oracle is not a CI failure. Do not treat the in-repo
 subset as official V1. Do not publish a number on README. Do not vendor LongMemEval-M
 (~2.7 GB) or V2 (~7 GB).
 EOF
@@ -256,7 +254,7 @@ slice_ = apply_limit(data, int(sys.argv[2]), "mixed")
 print(json.dumps(type_histogram(slice_), sort_keys=True))
 PY
 )"
-      SCORE_NOTE="mixed official-judge sample completed (INTERNAL unpublished · not Memory GA · not hash-overlap · not a README number)"
+      SCORE_NOTE="mixed official-judge sample completed (unpublished · not hash-overlap · not a README number)"
       log "${SCORE_NOTE}"
     fi
   fi
@@ -266,7 +264,7 @@ BODY="$(cat <<EOF
 # LongMemEval V1 methodology card
 
 status: OK
-label: INTERNAL unpublished · not Memory GA · not hash-overlap
+label: unpublished · not hash-overlap
 date_utc: ${DATE_UTC}
 date: ${DATE_DAY}
 kernel_commit_sha: ${SHA}
@@ -285,12 +283,10 @@ judge_model_pin: ${OFFICIAL_JUDGE}
 makefile_default_judge: ${CHEAP_JUDGE} (cheap local path — not official V1)
 judge_script: third_party/LongMemEval/src/evaluation/evaluate_qa.py
 qdrant: off unless LONGMEMEVAL_QDRANT_URL is set (not required)
-dual_write: OFF
-product_claim: not Memory GA
 scored_official_judge_sample: ${SCORED}
 score_note: ${SCORE_NOTE}
 
-Honesty: this card is not a README number, not Memory GA, and not a leaderboard submit.
+Note: this card is not a README number and not a leaderboard submit.
 in-repo ${SUBSET_REL} is 3 single-session-user items — not mixed official V1.
 Do not vendor LongMemEval-M (~2.7 GB) or V2 (~7 GB).
 EOF

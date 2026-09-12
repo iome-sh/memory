@@ -158,7 +158,7 @@ func tierSemanticRank(t MemoryTier) int {
 // Default tiers when Tier == nil: Working + Contextual + Semantic
 // (+ Archival if IncludeArchival).
 //
-// Honesty: bi-temporal lite (validity window tags). Not full Graphiti dual
+// Bi-temporal lite (validity window tags). Not full Graphiti dual
 // clocks + graph. FS Palace remains O(n) over tier files.
 func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 	limit := opts.Limit

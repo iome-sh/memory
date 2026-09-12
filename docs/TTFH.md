@@ -1,12 +1,8 @@
 # TTFH (walking skeleton)
 
-Kernel-only · **not Memory GA** · dual_write **OFF** · public MIT ≠ GA.
-
 This is the operator-facing TTFH page for `github.com/iome-sh/memory`. It
 documents the **walking skeleton** only: ingest three RCA-shaped turns,
 retrieve in the **same process**, list facts-as-of, and print `source_hint`.
-
-It does **not** declare Memory GA. It does **not** close **E-G1**.
 
 ## Walking skeleton
 
@@ -45,7 +41,7 @@ Retrieve query: `hmac consume receipt` (session `inc-webhook-5xx`). Then
 
 A green `go run` and a green unit test
 (`TestIngestTurn_TTFHShapedWalkingSkeleton`) lock retrieve-after-ingest for
-this kernel path. They are **not** E-G1.
+this kernel path. They are the walking skeleton, not a live laptop PULSE run.
 
 ## Host path (optional)
 
@@ -63,11 +59,11 @@ In the TUI, with the memory host attached:
 
 Cite-both needs a mesh-class receipt **and** a private-class receipt in the
 digest window. Catalog list is not consume. Grant-only is not cite-both. An
-honest miss is success for this flag; inventing mesh is not.
+explicit miss is success for this flag; inventing mesh is not.
 
 ### Air-gap / no-PULSE worked miss
 
-This transcript is **docs**, not a laptop PULSE run. **E-G1 is not closed.**
+This transcript is **docs**, not a laptop PULSE run.
 
 Air-gap: no broker, no PULSE consume, local overlay only. After three private
 RCA ingest turns (same content as `examples/ttfh_rca`), cite-both must miss
@@ -84,34 +80,32 @@ Catalog / grant / `source=external` never satisfy cite-both.
 #         → provenance.source_hint=private  tag=source_hint:private
 
 /memory digest --require-sources mesh,private
-require-sources: miss · required=mesh,private · cited=private · missing=mesh · receipt window newest-first · n=3 · mesh not in this receipt set · dual_write OFF · not Memory GA · local palace on disk
+require-sources: miss · required=mesh,private · cited=private · missing=mesh · receipt window newest-first · n=3 · mesh not in this receipt set · local palace on disk
 ```
 
 That miss is **success** for the flag (no mesh-class receipt in an air-gap).
-A green unit test and this page still do **not** close E-G1.
+A green unit test and this page still do **not** prove a live laptop PULSE run.
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
 
-This optional host path is **not** E-G1 either. Writing the commands here
+This optional host path is the walking skeleton on the TUI, not a live
+PULSE + three RCA + cite-both-or-miss laptop clock. Writing the commands here
 does not prove a laptop ran them against live PULSE.
 
-## E-G1 is not this page
+## What this page is not
 
-**E-G1** is a **real laptop** run: **PULSE + 3 RCA + cite-both-or-miss**.
+A **real laptop** run is **PULSE + 3 RCA + cite-both-or-miss**.
 
-This page does **not** satisfy E-G1. A unit test does **not** satisfy E-G1.
-`go run ./examples/ttfh_rca` does **not** satisfy E-G1. Optional TUI/MCP
-pins and slash-command names do **not** satisfy E-G1. The air-gap /
+This page does **not** substitute for that. A unit test does **not**.
+`go run ./examples/ttfh_rca` does **not**. Optional TUI/MCP
+pins and slash-command names do **not**. The air-gap /
 no-PULSE worked miss transcript above is **docs**, not a laptop PULSE run.
 
-Do not treat a docs PR, a README table row, or CI green as E-G1 closed.
+Do not treat a docs PR, a README table row, or CI green as that laptop clock.
 
-## Honesty
+## Notes
 
-- dual_write **OFF** (host policy, not a kernel product flag)
-- **not** Memory GA
-- public MIT ≠ GA
 - inspectable filesystem palace remains the source of truth
 - one process per palace root (multi-process writers unsupported)
 - LongMemEval is a different clock — see [`LONGMEMEVAL.md`](LONGMEMEVAL.md);

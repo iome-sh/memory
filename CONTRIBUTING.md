@@ -1,15 +1,15 @@
 # Contributing
 
-Thanks for helping improve **memory** (Palace kernel). Please treat quality, honesty locks, and tests as first-class.
+Thanks for helping improve **memory** (Palace kernel). Please treat quality and tests as first-class.
 
 ## What this repo is
 
 - **Local-primary memory kernel** — hierarchical Palace FS, hybrid search, temporal lite, optional Qdrant, optional ONNX embeddings  
-- **Kernel-only** — **not product Memory GA**  
-- Product path elsewhere: **dual_write OFF** by default (host policy, **not** a kernel product flag); hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
+- **Library kernel** — inspectable local filesystem palace, not a hosted Memory product  
+- Hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
 - Public MCP host: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
 
-This repository is **public** (MIT). **Public MIT ≠ Memory GA.** Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. Maintainer process residuals ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md), [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md)) are **not** operator how-tos — the visibility flip is already complete.
+This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. Maintainer process residuals ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md), [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md)) are **not** operator how-tos — the visibility flip is already complete.
 
 ## Development setup
 
@@ -29,8 +29,8 @@ make test-race
 make cover
 make vuln
 make ci          # fmt-check + vet + test + vuln + build (local gate)
-make residual-gate   # offline residual honesty pins (s1297 / s1303 / s1313)
-make public-flip-readiness-gate   # offline M4 readiness residual (public MIT · gate PASS ≠ product GA)
+make residual-gate   # offline residual pins (s1297 / s1303 / s1313)
+make public-flip-readiness-gate   # offline M4 readiness residual (public MIT; gate PASS is not a visibility flip)
 ```
 
 Heavy optional gates (models / network; not required for PR CI):
@@ -45,8 +45,8 @@ make longmemeval-v1-card   # methodology card; SKIP if oracle missing (exit 0); 
 ## Coding standards
 
 - Prefer **pure Go** for default CI paths; keep ORT/CGO behind `-tags ORT`  
-- Do **not** invent product Memory GA, freemium hosted Palace, or dual_write-on product narrative in docs  
-- Residual docs under `docs/operations/` are honesty pins — keep gates green when you touch related claims  
+- Do **not** invent a hosted Palace SLA or freemium cloud Memory narrative in docs  
+- Residual docs under `docs/operations/` are shipped-vs-residual pins — keep gates green when you touch related claims  
 - Prefer small, focused PRs with tests for new behavior  
 - Run `gofmt` (or `make fmt`) before commit  
 
@@ -73,13 +73,12 @@ If you touch filesystem roots, embedding model loading, or network clients:
 
 Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not open public issues for exploits.**
 
-## Honesty locks (do not regress)
+## Scope (do not regress)
 
-- Kernel-only · **not Memory GA** · public MIT ≠ Memory GA  
-- Local-primary · dual_write OFF (host policy, not a kernel product flag)  
+- Library kernel on a local filesystem palace  
 - Hosted Palace sunset · mesh optional  
-- Residual PASS ≠ live dogfood / invent GA  
-- Residual PASS ≠ public flip · gate PASS ≠ product GA  
+- Residual PASS ≠ live dogfood  
+- Residual PASS ≠ public flip  
 - Public MCP host: **iomesh-memory-mcp**  
 
 ## Issues & discussions
@@ -96,7 +95,7 @@ This policy is **in force** for this **public** MIT repository (flip complete). 
 - Do **not** reference private monorepos (control-plane / broker), internal pending-todos paths, or unpublished stage URLs  
 - Prefer public names: **`github.com/iome-sh/memory`**, product host **`iomesh-memory-mcp`**, public TUI **`iomesh-tui`**  
 - Continuum serials in historical residual docs may remain; strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
-- Do **not** invent product Memory GA, freemium hosted Palace SLA, or dual_write-on product narrative  
+- Do **not** invent a freemium hosted Palace SLA  
 - Binary/package names operators actually run (e.g. **iomesh-memory-mcp**) may appear when documenting install/wire-up; do **not** document “clone the private monorepo” build paths  
 
 ## Pull requests

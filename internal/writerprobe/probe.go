@@ -1,6 +1,6 @@
 // Package writerprobe is last-write-wins evidence for two OS processes on one
 // palace root. Multi-process writers remain unsupported. Not a lock, not flock,
-// not tenancy, not Memory GA.
+// not tenancy.
 package writerprobe
 
 import (
@@ -275,7 +275,7 @@ func WriteReport(w io.Writer, r Report) {
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "event-time.json: exists=%t valid_json=%t json_count=%d entries=%d tier_json_files=%d\n",
 		r.EventTimeExists, r.EventTimeValidJSON, r.EventTimeJSONCount, r.EventTimeEntries, r.TierJSONFiles)
-	fmt.Fprintln(w, "honesty: multi-process writers remain unsupported · probe ≠ flock · probe ≠ Memory GA · dual_write OFF · this does not invent tenancy")
+	fmt.Fprintln(w, "note: multi-process writers remain unsupported · probe ≠ flock · flock is not shipped · this does not invent tenancy")
 }
 
 func writerOrder(m map[string]int) []string {

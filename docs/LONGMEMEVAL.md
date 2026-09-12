@@ -1,7 +1,5 @@
 # LongMemEval methodology card
 
-Kernel-only · **not Memory GA** · dual_write **OFF**.
-
 This page is the methodology card for any LongMemEval work on
 `github.com/iome-sh/memory`. It exists so a number cannot ship without a
 harness description. **No official score is published here.** A hash-overlap
@@ -24,7 +22,7 @@ hugot layout (`make longmemeval-baseline`).
 | Label | What it is | What it is not |
 |-------|------------|----------------|
 | **In-repo overlap smoke** | `make longmemeval-smoke` / `longmemeval-recall-gate` / `longmemeval-bench`. Printed `aggregate recall` is **judge-free top-k gold-answer string overlap**. Default embedder is **hash**. | Official V1 QA accuracy. A leaderboard number. |
-| **Official V1** | Upstream `evaluate_qa.py` with judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (then S). Reader is the kernel retrieve path plus the generate script. `session_id` on retrieve. Embed mode **ONNX**, not hash. Mixed-type sample (`--sample mixed`). | Prefix-n on the official file (that slice is temporal-first). Hash overlap. Memory GA. |
+| **Official V1** | Upstream `evaluate_qa.py` with judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (then S). Reader is the kernel retrieve path plus the generate script. `session_id` on retrieve. Embed mode **ONNX**, not hash. Mixed-type sample (`--sample mixed`). | Prefix-n on the official file (that slice is temporal-first). Hash overlap. A leaderboard number. |
 | **Official V2** | Later, separate harness (LAFS). This kernel can load V2 file layout (`make longmemeval-v2-bench`) without vendoring the ~7 GB snapshot. | A substitute for V1. A published Gain figure from this repo. |
 
 Makefile default `LONGMEMEVAL_JUDGE_MODEL` is **`gpt-4o-mini`** — a cheap local
@@ -40,7 +38,7 @@ make longmemeval-judge
 ```
 
 Reproduce twice before any public number. A published V1 figure, if it ever
-ships, is labelled **“kernel retrieve + reader, not Memory GA.”**
+ships, is labelled **“kernel retrieve + reader.”**
 
 Do not vendor the 7 GB V2 tree. Do not publish judge-free hash-overlap as
 accuracy. Do not claim we beat Mem0, Graphiti, or Letta on a vendor harness.
@@ -65,8 +63,6 @@ real.
 | Judge model pin | `gpt-4o-2024-08-06` |
 | Judge script | upstream `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
 | Qdrant | off unless `LONGMEMEVAL_QDRANT_URL` is set (not required) |
-| dual_write | OFF |
-| Product claim | **not Memory GA** |
 
 First scored official V1 mixed run is **internal**. Public number optional and
 labelled. Hash overlap stays unpublished.
@@ -115,11 +111,11 @@ RFC3339.
 
 ## Internal run log
 
-Label: **INTERNAL unpublished · not Memory GA · not hash-overlap**. This section is not a README number and not Memory GA. The official BGE-small-en-v1.5 card above stays unfilled — a MiniLM sample is **not** the official V1 embed pin.
+Label: **unpublished · not hash-overlap**. This section is not a README number. The official BGE-small-en-v1.5 card above stays unfilled — a MiniLM sample is **not** the official V1 embed pin.
 
 ### 2026-09-12 — official BGE-small-en-v1.5 ONNX retry (SKIP)
 
-Retried `go run ./scripts/download_onnx_model.go` (hugot `DownloadModel` of `KnightsAnalytics/bge-small-en-v1.5`). Hugging Face returned **401** (`Invalid username or password`) for hugot and unauthenticated `curl`. Authenticated `curl` / `hf download` returned **404** (`Repository not found` / `Model not found`). Hugging Face model page 404; KnightsAnalytics org listing has MiniLM but no `bge-small-en-v1.5`. No BGE weights were written under `testdata/models/`. In-tree MiniLM was not deleted. Official V1 embed pin remains unmet. **No scored BGE card. No README number. Not Memory GA. dual_write OFF. Hash overlap unpublished. MiniLM ≠ BGE pin.**
+Retried `go run ./scripts/download_onnx_model.go` (hugot `DownloadModel` of `KnightsAnalytics/bge-small-en-v1.5`). Hugging Face returned **401** (`Invalid username or password`) for hugot and unauthenticated `curl`. Authenticated `curl` / `hf download` returned **404** (`Repository not found` / `Model not found`). Hugging Face model page 404; KnightsAnalytics org listing has MiniLM but no `bge-small-en-v1.5`. No BGE weights were written under `testdata/models/`. In-tree MiniLM was not deleted. Official V1 embed pin remains unmet. **No scored BGE card. No README number. Hash overlap unpublished. MiniLM ≠ BGE pin.**
 
 | Field | Value |
 |-------|--------|
@@ -129,12 +125,10 @@ Retried `go run ./scripts/download_onnx_model.go` (hugot `DownloadModel` of `Kni
 | Status | **SKIP** — BGE-small-en-v1.5 ONNX still unavailable (hugot **401**; HF **404**) |
 | Embed mode | **not** official V1 BGE pin (download failed; MiniLM internal card below is a different embedder) |
 | Judge model pin | `gpt-4o-2024-08-06` (not run — no BGE weights) |
-| dual_write | OFF |
-| Product claim | **not Memory GA** |
 
 ### 2026-09-12 — mixed MiniLM ONNX generate+judge (INTERNAL unpublished)
 
-Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (not committed). Hypotheses JSONL and eval-results stayed gitignored. LongMemEval-M (~2.7 GB) and V2 (~7 GB) were not vendored. Hash overlap unpublished. **Not Memory GA. Not BGE official pin. Not a README number.**
+Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (not committed). Hypotheses JSONL and eval-results stayed gitignored. LongMemEval-M (~2.7 GB) and V2 (~7 GB) were not vendored. Hash overlap unpublished. **Not BGE official pin. Not a README number.**
 
 | Field | Value |
 |-------|--------|
@@ -151,17 +145,15 @@ Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (
 | Judge model pin | `gpt-4o-2024-08-06` (upstream `evaluate_qa.py` zoo key `gpt-4o`; Makefile default `gpt-4o-mini` is **not** official V1) |
 | Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
 | Qdrant | off |
-| dual_write | OFF |
-| Product claim | **not Memory GA** |
-| Status | scored official-judge mixed sample completed — **INTERNAL unpublished · not a README number** |
+| Status | scored official-judge mixed sample completed — **unpublished · not a README number** |
 
 In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-user` items** — that is **not** this mixed slice and **not** mixed official V1. Oracle JSON stays gitignored (`data/`). No accuracy number is published here or on the README.
 
-## Honesty
+## Notes
 
 - Inspectable filesystem palace remains the source of truth.
 - Hash embeddings must never be persisted as `QueryVec` / stored vectors.
-- This card is not a Memory GA announcement and not a fundraising exhibit.
+- This card is not a fundraising exhibit.
 - Host walking skeleton (TUI `/memory digest --require-sources mesh,private`)
   is cite-both of mesh pull + private palace — a different clock from this eval.
 - `make longmemeval-v1-card` is optional and is **not** part of `make ci`.

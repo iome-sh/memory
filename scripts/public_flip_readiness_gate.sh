@@ -5,8 +5,8 @@
 #
 # SSOT for Option A M4 *readiness* (not the flip):
 #   docs/PUBLIC_FLIP_READINESS.md + OPEN_SOURCE_AUDIT + LICENSE/SECURITY/CI present
-#   needles: public · residual PASS ≠ public flip · kernel first · not Memory GA · s1467
-# Honesty: public · residual PASS ≠ public flip · not Memory GA · dual_write OFF ·
+#   needles: public · residual PASS ≠ public flip · kernel first · s1467
+# Pin: public · residual PASS ≠ public flip ·
 #   private control-plane / broker stays private · M4 readiness ≠ M4 complete / invent public · does NOT flip visibility
 # Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
 #
@@ -32,12 +32,12 @@ fail() { log "FAIL: $*"; FAIL=$((FAIL + 1)); }
 if [[ "${SKIP_PUBLIC_FLIP_READINESS:-}" == "1" ]]; then
   log "SKIP_PUBLIC_FLIP_READINESS=1 soft skip"
   log "RESULT OK (soft skip)"
-  log "non-claim: soft skip ≠ invent public flip · residual PASS ≠ public flip · public · not Memory GA"
+  log "non-claim: soft skip ≠ invent public flip · residual PASS ≠ public flip · public"
   exit 0
 fi
 
 log "offline M4 public-flip readiness residual (no visibility flip / no network beyond repo files)"
-log "non-claim: residual PASS ≠ public flip · public · kernel first · not Memory GA · dual_write OFF · private control-plane / broker stays private · M4 readiness ≠ invent public"
+log "non-claim: residual PASS ≠ public flip · public · kernel first · private control-plane / broker stays private · M4 readiness ≠ invent public"
 
 DOC="docs/PUBLIC_FLIP_READINESS.md"
 AUDIT="docs/OPEN_SOURCE_AUDIT.md"
@@ -103,8 +103,7 @@ need_grep "$DOC" 's1473+' "doc free eng s1473+"
 need_grep "$DOC" 'public' "doc public"
 need_grep "$DOC" 'residual PASS ≠ public flip' "doc residual PASS ≠ public flip"
 need_grep "$DOC" 'kernel first' "doc kernel first"
-need_grep "$DOC" 'not Memory GA' "doc not Memory GA"
-need_grep "$DOC" 'dual_write OFF' "doc dual_write OFF"
+need_grep "$DOC" 'library kernel' "doc library kernel"
 need_grep "$DOC" 'private control-plane / broker stays private' "doc private control-plane / broker stays private"
 need_grep "$DOC" 'iomesh-memory-mcp' "doc MCP host naming"
 need_grep "$DOC" 'OPEN_SOURCE_AUDIT.md' "doc link OPEN_SOURCE_AUDIT"
@@ -133,14 +132,14 @@ fi
 need_grep "$DOC" 'public-flip-readiness-gate' "doc Makefile public-flip-readiness-gate target"
 need_grep "$DOC" 'SKIP_PUBLIC_FLIP_READINESS' "doc soft skip env"
 need_grep "$DOC" 'M4 readiness ≠ M4 complete' "doc M4 readiness ≠ M4 complete"
-need_grep "$DOC" 'does **not** flip' "doc does not flip visibility honesty"
+need_grep "$DOC" 'does **not** flip' "doc does not flip visibility"
 
-# OPEN_SOURCE_AUDIT link + honesty (no private ledger serials on the forward surface)
+# OPEN_SOURCE_AUDIT link (no private ledger serials on the forward surface)
 need_grep "$AUDIT" 'public MIT' "audit public MIT"
 need_grep "$AUDIT" 'public' "audit public"
 need_grep "$AUDIT" 'PUBLIC_FLIP_READINESS.md' "audit links PUBLIC_FLIP_READINESS"
 need_grep "$AUDIT" 'residual PASS ≠ public flip' "audit residual PASS ≠ public flip"
-need_grep "$AUDIT" 'not Memory GA' "audit not Memory GA"
+need_grep "$AUDIT" 'local filesystem library' "audit local filesystem library"
 
 # Makefile target
 if [[ -f "$MAKEFILE" ]]; then
@@ -169,5 +168,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK honesty chain: public · residual PASS ≠ public flip · kernel first · not Memory GA · dual_write OFF · private control-plane / broker stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional · s1467"
+log "RESULT OK pin chain: public · residual PASS ≠ public flip · kernel first · private control-plane / broker stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional · s1467"
 exit 0

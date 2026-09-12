@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # k2_event_time_index_residual_gate.sh — s1303 offline residual
 # free eng residual pin s1303 · free eng concurrent s1301+ after free-floor s1299 · lag s1300
-# SSOT for K2 ListMemoryWithOptions / timeline path residual honesty:
-#   filters before Limit shipped (underfill class) · O(n) FS scan residual-honest
+# SSOT for K2 ListMemoryWithOptions / timeline path residual:
+#   filters before Limit shipped (underfill class) · O(n) FS scan residual
 #   full event-time index residual · not shipped · residual ≠ invent index green
 #   host memory_timeline uses list path · TUI s1296 / concurrent s1301 mention only
-# Honesty: kernel ≠ product Memory GA · not Memory GA · dual_write OFF · no invent GA ·
-#   residual PASS ≠ live dogfood · RESULT PASS / RESULT OK honesty chain
+# Pin: no invent GA · residual PASS ≠ live dogfood · RESULT PASS / RESULT OK pin chain
 # Soft skip: SKIP_K2_EVENT_TIME_INDEX=1
 #
 # Usage:
@@ -30,12 +29,12 @@ fail() { log "FAIL: $*"; FAIL=$((FAIL + 1)); }
 if [[ "${SKIP_K2_EVENT_TIME_INDEX:-}" == "1" ]]; then
   log "SKIP_K2_EVENT_TIME_INDEX=1 soft skip"
   log "RESULT OK (soft skip)"
-  log "non-claim: soft skip ≠ invent Memory GA · residual ≠ invent index green · residual PASS ≠ live dogfood"
+  log "non-claim: soft skip ≠ invent GA · residual ≠ invent index green · residual PASS ≠ live dogfood"
   exit 0
 fi
 
-log "offline residual SSOT for K2 ListMemoryWithOptions / event-time index residual (no dogfood / Memory GA invent required)"
-log "non-claim: full event-time index residual · residual ≠ invent index green · kernel ≠ product Memory GA · not Memory GA"
+log "offline residual SSOT for K2 ListMemoryWithOptions / event-time index residual (no dogfood invent required)"
+log "non-claim: full event-time index residual · residual ≠ invent index green"
 
 DOC="docs/operations/k2-event-time-index-residual.md"
 MAKEFILE="Makefile"
@@ -72,7 +71,7 @@ need_tree_grep() {
   fi
 }
 
-# Residual doc presence + honesty needles
+# Residual doc presence + pin needles
 need_path "$DOC" "k2 event-time index residual SSOT"
 need_path "$GATE_SCRIPT" "k2 event-time index residual gate script"
 need_grep "$DOC" 's1303' "doc free eng residual pin s1303"
@@ -87,18 +86,14 @@ need_grep "$DOC" 'event-time index residual' "doc event-time index residual"
 need_grep "$DOC" 'ListMemoryWithOptions' "doc ListMemoryWithOptions"
 need_grep "$DOC" 'ListMemoryOptions' "doc ListMemoryOptions"
 need_grep "$DOC" 'filters before limit' "doc filters before limit (shipped)"
-need_grep "$DOC" 'Memory GA' "doc Memory GA honesty"
-need_grep "$DOC" 'not Memory GA' "doc not Memory GA"
-need_grep "$DOC" 'kernel ≠ product Memory GA' "doc kernel ≠ product Memory GA"
 need_grep "$DOC" 'residual ≠ invent index green' "doc residual ≠ invent index green"
-need_grep "$DOC" 'dual_write OFF' "doc dual_write OFF"
 need_grep "$DOC" 'no invent GA' "doc no invent GA"
 need_grep "$DOC" 'PASS ≠ live dogfood' "doc PASS ≠ live dogfood"
 need_grep "$DOC" 'memory_timeline' "doc host peer memory_timeline mention"
 need_grep "$DOC" 'SKIP_K2_EVENT_TIME_INDEX' "doc soft skip env"
 need_grep "$DOC" 'residual-gate' "doc Makefile residual-gate target"
 need_grep "$DOC" 'k2-event-time-index-residual-gate' "doc Makefile k2 residual-gate target"
-need_grep "$DOC" 'RESULT PASS' "doc RESULT PASS honesty chain"
+need_grep "$DOC" 'RESULT PASS' "doc RESULT PASS pin chain"
 
 # Kernel tree symbols (Go)
 need_tree_grep 'ListMemoryWithOptions' "ListMemoryWithOptions"
@@ -126,5 +121,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK honesty chain: ListMemoryWithOptions filters before limit shipped · O(n) FS scan · event-time index residual · residual ≠ invent index green · kernel ≠ product Memory GA · dual_write OFF · no invent GA · residual PASS ≠ live dogfood"
+log "RESULT OK pin chain: ListMemoryWithOptions filters before limit shipped · O(n) FS scan · event-time index residual · residual ≠ invent index green · no invent GA · residual PASS ≠ live dogfood"
 exit 0

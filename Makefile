@@ -49,27 +49,27 @@ check: fmt-check vet test
 # Race/cover are optional locally (CGO/Qdrant soft paths); CI may run race on pure packages later.
 ci: fmt-check vet test vuln build
 
-# Offline residual honesty pins (s1297 inventory + s1303 K2 event-time index + s1313 RecMem compaction).
+# Offline residual pins (s1297 inventory + s1303 K2 event-time index + s1313 RecMem compaction).
 # Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1 · SKIP_K2_EVENT_TIME_INDEX=1 · SKIP_RECMEM_COMPACTION=1
 residual-gate: advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate
 
-# Offline residual honesty pin s1297 — kernel advanced agent inventory (not product Memory GA).
+# Offline residual pin s1297 — kernel advanced agent inventory.
 advanced-agent-inventory-residual-gate:
 	bash scripts/advanced_agent_inventory_residual_gate.sh
 
-# Offline residual honesty pin s1303 — K2 ListMemoryWithOptions / event-time index residual
-# (filters before limit shipped · full event-time index residual · not invent index green / Memory GA).
+# Offline residual pin s1303 — K2 ListMemoryWithOptions / event-time index residual
+# (filters before limit shipped · full event-time index residual · not invent index green).
 k2-event-time-index-residual-gate:
 	bash scripts/k2_event_time_index_residual_gate.sh
 
-# Offline residual honesty pin s1313 — RecMem / compaction residual
+# Offline residual pin s1313 — RecMem / compaction residual
 # (AutoRecMemCompaction shipped partial · PerformCompaction · CompactionConfig · trigger advisory · HITL TUI · not invent GA token-reduction).
 recmem-compaction-residual-gate:
 	bash scripts/recmem_compaction_residual_gate.sh
 
 # Offline M4 public-flip readiness residual s1467 (flip complete; gate is not the flip).
 # Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
-# Honesty: public MIT · residual PASS ≠ public flip · gate PASS ≠ product GA · kernel first · not Memory GA · dual_write OFF (host policy, not kernel flag) · private control-plane / broker stays private.
+# Pin: public MIT · residual PASS ≠ public flip · kernel first · private control-plane / broker stays private.
 public-flip-readiness-gate:
 	bash scripts/public_flip_readiness_gate.sh
 

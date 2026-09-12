@@ -1,7 +1,7 @@
 // Two-process writer probe child: one PalaceStore process against a shared root.
 //
 // Multi-process writers remain unsupported. This binary is evidence collection
-// (last-write-wins), not a lock and not flock. dual_write OFF. Not Memory GA.
+// (last-write-wins), not a lock and not flock.
 //
 //	go run ./cmd/two-process-writer-probe -base DIR -writer A
 //	go run ./cmd/two-process-writer-probe -inspect -base DIR
@@ -27,7 +27,7 @@ func main() {
 	baseDir := strings.TrimSpace(*base)
 	if baseDir == "" {
 		fmt.Fprintln(os.Stderr, "two-process-writer-probe: -base is required")
-		fmt.Fprintln(os.Stderr, "honesty: multi-process writers remain unsupported · flock is not shipped · not Memory GA")
+		fmt.Fprintln(os.Stderr, "note: multi-process writers remain unsupported · flock is not shipped")
 		os.Exit(2)
 	}
 

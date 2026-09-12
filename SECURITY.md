@@ -29,7 +29,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 
 ## Threat model (memory kernel)
 
-`github.com/iome-sh/memory` is a **local-primary hierarchical agent memory kernel** (Palace FS + optional Qdrant + optional ONNX embeddings). It is a **Go library**, not a multi-tenant cloud service and **not product Memory GA**.
+`github.com/iome-sh/memory` is a **local-primary hierarchical agent memory kernel** (Palace FS + optional Qdrant + optional ONNX embeddings). It is a **Go library**, not a multi-tenant cloud service.
 
 | Trust boundary | Posture |
 |----------------|---------|
@@ -39,12 +39,12 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 | Optional Qdrant | Network client to operator-chosen endpoint; no cloud Memory SLA. Validate URLs and network exposure. |
 | Compaction / host hooks | Host-supplied LLM or callbacks can see entry text; hosts must not log secrets. |
 
-### Residual risks (honest)
+### Residual risks
 
 - **Local FS palace is user data** — encryption at rest, backup, and access control are operator responsibilities. New palace dirs are created `0700` and kernel-written files `0600`; pre-existing trees are not retroactively chmod'd. Mode bits are not encryption at rest.  
 - **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers. Supported topology is **one host process per palace root**. In-process `writeMu` serializes `entity-graph.json` / `event-time.json` rewrites; multi-process writers to the same root remain unsupported (not flock, not cloud isolation). Probe script exists; flock is not shipped.  
 - **Optional embeddings load models** — model supply chain and native ORT/CUDA stacks are out of band of the pure-Go default path. Stored vectors are optional (`PersistEmbeddings` default off); hash embeddings are never persisted as `QueryVec` / stored vectors.  
-- **Kernel-only** — this package is not Memory GA; product dual_write defaults OFF elsewhere; hosted Palace remains sunset until deliberate scale; mesh is optional via TUI/ops packs.  
+- **Library kernel** — hosted Palace remains sunset until deliberate scale; mesh is optional via TUI/ops packs.  
 - **No mesh org header** — organization isolation for the I/O Mesh broker is a separate HTTP header (`X-IOMesh-Org`) on mesh clients; this library does not implement that. The public MCP host is **`iomesh-memory-mcp`**.  
 
 ### What this is *not*
@@ -61,7 +61,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 3. Download models only from sources you trust; pin paths via `MEMORY_ONNX_MODEL_PATH`  
 4. Do not commit palace contents, `.env`, or API keys  
 5. Scope Qdrant endpoints to private networks when used  
-6. Treat residual honesty docs under `docs/operations/` as process truth for GA claims  
+6. Treat residual docs under `docs/operations/` as process truth for shipped-vs-residual claims  
 
 ## Dependency security
 

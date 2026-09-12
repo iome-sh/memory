@@ -9,7 +9,7 @@ How to get help for **`github.com/iome-sh/memory`** — the public **library ker
 | Usage questions / bugs | [GitHub Issues](https://github.com/iome-sh/memory/issues) — use issue templates when available |
 | Feature / API requests | Same Issues tracker; link relevant docs or a minimal repro |
 | Security vulnerability | Private [Security Advisory](https://github.com/iome-sh/memory/security/advisories/new) or **security@iome.sh** — see [SECURITY.md](SECURITY.md) |
-| Kernel API / roadmap | [README.md](README.md), [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md), [docs/operations/](docs/operations/) residual honesty pins |
+| Kernel API / roadmap | [README.md](README.md), [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md), [docs/operations/](docs/operations/) residual pins |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 When opening an issue, prefer a **title that names the API surface** (e.g. search, as-of facts, embeddings) and a short, redacted repro.
@@ -20,9 +20,9 @@ This repository supports the **Go module** surface:
 
 - Package API: store, search, temporal helpers, multi-hop, optional embeddings/vectors  
 - Install via `go get github.com/iome-sh/memory@vX.Y.Z`  
-- Docs and residual honesty pins under `docs/`
+- Docs and residual pins under `docs/`
 
-It does **not** support hosted multitenant Memory, private control-plane brokers, or product GA declarations from this tracker alone.
+It does **not** support hosted multitenant Memory or private control-plane brokers from this tracker alone.
 
 ## Related host — iomesh-memory-mcp
 
@@ -46,20 +46,16 @@ Production consumers should **pin semver tags** in `go.mod` (not only `@main`). 
 ## What we do not provide here
 
 - Hosted Palace / multitenant cloud Memory onboarding or uptime guarantees  
-- Product **Memory GA** or **Edge Memory GA** install support as if declared from this package alone  
 - Forever-green signed binary release guarantees (this is a library; binary peers own their packaging)  
 - Guarantees about third-party Qdrant, ONNX Runtime, or model-hub availability  
 - Private monorepo broker / control-plane support via this package  
-- dual_write product defaults (product path is dual_write **OFF** elsewhere)
 
 ## Before filing an issue
 
 1. Run `make check` or note CI failures  
 2. Redact API keys, palace contents, and private paths from logs  
 3. Include module version (`go list -m github.com/iome-sh/memory`) or commit SHA and OS  
-4. Confirm the report is about the **kernel API** — not a request to invent hosted or bare Memory GA  
+4. Confirm the report is about the **kernel API** — not hosted Memory or a private control-plane  
 5. Prefer a **pinned tag** in the report when the bug is version-specific  
 
-## Honesty
-
-Support policy docs ≠ invent Edge Memory GA · ≠ invent bare Memory GA · ≠ invent forever-green signed releases · dual_write **OFF** product path elsewhere · no invent live dogfood. Full version window: [RELEASING.md](RELEASING.md) · security matrix: [SECURITY.md](SECURITY.md).  
+Full version window: [RELEASING.md](RELEASING.md) · security matrix: [SECURITY.md](SECURITY.md).

@@ -1,6 +1,6 @@
 # RecMem Integration Plan for `memory` Package
 
-**Historical** (v1.2 baseline, May 2026). Current residual honesty: [`docs/operations/recmem-compaction-residual.md`](operations/recmem-compaction-residual.md). Compaction PASS ≠ invent Memory GA token-reduction. Kernel-only · **not Memory GA**.
+**Historical** (v1.2 baseline, May 2026). Current residual pin: [`docs/operations/recmem-compaction-residual.md`](operations/recmem-compaction-residual.md). Compaction PASS ≠ invent token-reduction.
 
 **Status**: Phase 2 Complete (v1.2 baseline)
 **Date**: May 20, 2026

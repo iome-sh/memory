@@ -7,7 +7,7 @@
 #
 # Always exits 0 (probe, not a CI gate). Multi-process writers remain
 # unsupported. This does not invent tenancy. Probe ≠ flock · flock is not
-# shipped · probe ≠ Memory GA · dual_write OFF.
+# shipped.
 #
 # Usage:
 #   bash scripts/two_process_writer_probe.sh
@@ -23,7 +23,7 @@ cd "${ROOT}"
 log() { printf 'two-process-writer-probe: %s\n' "$*" >&2; }
 
 log "multi-process writers remain unsupported; this does not invent tenancy"
-log "probe ≠ flock · flock is not shipped · probe ≠ Memory GA · dual_write OFF"
+log "probe ≠ flock · flock is not shipped"
 
 N="${MEMORY_TWO_PROCESS_PROBE_N:-24}"
 WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/memory-two-process-probe.XXXXXX")" || {
