@@ -6,6 +6,24 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## n=60 scout — `origin/main` `1f5bb20` (kernel `f99c140` + Wave E docs, 2026-09-12T20:18Z–20:29Z)
+
+Internal locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`, 10 of each of 6 types). First 12 IDs = n=12 lock. Reader `gpt-4o-mini`. Judge `gpt-4o-2024-08-06`. Isolated palace. Health `embed_mode` verified. **BGE skipped** (too slow; parent runs BGE after kernel PRs). **Not a README number** · **not official V1**.
+
+| Embed | Judge-true | Rate | health `embed_mode` | knowledge-update | multi-session | ss-assistant | ss-preference | ss-user | temporal |
+|-------|------------|------|---------------------|------------------|---------------|--------------|---------------|---------|----------|
+| hash | **48/60** | 0.800 | `hash` | **9/10** | **7/10** | **10/10** | **6/10** | **10/10** | **6/10** |
+| MiniLM ONNX | **47/60** | 0.783 | `onnx-minilm-l6-v2` | **9/10** | **6/10** | **10/10** | **6/10** | **10/10** | **6/10** |
+| BAAI BGE ONNX | SKIP | — | not run | — | — | — | — | — | — |
+
+n=12 prefix **did not fully hold** vs Wave E (`f99c140`): Wave E hash **11/12** / MiniLM **12/12**. This scout hash **10/12** / MiniLM **10/12**. Extra miss `gpt4_2487a7cb` (event order inverted) on both; clothes `0a995998` gold 3 also miss on MiniLM this run (counted 2). Projects `6d550036` still pass. Reader/judge variance on the lock; do not treat Wave E MiniLM 12/12 as reproduced.
+
+Miss IDs shared: `08f4fc43` `0a995998` `0edc2aef` `2a1811e2` `2c63a862` `35a27287` `852ce960` `aae3761f` `afdc33df` `caf03d32` `gpt4_2487a7cb` `gpt4_59c863d7`. MiniLM-only: `3a704032` (plants). Hash-only: none.
+
+What n=60 breaks: incomplete multi-session counts (clothes 3, kits 5, driving hours, MiniLM plants 3); temporal date-diff / order; preference-conditioned answers 4/10 both; one stale knowledge-update (`852ce960` $350k vs $400k). ss-user and ss-assistant 10/10.
+
+Artifacts (gitignored palaces): worktree `data/baseline-n60-scout/` (health, hypotheses JSONL, eval-results-gpt-4o, server logs). Summary `/tmp/lme-n60-scout-1f5bb20-summary.md`.
+
 ## Wave E — T1 count-assembly (kernel `f99c140` / #111, 2026-09-12T19:43Z–19:57Z)
 
 Kernel `#111` (`AssembleCountEvidence` + palace-wide count-fact union). Health `embed_mode` verified.
@@ -74,4 +92,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave E is kernel `f99c140` (#111). T1 done-when met (MiniLM 2/2, BGE 1/2). Next: n=60. Not a README number.
+- Wave E is kernel `f99c140` (#111). T1 done-when met (MiniLM 2/2, BGE 1/2). n=60 scout (hash 48/60, MiniLM 47/60, BGE skipped) is internal, not V1. Not a README number.
