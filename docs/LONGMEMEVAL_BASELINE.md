@@ -6,6 +6,18 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## Wave G — T1 unique-entity + temporal dated evidence (kernel `b02abaf` / #119, 2026-09-12T22:02Z–22:36Z)
+
+Kernel `#119` (`AssembleTemporalEvidence` text dates vs ingest Timestamp; unique-entity count clusters). Health `embed_mode` verified. **Not a README number.** `#120` (distinct-item header) is **not** this kernel.
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **11/12** | 0.917 | `hash` | **1/2** (clothes miss, projects pass) |
+| MiniLM ONNX | **11/12** | 0.917 | `onnx-minilm-l6-v2` | **1/2** (clothes miss, projects pass) |
+| BAAI BGE ONNX | **11/12** | 0.917 | `onnx-bge-small-en-v1.5` | **1/2** (clothes miss, projects pass) |
+
+Temporal `gpt4_2487a7cb` (webinar first) pass all three. Clothes (`0a995998`, gold 3) miss all three: retrieve still prepends 3 action clusters; reader summed 2. Projects (`6d550036`, gold 2) pass all three. Other types 2/2. Not official V1.
+
 ## Wave F — T1 clothing-errand clusters (kernel `aa64dbc` / #115 on #114, 2026-09-12T20:35Z–20:57Z)
 
 Kernel `#115` (`AssembleCountEvidence` clusters dry-clean / return / pick-up) on `#114` (harness-only batch ONNX retrieve scoring). Health `embed_mode` verified. **Not a README number.**
@@ -104,4 +116,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave F is kernel `aa64dbc` (#115 on #114). MiniLM/BGE 12/12 MS 2/2; hash 11/12 MS 2/2 (temporal `gpt4_2487a7cb`). Clothes residual closed. n=60 scout remains on kernel `f99c140`. Not a README number.
+- Wave G is kernel `b02abaf` (#119). Hash/MiniLM/BGE 11/12 MS 1/2. Temporal `gpt4_2487a7cb` pass all three; clothes `0a995998` miss all three. `#120` unremeasured. n=60 scout remains on kernel `f99c140`. Not a README number.
