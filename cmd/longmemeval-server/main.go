@@ -404,16 +404,27 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Count queries: compact unique facts at the front of the reader context.
-	// Synthetic hit only — not written to the palace.
+	// Temporal-order / dated-span and count queries: compact evidence at the
+	// front of the reader context. Synthetic hits only — not written to the palace.
+	var synths []memory.MemoryEntry
+	if evidence := memory.AssembleTemporalEvidence(req.Query, keywordResults); evidence != "" {
+		synths = append(synths, memory.MemoryEntry{
+			ID:        "temporal-evidence",
+			Type:      "temporal_evidence",
+			SessionID: sessionID,
+			Content:   memory.MemoryContent{Summary: evidence, Full: evidence},
+		})
+	}
 	if evidence := memory.AssembleCountEvidence(req.Query, keywordResults); evidence != "" {
-		synth := memory.MemoryEntry{
+		synths = append(synths, memory.MemoryEntry{
 			ID:        "count-evidence",
 			Type:      "count_evidence",
 			SessionID: sessionID,
 			Content:   memory.MemoryContent{Summary: evidence, Full: evidence},
-		}
-		combined = append([]memory.MemoryEntry{synth}, combined...)
+		})
+	}
+	if len(synths) > 0 {
+		combined = append(synths, combined...)
 	}
 
 	if len(combined) > req.Limit {

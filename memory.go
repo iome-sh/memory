@@ -762,9 +762,11 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 // Archival is included when IncludeArchival is set, or when the default-tier keyword
 // hit set is empty (low-confidence fallback). That fallback is the empty keyword-hit
 // set, not a numeric cosine cutoff (Memory P0: do not invent a threshold).
-// Count queries (`how many` / `how much`) union matching turn_facts from the
-// session/`conv:` candidate set, rank named-pattern facts above fallback chatter,
-// then session-diversify before Limit.
+// Count queries (`how many` / `how much`, except dated-span “how many days
+// between / did it take”) union matching turn_facts from the session/`conv:`
+// candidate set, rank named-pattern facts above fallback chatter, then
+// session-diversify before Limit. Temporal-order / dated-span queries promote
+// entries that mention either event name, then diversify before Limit.
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
 	limit := opts.Limit
 	if limit <= 0 {
@@ -808,12 +810,18 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = keepKeywordHitsFirst(results, keywordHits)
 	}
 
-	if isCountQuery(query) {
+	if isCountQuery(query) && !isDatedSpanQuery(query) {
 		// Pull matching turn_facts from the session/conv set, not only keyword
 		// hits, so "I led X" / "solo project" in another haystack session still
 		// reach Limit. Named-pattern facts outrank fallback chatter.
 		results = unionCountQueryFacts(results, candidates, query)
 		results = promoteFactEntriesForQuery(results, query)
+	}
+	if isTemporalEvidenceQuery(query) {
+		// Promote entries that mention either event name after keyword/vector.
+		// Dated-span questions are not calendar windows; this is additive.
+		results = unionTemporalEventEntries(results, candidates, query)
+		results = promoteTemporalEventEntries(results, query)
 	}
 	// Limit. Diversify distinct SessionIDs so one haystack session cannot
 	// fill every slot (T1). Single-session sets prefix Limit as before.
@@ -1062,10 +1070,36 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 // Clothing-errand named extracts. Poster / case-competition "return" lines do
 // not match: return/exchange require boot|blazer|zara.
 var (
-	atomicFactDryClean  = regexp.MustCompile(`(?i)dry[\s-]?clean`)
-	atomicFactClothPick = regexp.MustCompile(`(?i)(pick up|picked up).{0,80}(boot|blazer|dry clean|cleaning|zara)`)
-	atomicFactClothRet  = regexp.MustCompile(`(?i)(return|returned|exchange|exchanged).{0,80}(boot|blazer|zara)`)
+	atomicFactDryClean     = regexp.MustCompile(`(?i)dry[\s-]?clean`)
+	atomicFactClothPick    = regexp.MustCompile(`(?i)(pick up|picked up).{0,80}(boot|blazer|dry clean|cleaning|zara)`)
+	atomicFactClothRet     = regexp.MustCompile(`(?i)(return|returned|exchange|exchanged).{0,80}(boot|blazer|zara)`)
+	atomicFactScaleKit     = regexp.MustCompile(`(?i)(1/\d+\s*scale.{0,50}(spitfire|tiger|b-?29|camaro|bomber|tank|eagle)|revell\s+f-?15|tamiya.{0,40}spitfire|\bf-?15\s*eagle\b|\btiger\s*i\b|'?69\s*camaro|b-?29\s*bomber|model kits?)`)
+	atomicFactDroveHours   = regexp.MustCompile(`(?i)((drove|drive|driving|took me|took about).{0,40}(\d+|` + wordNumberAlt + `)\s+hours?|(\d+|` + wordNumberAlt + `)\s+hours?.{0,40}(drive|driving|drove))`)
+	atomicFactPlantAcquire = regexp.MustCompile(`(?i)((bought|got|acquired).{0,100}(peace\s*lily|succulent|snake\s*plant|plants?)|(peace\s*lily|succulent|snake\s*plant).{0,80}(bought|got|acquired))`)
+	atomicFactPlantNames   = regexp.MustCompile(`(?i)(peace\s*lily|snake\s*plant|succulent)`)
+	atomicFactDatedEvent   = regexp.MustCompile(`(?i)(on\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?|\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(?:st|nd|rd|th)?\b|\b\d{1,2}/\d{1,2}(?:/\d{2,4})?\b|(\d+|` + wordNumberAlt + `)\s+(days?|weeks?|months?|years?)\s+ago|last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|month|year))`)
+	atomicFactWordQty      = regexp.MustCompile(`(?i)((\d+|` + wordNumberAlt + `)\s*(hours?|days?|weeks?|months?|years?|dollars?|bucks?|items?|shirts?|bikes?|plants?|kits?))`)
 )
+
+// namedFactsNeedFirstPerson are extractors that would otherwise match assistant
+// chatter (kit names, plant names, relative dates). First-person user turns
+// still match.
+var namedFactsNeedFirstPerson = []*regexp.Regexp{
+	atomicFactScaleKit,
+	atomicFactDroveHours,
+	atomicFactPlantAcquire,
+	atomicFactPlantNames,
+	atomicFactDatedEvent,
+}
+
+func namedFactNeedsFirstPerson(re *regexp.Regexp) bool {
+	for _, n := range namedFactsNeedFirstPerson {
+		if re == n {
+			return true
+		}
+	}
+	return false
+}
 
 // atomicFactPatterns are named extractors. Hits outrank the first-person /
 // capital-letter fallback on count queries so chatter cannot bury "I led".
@@ -1076,13 +1110,18 @@ var atomicFactPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(favorite|love|hate|prefer|always .*? (eat|drink|listen|watch|read|wear))`),
 	regexp.MustCompile(`(?i)(bought|got a new|own|just purchased|added to my collection)`),
 	regexp.MustCompile(`(?i)(spent .*? (on|for)|paid .*? dollars|cost me)`),
-	regexp.MustCompile(`(?i)(\d+\s*(hours?|days?|weeks?|months?|years?|dollars?|bucks?|items?|shirts?|bikes?|plants?))`),
+	atomicFactWordQty,
 	regexp.MustCompile(`(?i)(on .*? (birthday|anniversary|trip|vacation|wedding)|last (month|week|year)|this (month|year))`),
 	regexp.MustCompile(`(?i)(work at|job at|occupation|previous job|used to work)`),
 	regexp.MustCompile(`(?i)(\bled\b|\bleading\b).{0,80}(project|team|analysis)`),
 	atomicFactDryClean,
 	atomicFactClothPick,
 	atomicFactClothRet,
+	atomicFactScaleKit,
+	atomicFactDroveHours,
+	atomicFactPlantAcquire,
+	atomicFactPlantNames,
+	atomicFactDatedEvent,
 }
 
 func matchesNamedFactPattern(text string) bool {
@@ -1115,14 +1154,21 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 		if len(s) < 8 {
 			continue
 		}
+		if isAssistantChatter(s) {
+			continue
+		}
 
 		matched := false
 		for _, re := range atomicFactPatterns {
-			if re.MatchString(s) {
-				facts = append(facts, s)
-				matched = true
-				break
+			if !re.MatchString(s) {
+				continue
 			}
+			if namedFactNeedsFirstPerson(re) && (!isFirstPersonFact(s) || isAssistantChatter(s)) {
+				continue
+			}
+			facts = append(facts, s)
+			matched = true
+			break
 		}
 
 		if !matched {

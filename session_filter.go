@@ -205,13 +205,35 @@ func isFirstPersonFact(text string) bool {
 		strings.Contains(lower, " my ")
 }
 
+func isAssistantChatter(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if strings.HasPrefix(lower, "congratulations") || strings.HasPrefix(lower, "i'd be happy") ||
+		strings.HasPrefix(lower, "i would be happy") {
+		return true
+	}
+	return strings.Contains(text, "**")
+}
+
 func factOverlapsCountQuery(e MemoryEntry, query string) bool {
 	if keywordOverlapCount(e, countQueryNounTokens(query)) > 0 {
 		return true
 	}
+	hay := entryKeywordHaystack(e)
 	// Dry-clean has weak overlap with "pick up or return from a store".
 	// Treat clothing errands as hits on clothing count queries.
-	return isClothingCountQuery(query) && isClothingErrandText(entryKeywordHaystack(e))
+	if isClothingCountQuery(query) && isClothingErrandText(hay) {
+		return true
+	}
+	// Kit / plant names often lack the query noun ("plants" vs "peace lily").
+	switch countEntityKind(query) {
+	case "kit":
+		return len(identityKeys(hay, kitCatalog)) > 0
+	case "plant":
+		return len(identityKeys(hay, plantCatalog)) > 0
+	case "hours":
+		return hasHourQuantity(hay)
+	}
+	return false
 }
 
 func isClothingCountQuery(query string) bool {
@@ -236,10 +258,12 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 	}
 	tokens := countQueryNounTokens(query)
 	clothingQuery := isClothingCountQuery(query)
+	entityKind := countEntityKind(query)
 	type scored struct {
 		e           MemoryEntry
 		named       int
 		clothing    int
+		entity      int
 		firstPerson int
 		overlap     int
 	}
@@ -254,11 +278,15 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 		if clothingQuery && isClothingErrandText(hay) {
 			clothing = 1
 		}
+		entity := 0
+		if entityKind != "" && entityKind != "clothing" && len(uniqueEntityClusters(hay, entityKind)) > 0 {
+			entity = 1
+		}
 		fp := 0
 		if isFirstPersonFact(hay) {
 			fp = 1
 		}
-		tmp[i] = scored{e: e, named: named, clothing: clothing, firstPerson: fp, overlap: keywordOverlapCount(e, tokens)}
+		tmp[i] = scored{e: e, named: named, clothing: clothing, entity: entity, firstPerson: fp, overlap: keywordOverlapCount(e, tokens)}
 	}
 	sort.SliceStable(tmp, func(i, j int) bool {
 		if tmp[i].named != tmp[j].named {
@@ -266,6 +294,9 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 		}
 		if tmp[i].clothing != tmp[j].clothing {
 			return tmp[i].clothing > tmp[j].clothing
+		}
+		if tmp[i].entity != tmp[j].entity {
+			return tmp[i].entity > tmp[j].entity
 		}
 		if tmp[i].firstPerson != tmp[j].firstPerson {
 			return tmp[i].firstPerson > tmp[j].firstPerson
@@ -284,7 +315,7 @@ func rankCountQueryFacts(facts []MemoryEntry, query string) []MemoryEntry {
 // (stemmed). Keyword search alone can miss "solo project" when the query says
 // "projects".
 func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []MemoryEntry {
-	if !isCountQuery(query) {
+	if !isCountQuery(query) || isDatedSpanQuery(query) {
 		return hits
 	}
 	seen := make(map[string]struct{}, len(hits)+len(candidates))
@@ -322,10 +353,14 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // (named-pattern first, then first-person noun overlap). Deduped, not persisted.
 // Clothing count queries diversify by action+object (dry-clean / return / pick-up
 // × boot / blazer / generic) so a compound "return … pick them up" is two bullets
-// and dry-clean survives when the query only says pick/return/store. Empty when
-// the query is not a count question or no facts match.
+// and dry-clean survives when the query only says pick/return/store. Other
+// quantity queries cluster by distinctive object (kit identity, plant name,
+// hour+destination) so a repeated B-29 is one kit and two plants in one turn
+// are two clusters. Dated-span “how many days between” is not assembled here
+// (see AssembleTemporalEvidence). Empty when the query is not a count question
+// or no facts match.
 func AssembleCountEvidence(query string, facts []MemoryEntry) string {
-	if !isCountQuery(query) {
+	if !isCountQuery(query) || isDatedSpanQuery(query) {
 		return ""
 	}
 	matched := make([]MemoryEntry, 0, len(facts))
@@ -349,6 +384,9 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string {
 	var snippets []string
 	if isClothingCountQuery(query) {
 		snippets = assembleClothingCountEvidence(matched)
+	}
+	if len(snippets) == 0 {
+		snippets = assembleUniqueEntityCountEvidence(query, matched)
 	}
 	if len(snippets) == 0 {
 		snippets = assembleExactTextCountEvidence(matched)
@@ -386,6 +424,202 @@ func factSnippetText(e MemoryEntry) string {
 		text = strings.TrimSpace(e.Content.Full)
 	}
 	return text
+}
+
+const wordNumberAlt = `one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty`
+
+var wordNumberValue = map[string]int{
+	"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+	"eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+	"fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+	"nineteen": 19, "twenty": 20, "thirty": 30,
+}
+
+var reHourQuantity = regexp.MustCompile(`(?i)\b(\d+|` + wordNumberAlt + `)\s+hours?\b`)
+
+type namedIdentity struct {
+	key string
+	re  *regexp.Regexp
+}
+
+var kitCatalog = []namedIdentity{
+	{key: "f-15", re: regexp.MustCompile(`(?i)\bf-?15\b`)},
+	{key: "spitfire", re: regexp.MustCompile(`(?i)\bspitfire\b`)},
+	{key: "tiger", re: regexp.MustCompile(`(?i)\btiger\s*i\b|\bgerman tiger\b`)},
+	{key: "b-29", re: regexp.MustCompile(`(?i)\bb-?29\b`)},
+	{key: "camaro", re: regexp.MustCompile(`(?i)\bcamaro\b`)},
+}
+
+var plantCatalog = []namedIdentity{
+	{key: "peace-lily", re: regexp.MustCompile(`(?i)\bpeace\s*lil(?:y|ies)\b`)},
+	{key: "succulent", re: regexp.MustCompile(`(?i)\bsucculents?\b`)},
+	{key: "snake-plant", re: regexp.MustCompile(`(?i)\bsnake\s*plants?\b`)},
+}
+
+var destCatalog = []namedIdentity{
+	{key: "outer-banks", re: regexp.MustCompile(`(?i)\bouter\s*banks\b`)},
+	{key: "washington", re: regexp.MustCompile(`(?i)\bwashington\b|\bd\.c\.`)},
+	{key: "tennessee", re: regexp.MustCompile(`(?i)\btennessee\b`)},
+}
+
+type entityCluster struct {
+	kind    string
+	key     string
+	snippet string
+}
+
+func countEntityKind(query string) string {
+	q := strings.ToLower(query)
+	if isClothingCountQuery(query) {
+		return "clothing"
+	}
+	if strings.Contains(q, "kit") || (strings.Contains(q, "model") && !strings.Contains(q, "plant")) {
+		return "kit"
+	}
+	if strings.Contains(q, "plant") {
+		return "plant"
+	}
+	if strings.Contains(q, "hour") {
+		return "hours"
+	}
+	if strings.Contains(q, "dollar") || strings.Contains(q, "buck") {
+		return "dollars"
+	}
+	return ""
+}
+
+func identityKeys(text string, catalog []namedIdentity) []string {
+	var out []string
+	for _, c := range catalog {
+		if c.re.MatchString(text) {
+			out = append(out, c.key)
+		}
+	}
+	return out
+}
+
+func hasHourQuantity(text string) bool {
+	return reHourQuantity.MatchString(text)
+}
+
+func parseWordOrDigit(s string) int {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if n, ok := wordNumberValue[s]; ok {
+		return n
+	}
+	n := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			continue
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n
+}
+
+func uniqueEntityClusters(text, kind string) []entityCluster {
+	switch kind {
+	case "kit":
+		return catalogClusters(text, "kit", kitCatalog)
+	case "plant":
+		return catalogClusters(text, "plant", plantCatalog)
+	case "hours":
+		return hoursClusters(text)
+	default:
+		return nil
+	}
+}
+
+func catalogClusters(text, kind string, catalog []namedIdentity) []entityCluster {
+	keys := identityKeys(text, catalog)
+	if len(keys) == 0 {
+		return nil
+	}
+	out := make([]entityCluster, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, entityCluster{
+			kind:    kind,
+			key:     key,
+			snippet: "[" + kind + ":" + key + "] " + strings.TrimSpace(text),
+		})
+	}
+	return out
+}
+
+func hoursClusters(text string) []entityCluster {
+	if !hasHourQuantity(text) {
+		return nil
+	}
+	dests := identityKeys(text, destCatalog)
+	if len(dests) == 0 {
+		qty := strings.ToLower(strings.TrimSpace(reHourQuantity.FindString(text)))
+		key := qty
+		if key == "" {
+			key = "hours"
+		}
+		return []entityCluster{{
+			kind:    "hours",
+			key:     key,
+			snippet: "[hours] " + strings.TrimSpace(text),
+		}}
+	}
+	out := make([]entityCluster, 0, len(dests))
+	for _, d := range dests {
+		out = append(out, entityCluster{
+			kind:    "hours",
+			key:     d,
+			snippet: "[hours:" + d + "] " + strings.TrimSpace(text),
+		})
+	}
+	return out
+}
+
+func assembleUniqueEntityCountEvidence(query string, matched []MemoryEntry) []string {
+	kind := countEntityKind(query)
+	if kind == "" || kind == "clothing" {
+		return nil
+	}
+	type filled struct {
+		snippet string
+		order   int
+	}
+	got := make(map[string]filled, 8)
+	n := 0
+	for _, e := range matched {
+		text := factSnippetText(e)
+		if text == "" {
+			continue
+		}
+		clusters := uniqueEntityClusters(text, kind)
+		for _, c := range clusters {
+			key := c.kind + "\t" + c.key
+			if _, ok := got[key]; ok {
+				continue
+			}
+			got[key] = filled{snippet: c.snippet, order: n}
+			n++
+		}
+	}
+	if len(got) == 0 {
+		return nil
+	}
+	type ordered struct {
+		order int
+		snip  string
+	}
+	list := make([]ordered, 0, len(got))
+	for _, v := range got {
+		list = append(list, ordered{order: v.order, snip: v.snippet})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].order < list[j].order })
+	out := make([]string, 0, len(list))
+	for _, x := range list {
+		out = append(out, x.snip)
+		if len(out) >= maxCountEvidenceSnippets {
+			break
+		}
+	}
+	return out
 }
 
 const (

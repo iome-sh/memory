@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestConvTag(t *testing.T) {
@@ -435,6 +436,301 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesClothingErrands(t *testing.T
 	}
 	if !strings.Contains(lower, "boot") {
 		t.Fatalf("assembly missing boot object: %q", evidence)
+	}
+}
+
+func TestExtractAtomicFacts_ModelKitsHoursPlantsDates(t *testing.T) {
+	kits := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I recently finished a simple Revell F-15 Eagle kit that I picked up at the hobby store. Clustering notes are unrelated.",
+	}})
+	if !factsContain(kits, "f-15") && !factsContain(kits, "revell") {
+		t.Fatalf("expected F-15 kit fact, got %v", kits)
+	}
+
+	hours := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I drove for six hours to Washington D.C. recently. Elbow method chatter.",
+	}})
+	if !factsContain(hours, "six hours") && !factsContain(hours, "6 hours") {
+		t.Fatalf("expected drove-hours fact, got %v", hours)
+	}
+
+	plants := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I'm trying to care for my peace lily and a succulent I got from the nursery.",
+	}})
+	if !factsContain(plants, "peace lily") || !factsContain(plants, "succulent") {
+		t.Fatalf("expected both plants in extract, got %v", plants)
+	}
+
+	dated := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I attended the Sunday mass at St. Mary's Church on January 2nd. Unrelated clustering.",
+	}})
+	if !factsContain(dated, "january 2nd") && !factsContain(dated, "January 2nd") {
+		t.Fatalf("expected January 2nd date fact, got %v", dated)
+	}
+
+	assist := "Congratulations on completing your Tamiya 1/48 scale Spitfire Mk.V."
+	if factsContain(ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{Full: assist}}), "spitfire") {
+		t.Fatalf("assistant kit chatter must not extract: %q", assist)
+	}
+}
+
+func TestAssembleCountEvidence_FiveKitsDedupeB29(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("k1", "s1", "I recently finished a simple Revell F-15 Eagle kit that I picked up at the hobby store."),
+		factEntry("k2", "s1", "I'm thinking of working on a 1/72 scale B-29 bomber next."),
+		factEntry("k3", "s2", "I recently finished a Tamiya 1/48 scale Spitfire Mk.V."),
+		factEntry("k4", "s3", "I started working on a diorama featuring a 1/16 scale German Tiger I tank."),
+		factEntry("k5", "s4", "I just got this 1/72 scale B-29 bomber kit and a 1/24 scale '69 Camaro at a model show."),
+	}
+	q := "How many model kits have I worked on or bought?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[kit:") != 5 {
+		t.Fatalf("want 5 kit clusters, got %q", got)
+	}
+	if strings.Count(lower, "[kit:b-29]") != 1 {
+		t.Fatalf("repeated B-29 must be one cluster, got %q", got)
+	}
+	for _, key := range []string{"[kit:f-15]", "[kit:spitfire]", "[kit:tiger]", "[kit:camaro]"} {
+		if !strings.Contains(lower, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+}
+
+func TestAssembleCountEvidence_ThreeHourDestinations(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("h1", "s1", "My recent trip to Outer Banks in North Carolina only took me four hours to drive there."),
+		factEntry("h2", "s2", "I drove for six hours to Washington D.C. recently."),
+		factEntry("h3", "s3", "On my recent trip to the mountains in Tennessee I drove for five hours to get there."),
+	}
+	q := "How many hours in total did I spend driving to my three road trip destinations combined?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[hours:") != 3 {
+		t.Fatalf("want 3 hour clusters, got %q", got)
+	}
+	if !strings.Contains(lower, "outer banks") && !strings.Contains(lower, "outer-banks") {
+		t.Fatalf("missing Outer Banks destination: %q", got)
+	}
+	if !strings.Contains(lower, "washington") {
+		t.Fatalf("missing Washington destination: %q", got)
+	}
+	if !strings.Contains(lower, "tennessee") {
+		t.Fatalf("missing Tennessee destination: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_ThreePlantsOneTurnTwoNames(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("p1", "s1", "I'm trying to care for my peace lily and a succulent I got from the nursery."),
+		factEntry("p2", "s2", "I got a snake plant from my sister last month."),
+	}
+	q := "How many plants did I acquire in the last month?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[plant:") != 3 {
+		t.Fatalf("want 3 plant clusters, got %q", got)
+	}
+	for _, key := range []string{"[plant:peace-lily]", "[plant:succulent]", "[plant:snake-plant]"} {
+		if !strings.Contains(lower, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+}
+
+func TestAssembleCountEvidence_DatedSpanIsNotCountEvidence(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("d1", "s1", "I attended the Sunday mass at St. Mary's Church on January 2nd."),
+		factEntry("d2", "s2", "I just came from the Ash Wednesday service at the cathedral on February 1st."),
+	}
+	q := "How many days had passed between the Sunday mass at St. Mary's Church and the Ash Wednesday service at the cathedral?"
+	if got := AssembleCountEvidence(q, facts); got != "" {
+		t.Fatalf("dated-span must not assemble count evidence, got %q", got)
+	}
+}
+
+func TestSearchMemoryWithOptions_CountQueryAssemblesFiveKits(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	conv := "kit-count"
+	turns := []struct{ id, sess, full string }{
+		{"turn-f15", "hay-1", "I recently finished a simple Revell F-15 Eagle kit that I picked up at the hobby store."},
+		{"turn-b29a", "hay-1", "I'm thinking of working on a 1/72 scale B-29 bomber next."},
+		{"turn-spit", "hay-2", "I recently finished a Tamiya 1/48 scale Spitfire Mk.V."},
+		{"turn-tiger", "hay-3", "I started working on a diorama featuring a 1/16 scale German Tiger I tank."},
+		{"turn-camaro", "hay-4", "I just got this 1/72 scale B-29 bomber kit and a 1/24 scale '69 Camaro at a model show."},
+	}
+	for _, tr := range turns {
+		if err := store.IngestTurn(MemoryEntry{
+			ID: tr.id, SessionID: tr.sess,
+			Content: MemoryContent{Full: tr.full, Tags: []string{ConvTag(conv)}},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 16; i++ {
+		if err := store.IngestTurn(MemoryEntry{
+			ID: "turn-noise-" + strconv.Itoa(i), SessionID: "hay-noise",
+			Content: MemoryContent{
+				Full: "The elbow method is an excellent choice for clustering how many model kits appear in dashboard metrics " + strconv.Itoa(i) + ".",
+				Tags: []string{ConvTag(conv)},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := "How many model kits have I worked on or bought?"
+	hits := store.SearchMemoryWithOptions(q, SearchMemoryOptions{SessionID: conv, Limit: 8})
+	evidence := AssembleCountEvidence(q, hits)
+	lower := strings.ToLower(evidence)
+	if strings.Count(lower, "[kit:") != 5 {
+		t.Fatalf("search assembly want 5 kit clusters; ids=%v evidence=%q", idsOf(hits), evidence)
+	}
+	if strings.Count(lower, "[kit:b-29]") != 1 {
+		t.Fatalf("B-29 must dedupe across sessions: %q", evidence)
+	}
+}
+
+func TestAssembleTemporalEvidence_WebinarBeforeWorkshopSameTimestamp(t *testing.T) {
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "workshop", Type: "turn_fact", Timestamp: ts, SessionID: "s-work",
+			Content: MemoryContent{Summary: "I attended the workshop on Effective Time Management last Saturday."},
+		},
+		{
+			ID: "webinar", Type: "turn_fact", Timestamp: ts, SessionID: "s-web",
+			Content: MemoryContent{Summary: "I participated in a webinar on Data Analysis using Python two months ago."},
+		},
+	}
+	q := "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?"
+	got := AssembleTemporalEvidence(q, entries)
+	if got == "" {
+		t.Fatal("expected temporal evidence")
+	}
+	lower := strings.ToLower(got)
+	if !strings.Contains(lower, "two months ago") {
+		t.Fatalf("missing webinar text date: %q", got)
+	}
+	if !strings.Contains(lower, "last saturday") {
+		t.Fatalf("missing workshop text date: %q", got)
+	}
+	if !strings.Contains(lower, "ingest:") {
+		t.Fatalf("must label ingest Timestamp separately: %q", got)
+	}
+	web := strings.Index(lower, "webinar")
+	work := strings.Index(lower, "workshop")
+	if web < 0 || work < 0 || web > work {
+		t.Fatalf("webinar (two months ago) must list before workshop, got %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_DatedBulletsNoDayDelta(t *testing.T) {
+	ts := time.Date(2023, 2, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "mass", Type: "turn_fact", Timestamp: ts, SessionID: "s-mass",
+			Content: MemoryContent{Summary: "I attended the Sunday mass at St. Mary's Church on January 2nd."},
+		},
+		{
+			ID: "ash", Type: "turn_fact", Timestamp: ts, SessionID: "s-ash",
+			Content: MemoryContent{Summary: "I just came from the Ash Wednesday service at the cathedral on February 1st."},
+		},
+	}
+	q := "How many days had passed between the Sunday mass at St. Mary's Church and the Ash Wednesday service at the cathedral?"
+	got := AssembleTemporalEvidence(q, entries)
+	lower := strings.ToLower(got)
+	if !strings.Contains(lower, "january 2nd") {
+		t.Fatalf("missing January 2nd bullet: %q", got)
+	}
+	if !strings.Contains(lower, "february 1st") {
+		t.Fatalf("missing February 1st bullet: %q", got)
+	}
+	if strings.Contains(lower, "30 day") || strings.Contains(lower, "31 day") {
+		t.Fatalf("kernel must not compute day-delta: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_SlashDatesHouseAndRachel(t *testing.T) {
+	ts := time.Date(2022, 3, 2, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "start", Type: "turn_fact", Timestamp: ts, SessionID: "s1",
+			Content: MemoryContent{Summary: "Since I started working with Rachel on 2/15, I'm hoping she can help."},
+		},
+		{
+			ID: "house", Type: "turn_fact", Timestamp: ts, SessionID: "s2",
+			Content: MemoryContent{Summary: "I recently saw a house that I really love on 3/1."},
+		},
+	}
+	q := "How many days did it take for me to find a house I loved after starting to work with Rachel?"
+	got := AssembleTemporalEvidence(q, entries)
+	lower := strings.ToLower(got)
+	if !strings.Contains(lower, "2/15") {
+		t.Fatalf("missing 2/15 bullet: %q", got)
+	}
+	if !strings.Contains(lower, "3/1") {
+		t.Fatalf("missing 3/1 bullet: %q", got)
+	}
+	if strings.Contains(lower, "14 day") {
+		t.Fatalf("kernel must not compute day-delta: %q", got)
+	}
+}
+
+func TestSearchMemoryWithOptions_TemporalOrderPromotesBothEvents(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	conv := "event-order"
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	if err := store.IngestTurn(MemoryEntry{
+		ID: "turn-web", SessionID: "hay-web", Timestamp: ts,
+		Content: MemoryContent{
+			Full: "I participated in a webinar on Data Analysis using Python two months ago.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.IngestTurn(MemoryEntry{
+		ID: "turn-work", SessionID: "hay-work", Timestamp: ts,
+		Content: MemoryContent{
+			Full: "I attended the workshop on Effective Time Management last Saturday.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 16; i++ {
+		if err := store.IngestTurn(MemoryEntry{
+			ID: "turn-noise-" + strconv.Itoa(i), SessionID: "hay-noise", Timestamp: ts,
+			Content: MemoryContent{
+				Full: "The elbow method is an excellent choice for clustering which event metrics appear first " + strconv.Itoa(i) + ".",
+				Tags: []string{ConvTag(conv)},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?"
+	hits := store.SearchMemoryWithOptions(q, SearchMemoryOptions{SessionID: conv, Limit: 6})
+	if !searchHayContains(hits, "webinar") {
+		t.Fatalf("missing webinar under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+	if !searchHayContains(hits, "workshop") {
+		t.Fatalf("missing workshop under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+	evidence := AssembleTemporalEvidence(q, hits)
+	lower := strings.ToLower(evidence)
+	web := strings.Index(lower, "webinar")
+	work := strings.Index(lower, "workshop")
+	if web < 0 || work < 0 || web > work {
+		t.Fatalf("webinar must list first in evidence: %q", evidence)
+	}
+}
+
+func factEntry(id, session, summary string) MemoryEntry {
+	return MemoryEntry{
+		ID: id, Type: "turn_fact", SessionID: session,
+		Content: MemoryContent{Summary: summary, Tags: []string{"fact_augmented"}},
 	}
 }
 

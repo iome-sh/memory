@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Unique-entity count clusters:** `AssembleCountEvidence` clusters kits, plants, and hour+destination facts by distinctive object (repeated B-29 is one kit; two plants in one turn are two clusters; word numbers). Clothing action×object clustering is unchanged.
+- **Temporal dated-event evidence:** `AssembleTemporalEvidence` lists unique dated bullets with the text date phrase labeled separately from ingest `Timestamp` (RFC3339) for which-first / how-many-days-between queries. Search promotes entries that mention either event name; LongMemEval retrieve prepends a synthetic `temporal_evidence` hit (not persisted). Dated-span how-many is still not a calendar window.
+
 ## [1.5.12] — 2026-09-12
 
 T1 multi-session retrieve and count-query assembly. Not official V1. Not a README number.

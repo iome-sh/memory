@@ -227,3 +227,51 @@ func TestLongMemEval_RetrieveCountQueryAssemblesCrossSessionFacts(t *testing.T) 
 		t.Fatalf("retrieve missed solo-project gold; got %#v", out.Memories)
 	}
 }
+
+func TestLongMemEval_RetrieveTemporalEvidencePrependsDatedEvents(t *testing.T) {
+	setupHashHarness(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ingest", handleIngest)
+	mux.HandleFunc("/retrieve", handleRetrieve)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	conv := "temporal-order-conv"
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role:      "user",
+		Content:   "I participated in a webinar on Data Analysis using Python two months ago.",
+		Timestamp: ts,
+		Cycle:     1,
+		SessionID: "hay-web",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role:      "user",
+		Content:   "I attended the workshop on Effective Time Management last Saturday.",
+		Timestamp: ts,
+		Cycle:     1,
+		SessionID: "hay-work",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := postRetrieveSession(srv.URL, "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?", 8, conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Memories) == 0 {
+		t.Fatal("expected retrieved memories")
+	}
+	if out.Memories[0].ID != "temporal-evidence" {
+		t.Fatalf("temporal query should lead with synthetic assembly, got id=%q summary=%q", out.Memories[0].ID, out.Memories[0].Summary)
+	}
+	blob := strings.ToLower(out.Memories[0].Summary + " " + out.Memories[0].Full)
+	web := strings.Index(blob, "webinar")
+	work := strings.Index(blob, "workshop")
+	if web < 0 || work < 0 || web > work {
+		t.Fatalf("webinar must list before workshop: %#v", out.Memories[0])
+	}
+}
