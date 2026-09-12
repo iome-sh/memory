@@ -108,7 +108,7 @@ BFS on `GetRelatedEntities`, collect by `entity:` tags, default **shorter hop fi
 
 Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand → T5 last**. Do not start K3/Qwen3 or a dual-clock KG before T1 is measured.
 
-### T1 — Multi-session temporal retrieve (**in progress**)
+### T1 — Multi-session temporal retrieve (**done** on n=12)
 
 **Why:** Original K1 session filter is single-`SessionID`. LongMemEval `multi-session` items need facts **spread across several haystack sessions** in one `conv_id` palace. Flattening ingest onto `SessionID=conv_id` plus Limit filled by one noisy session buries count gold.
 
@@ -129,8 +129,9 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - `ef6a3e9` T1 retrieve only: MiniLM/BGE **10/12**, `multi-session` **0/2**; all inner sessions in k=40.
 - `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
 - `2695e02` (#110) Wave D: MiniLM **11/12** `multi-session` **1/2** (clothes pass); BGE **10/12** **0/2**; hash **9/12** **0/2**. Projects (`6d550036`) still miss. T1 done-when not met.
+- `f99c140` (#111) Wave E: MiniLM **12/12** `multi-session` **2/2**; BGE **11/12** **1/2**; hash **11/12** **1/2**. Projects pass all three. T1 done-when met. Next: n=60.
 
-**Still open for T1:** remesure locked mixed n=12 on MiniLM **and** BGE after `f99c140` (#111 count-assembly). Do not mark T1 done until BGE is no longer 0/2. Then n=60.
+**Still open for T1:** n=12 done-when met. Next: locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`). Not a README number.
 
 **In scope (measure)**
 
