@@ -132,9 +132,10 @@ type PalaceConfig struct {
 	// EmbeddingDim is the expected vector width. 0 infers from EmbeddingFunc
 	// output or DefaultHashEmbeddingDim.
 	EmbeddingDim int
-	// DisableMetaIndex forces ListMemoryWithOptions to use the full FS scan path
-	// instead of the best-effort in-memory metadata index (K2 residual / s1066).
-	// Default false (index enabled). Useful for parity tests.
+	// DisableMetaIndex forces ListMemoryWithOptions and search candidate
+	// collection to use the full FS scan path instead of the best-effort
+	// in-memory metadata index (K2 residual / s1066). Default false (index
+	// enabled). Useful for parity tests.
 	DisableMetaIndex bool
 	// DisableDurableIndex skips load/save of indexes/event-time.json.
 	// The in-memory meta index still runs unless DisableMetaIndex is set.
@@ -707,7 +708,23 @@ func searchCandidateTiers(opts SearchMemoryOptions) []MemoryTier {
 	return []MemoryTier{TierWorking, TierContextual, TierSemantic}
 }
 
+// collectSearchCandidates returns retrieve-tier entries. When the meta index is
+// enabled, session/time/tier filters run on entryMeta and full JSON is loaded
+// only for survivors (same index as ListMemoryWithOptions). Query substring is
+// not applied here: search keyword haystack includes Keyphrases and
+// ExtractedFacts, which list queryHay does not. DisableMetaIndex keeps the
+// O(n) ListEntriesInTier walk. unionCountQueryFacts reuses this slice.
 func (ps *PalaceStore) collectSearchCandidates(opts SearchMemoryOptions) []MemoryEntry {
+	if !ps.Config.DisableMetaIndex {
+		return ps.listMemoryViaIndex(ListMemoryOptions{
+			SessionID:       opts.SessionID,
+			SessionIDs:      opts.SessionIDs,
+			TimeFrom:        opts.TimeFrom,
+			TimeTo:          opts.TimeTo,
+			Tier:            opts.Tier,
+			IncludeArchival: opts.IncludeArchival,
+		})
+	}
 	var results []MemoryEntry
 	for _, t := range searchCandidateTiers(opts) {
 		results = append(results, ps.ListEntriesInTier(t)...)
@@ -771,6 +788,8 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 // Latest-value questions (amount / pre-approved) union matching scalars and
 // rank later Timestamp first. Count and temporal-order / dated-span queries
 // skip scoreEntriesByVector even when QueryVec is set (keyword + assembly).
+// Candidates use the list meta index for session/time/tier when enabled;
+// unionCountQueryFacts scans that slice, not a second palace walk.
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
 	limit := opts.Limit
 	if limit <= 0 {
