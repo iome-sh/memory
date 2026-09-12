@@ -128,9 +128,9 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 
 - `ef6a3e9` T1 retrieve only: MiniLM/BGE **10/12**, `multi-session` **0/2**; all inner sessions in k=40.
 - `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
-- `2695e02` (#110) overlap ranking + led/leading extract: not remesured on n=12 yet.
+- `2695e02` (#110) Wave D: MiniLM **11/12** `multi-session` **1/2** (clothes pass); BGE **10/12** **0/2**; hash **9/12** **0/2**. Projects (`6d550036`) still miss. T1 done-when not met.
 
-**Still open for T1:** remesure locked mixed n=12 on MiniLM **and** BGE after #110 + count-assembly. Do not mark T1 done until that remesure. Then n=60.
+**Still open for T1:** remesure locked mixed n=12 on MiniLM **and** BGE after `f99c140` (#111 count-assembly). Do not mark T1 done until BGE is no longer 0/2. Then n=60.
 
 **In scope (measure)**
 

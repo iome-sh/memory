@@ -6,6 +6,18 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## Wave D — T1 overlap-rank + led extract (kernel `2695e02` / #110, 2026-09-12T19:25Z–19:36Z)
+
+Kernel `#110` only. Does **not** include `f99c140` (#111 count-assembly).
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **9/12** | 0.750 | `hash` | **0/2** (clothes miss, projects miss) |
+| MiniLM ONNX | **11/12** | 0.917 | `onnx-minilm-l6-v2` | **1/2** (clothes pass, projects miss) |
+| BAAI BGE ONNX | **10/12** | 0.833 | `onnx-bge-small-en-v1.5` | **0/2** (clothes miss, projects miss) |
+
+Clothes (`0a995998`, gold 3) pass on MiniLM only. Projects (`6d550036`, gold 2) fail all three. Hash also misses temporal `gpt4_2487a7cb`. T1 done-when (MiniLM **and** BGE multi-session no longer 0/2) **not met**. Not a README number.
+
 ## Wave C — T1 + count-query fact promotion (kernel `a25a883`, 2026-09-12T19:12Z)
 
 | Embed | Judge-true | Rate | multi-session |
@@ -50,4 +62,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Next: remesure n=12 after #110 (overlap ranking + led extract) + count-assembly (named-fact rank, collect facts across sessions). Do not invent a Wave D row until that run exists.
+- Wave D is kernel `2695e02` (#110 only). Next: remesure n=12 on `f99c140` (#111 count-assembly). T1 done-when not met (BGE still 0/2). Not a README number.
