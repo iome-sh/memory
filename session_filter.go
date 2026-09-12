@@ -234,11 +234,12 @@ func factOverlapsCountQuery(e MemoryEntry, query string) bool {
 		return true
 	}
 	// Kit / plant names often lack the query noun ("plants" vs "peace lily").
+	// Catalog aliases and extracted kit/plant phrases both count as overlap.
 	switch countEntityKind(query) {
 	case "kit":
-		return len(identityKeys(hay, kitCatalog)) > 0
+		return len(uniqueEntityClusters(hay, "kit")) > 0
 	case "plant":
-		return len(identityKeys(hay, plantCatalog)) > 0
+		return len(uniqueEntityClusters(hay, "plant")) > 0
 	case "hours":
 		return hasHourQuantity(hay)
 	}
@@ -364,8 +365,8 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // × boot / blazer / generic) so a compound "return … pick them up" is two bullets
 // and dry-clean survives when the query only says pick/return/store. Other
 // quantity queries cluster by distinctive object (kit identity, plant name,
-// hour+destination) so a repeated B-29 is one kit and two plants in one turn
-// are two clusters. Clothing action×object clusters prefix
+// hour+destination; catalogs are aliases) so a repeated B-29 is one kit and
+// two plants in one turn are two clusters. Clothing action×object clusters prefix
 // "Count evidence (N distinct items):" and numbered bullets (1. 2. 3. in
 // cluster order) so a reader can enumerate clusters. Unique-entity and
 // exact-text paths prefix "Count evidence:" without N and stay unnumbered
@@ -508,6 +509,46 @@ var destCatalog = []namedIdentity{
 	{key: "tennessee", re: regexp.MustCompile(`(?i)\btennessee\b`)},
 }
 
+var (
+	reHoursPrep  = regexp.MustCompile(`(?i)\b(?:\d+|` + wordNumberAlt + `)\s+hours?\s+(?:to|in|for|at|toward|towards)\s+`)
+	reKitAnchor  = regexp.MustCompile(`(?i)\b(?:model\s+)?kits?\b`)
+	reNamedPlant = regexp.MustCompile(`(?i)\b([A-Za-z][A-Za-z0-9-]*)\s+plants?\b`)
+	reModelCode  = regexp.MustCompile(`(?i)^[a-z]{1,3}-?\d{1,3}[a-z0-9]*$`)
+	reMarkCode   = regexp.MustCompile(`(?i)^mk\.?[ivxlcdm0-9]+$`)
+)
+
+var kitPhraseStop = map[string]struct{}{
+	"a": {}, "an": {}, "the": {}, "this": {}, "that": {}, "these": {}, "those": {},
+	"my": {}, "our": {}, "his": {}, "her": {}, "their": {}, "some": {}, "any": {},
+	"i": {}, "we": {}, "and": {}, "or": {}, "of": {}, "on": {}, "for": {},
+	"simple": {}, "new": {}, "another": {}, "finished": {}, "working": {},
+	"got": {}, "bought": {}, "picked": {}, "started": {}, "building": {},
+	"just": {}, "recently": {}, "also": {}, "scale": {}, "model": {},
+	"revell": {}, "tamiya": {}, "hasegawa": {}, "airfix": {},
+	"how": {}, "many": {}, "much": {}, "number": {},
+}
+
+var destPhraseStop = map[string]struct{}{
+	"drive": {}, "driving": {}, "drove": {}, "get": {}, "getting": {},
+	"go": {}, "going": {}, "there": {}, "here": {}, "it": {},
+	"my": {}, "our": {}, "this": {}, "that": {}, "make": {}, "making": {},
+	"reach": {}, "reaching": {}, "arrive": {}, "arriving": {},
+	"visit": {}, "visiting": {}, "see": {}, "come": {}, "coming": {},
+	"do": {}, "be": {}, "been": {}, "work": {}, "working": {},
+	"wait": {}, "waiting": {}, "spend": {}, "spending": {},
+	"take": {}, "taking": {}, "got": {}, "have": {}, "had": {},
+	"and": {}, "or": {}, "then": {}, "after": {}, "before": {},
+	"from": {}, "with": {}, "about": {}, "around": {}, "over": {},
+}
+
+var plantNameStop = map[string]struct{}{
+	"power": {}, "processing": {}, "chemical": {}, "nuclear": {},
+	"water": {}, "sewage": {}, "gas": {}, "coal": {}, "treatment": {},
+	"industrial": {}, "manufacturing": {}, "the": {}, "a": {}, "an": {},
+	"my": {}, "our": {}, "this": {}, "that": {}, "some": {}, "his": {},
+	"her": {}, "their": {},
+}
+
 type entityCluster struct {
 	kind    string
 	key     string
@@ -563,12 +604,16 @@ func parseWordOrDigit(s string) int {
 	return n
 }
 
+// uniqueEntityClusters returns distinctive-object clusters for kit, plant, and
+// hours count queries. Catalogs are aliases; kits also parse "… kit" / "model
+// kit" noun phrases, plants also parse "<name> plant(s)", and hours also parse
+// dest after N hours to/in/for/at/toward.
 func uniqueEntityClusters(text, kind string) []entityCluster {
 	switch kind {
 	case "kit":
-		return catalogClusters(text, "kit", kitCatalog)
+		return mergeIdentityClusters(text, "kit", kitCatalog, extractKitPhrases(text))
 	case "plant":
-		return catalogClusters(text, "plant", plantCatalog)
+		return mergeIdentityClusters(text, "plant", plantCatalog, extractPlantPhrases(text))
 	case "hours":
 		return hoursClusters(text)
 	default:
@@ -576,6 +621,7 @@ func uniqueEntityClusters(text, kind string) []entityCluster {
 	}
 }
 
+// catalogClusters emits one cluster per catalog identity present in text.
 func catalogClusters(text, kind string, catalog []namedIdentity) []entityCluster {
 	keys := identityKeys(text, catalog)
 	if len(keys) == 0 {
@@ -592,12 +638,70 @@ func catalogClusters(text, kind string, catalog []namedIdentity) []entityCluster
 	return out
 }
 
+func mergeIdentityClusters(text, kind string, catalog []namedIdentity, extra []string) []entityCluster {
+	out := catalogClusters(text, kind, catalog)
+	if len(extra) == 0 {
+		return out
+	}
+	seen := make(map[string]struct{}, len(out)+len(extra))
+	for _, c := range out {
+		seen[c.key] = struct{}{}
+	}
+	for _, phrase := range extra {
+		var keys []string
+		if matched := identityKeys(phrase, catalog); len(matched) > 0 {
+			keys = matched
+		} else if s := identitySlug(phrase); s != "" {
+			keys = []string{s}
+		}
+		for _, key := range keys {
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, entityCluster{
+				kind:    kind,
+				key:     key,
+				snippet: "[" + kind + ":" + key + "] " + strings.TrimSpace(text),
+			})
+		}
+	}
+	return out
+}
+
+// hoursClusters groups hour-quantity facts by destination. destCatalog names
+// are aliases; destinations are also taken from "N hours to/in/for/at/toward
+// <place>". Repeated dests collapse; distinct dests stay distinct.
 func hoursClusters(text string) []entityCluster {
 	if !hasHourQuantity(text) {
 		return nil
 	}
-	dests := identityKeys(text, destCatalog)
-	if len(dests) == 0 {
+	seen := make(map[string]struct{}, 8)
+	var keys []string
+	add := func(key string) {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return
+		}
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		keys = append(keys, key)
+	}
+	for _, k := range identityKeys(text, destCatalog) {
+		add(k)
+	}
+	for _, dest := range extractHourDestinations(text) {
+		if matched := identityKeys(dest, destCatalog); len(matched) > 0 {
+			for _, k := range matched {
+				add(k)
+			}
+			continue
+		}
+		add(identitySlug(dest))
+	}
+	if len(keys) == 0 {
 		qty := strings.ToLower(strings.TrimSpace(reHourQuantity.FindString(text)))
 		key := qty
 		if key == "" {
@@ -609,8 +713,8 @@ func hoursClusters(text string) []entityCluster {
 			snippet: "[hours] " + strings.TrimSpace(text),
 		}}
 	}
-	out := make([]entityCluster, 0, len(dests))
-	for _, d := range dests {
+	out := make([]entityCluster, 0, len(keys))
+	for _, d := range keys {
 		out = append(out, entityCluster{
 			kind:    "hours",
 			key:     d,
@@ -620,6 +724,186 @@ func hoursClusters(text string) []entityCluster {
 	return out
 }
 
+func extractHourDestinations(text string) []string {
+	locs := reHoursPrep.FindAllStringIndex(text, -1)
+	if len(locs) == 0 {
+		return nil
+	}
+	var out []string
+	for _, loc := range locs {
+		dest := takePlaceName(strings.TrimSpace(text[loc[1]:]))
+		if dest != "" {
+			out = append(out, dest)
+		}
+	}
+	return out
+}
+
+func takePlaceName(rest string) string {
+	fields := strings.Fields(rest)
+	var parts []string
+	for i, f := range fields {
+		tok := strings.Trim(f, ".,;:!?\"`()[]")
+		if tok == "" {
+			break
+		}
+		low := strings.ToLower(tok)
+		if i == 0 && (low == "the" || low == "a" || low == "an") && len(parts) == 0 {
+			continue
+		}
+		if _, stop := destPhraseStop[low]; stop {
+			break
+		}
+		if !looksLikePlaceToken(tok) && len(identityKeys(tok, destCatalog)) == 0 {
+			break
+		}
+		parts = append(parts, tok)
+		if len(parts) >= 4 {
+			break
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func looksLikePlaceToken(tok string) bool {
+	if tok == "" {
+		return false
+	}
+	r := []rune(tok)
+	return r[0] >= 'A' && r[0] <= 'Z'
+}
+
+func extractKitPhrases(text string) []string {
+	locs := reKitAnchor.FindAllStringIndex(text, -1)
+	if len(locs) == 0 {
+		return nil
+	}
+	var out []string
+	for _, loc := range locs {
+		toks := strings.Fields(text[:loc[0]])
+		var collected []string
+		looked := 0
+		for i := len(toks) - 1; i >= 0 && looked < 8; i-- {
+			looked++
+			tok := strings.Trim(toks[i], ".,;:!?\"`()[]")
+			if tok == "" {
+				continue
+			}
+			low := strings.ToLower(tok)
+			if isScaleToken(low) {
+				if len(collected) > 0 {
+					break
+				}
+				continue
+			}
+			if _, stop := kitPhraseStop[low]; stop {
+				if len(collected) > 0 {
+					break
+				}
+				continue
+			}
+			if isKitNameToken(tok) {
+				collected = append([]string{tok}, collected...)
+				if len(collected) >= 4 {
+					break
+				}
+				continue
+			}
+			if len(collected) > 0 && isAlphaWord(tok) && len(tok) >= 3 {
+				collected = append([]string{tok}, collected...)
+				if len(collected) >= 4 {
+					break
+				}
+				continue
+			}
+			if len(collected) > 0 {
+				break
+			}
+		}
+		if len(collected) == 0 {
+			continue
+		}
+		out = append(out, strings.Join(collected, " "))
+	}
+	return out
+}
+
+func isKitNameToken(tok string) bool {
+	if reModelCode.MatchString(tok) || reMarkCode.MatchString(tok) || isYearToken(tok) {
+		return true
+	}
+	r := []rune(tok)
+	return len(r) > 0 && r[0] >= 'A' && r[0] <= 'Z'
+}
+
+func isYearToken(tok string) bool {
+	if strings.HasPrefix(tok, "'") && len(tok) == 3 {
+		return tok[1] >= '0' && tok[1] <= '9' && tok[2] >= '0' && tok[2] <= '9'
+	}
+	return false
+}
+
+func isScaleToken(tok string) bool {
+	return tok == "scale" || strings.Contains(tok, "/")
+}
+
+func isAlphaWord(tok string) bool {
+	if tok == "" {
+		return false
+	}
+	for _, r := range tok {
+		if r < 'A' || (r > 'Z' && r < 'a') || r > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+func extractPlantPhrases(text string) []string {
+	matches := reNamedPlant.FindAllStringSubmatch(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	var out []string
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		if len(identityKeys(m[0], plantCatalog)) > 0 {
+			continue
+		}
+		name := m[1]
+		if _, stop := plantNameStop[strings.ToLower(name)]; stop {
+			continue
+		}
+		out = append(out, name)
+	}
+	return out
+}
+
+func identitySlug(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	lastHyphen := false
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastHyphen = false
+		default:
+			if b.Len() > 0 && !lastHyphen {
+				b.WriteByte('-')
+				lastHyphen = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+// assembleUniqueEntityCountEvidence lists one dash bullet per distinctive kit /
+// plant / hour-destination identity. Catalogs are aliases; unseen kit phrases
+// and hour destinations still cluster. No (N distinct items) header; cluster
+// count is not gold.
 func assembleUniqueEntityCountEvidence(query string, matched []MemoryEntry) []string {
 	kind := countEntityKind(query)
 	if kind == "" || kind == "clothing" {
