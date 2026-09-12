@@ -6,6 +6,18 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## Wave H — T1 distinct-item count header (kernel `895f255` / #120, 2026-09-12T22:41Z–23:01Z)
+
+Kernel `#120` (`Count evidence (N distinct items):` / temporal `N distinct events`) on `#119`. Health `embed_mode` verified. **Not a README number.** `#122` (latest-value recency) is **not** this kernel.
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **11/12** | 0.917 | `hash` | **1/2** (clothes miss, projects pass) |
+| MiniLM ONNX | **10/12** | 0.833 | `onnx-minilm-l6-v2` | **0/2** (clothes miss, projects miss) |
+| BAAI BGE ONNX | **11/12** | 0.917 | `onnx-bge-small-en-v1.5` | **1/2** (clothes miss, projects pass) |
+
+Temporal `gpt4_2487a7cb` (webinar first) pass all three. Clothes (`0a995998`, gold 3) miss all three: retrieve prepends `Count evidence (3 distinct items)` with dry-clean/return/pick-up; reader still summed 2. Projects (`6d550036`, gold 2) pass hash/BGE; MiniLM miss (header `8 distinct items`; reader split Data Mining). Other types 2/2. Not official V1.
+
 ## Wave G — T1 unique-entity + temporal dated evidence (kernel `b02abaf` / #119, 2026-09-12T22:02Z–22:36Z)
 
 Kernel `#119` (`AssembleTemporalEvidence` text dates vs ingest Timestamp; unique-entity count clusters). Health `embed_mode` verified. **Not a README number.** `#120` (distinct-item header) is **not** this kernel.
@@ -116,4 +128,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave G is kernel `b02abaf` (#119). Hash/MiniLM/BGE 11/12 MS 1/2. Temporal `gpt4_2487a7cb` pass all three; clothes `0a995998` miss all three. `#120` unremeasured. n=60 scout remains on kernel `f99c140`. Not a README number.
+- Wave H is kernel `895f255` (#120). Hash/BGE 11/12 MS 1/2; MiniLM 10/12 MS 0/2. Clothes `0a995998` miss all three (N=3 header present; reader summed 2). MiniLM projects regress vs Wave G. `#122` unremeasured. n=60 scout remains on kernel `f99c140`. Not a README number.
