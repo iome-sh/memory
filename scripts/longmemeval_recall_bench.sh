@@ -11,9 +11,14 @@ TOPK="${LONGMEMEVAL_TOPK:-5}"
 MIN_RECALL="${LONGMEMEVAL_MIN_RECALL:-0.6}"
 
 if [[ -z "${MEMORY_ONNX_MODEL_PATH:-}" ]]; then
-  CACHED="${ROOT}/testdata/models/KnightsAnalytics_bge-small-en-v1.5"
-  if [[ -d "${CACHED}" ]]; then
-    export MEMORY_ONNX_MODEL_PATH="${CACHED}"
+  BGE="${ROOT}/testdata/models/KnightsAnalytics_bge-small-en-v1.5"
+  MINILM="${ROOT}/testdata/models/KnightsAnalytics_all-MiniLM-L6-v2"
+  if [[ -d "${BGE}" ]]; then
+    export MEMORY_ONNX_MODEL_PATH="${BGE}"
+  elif [[ -d "${MINILM}" ]]; then
+    # In-tree MiniLM is the local ONNX path when BGE is unavailable (HF may 401).
+    # MiniLM is not the official V1 BGE-small-en-v1.5 embed pin.
+    export MEMORY_ONNX_MODEL_PATH="${MINILM}"
   fi
 fi
 

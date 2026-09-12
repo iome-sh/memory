@@ -8,6 +8,9 @@ per question (single combined prompt — no separate summarize step).
 Prerequisites:
   1. Start the benchmark server:
        export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
+       # If BGE is unavailable (HF download may 401), in-tree MiniLM is the local ONNX path:
+       #   testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+       # MiniLM is not the official V1 BGE-small-en-v1.5 embed pin.
        go run cmd/longmemeval-server/main.go
   2. pip install -r requirements-bench.txt
   3. export OPENAI_API_KEY=sk-...
@@ -245,6 +248,9 @@ def main() -> None:
         print(
             "Start the Go server first:\n"
             "  export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5\n"
+            "  # If BGE is unavailable (HF may 401), use in-tree MiniLM:\n"
+            "  #   testdata/models/KnightsAnalytics_all-MiniLM-L6-v2\n"
+            "  # MiniLM is not the official V1 BGE-small-en-v1.5 embed pin.\n"
             "  go run cmd/longmemeval-server/main.go",
             file=sys.stderr,
         )

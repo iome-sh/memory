@@ -83,9 +83,13 @@ make download-dataset   # → data/longmemeval_oracle.json
 
 # Generate hypotheses against a running local harness
 export MEMORY_ONNX_MODEL_PATH=testdata/models/KnightsAnalytics_bge-small-en-v1.5
+# If BGE is unavailable (Hugging Face may 401), in-tree MiniLM is the local ONNX path:
+#   testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
+# MiniLM is not the official V1 BGE-small-en-v1.5 embed pin.
 go run ./cmd/longmemeval-server
 make longmemeval-qa-generate LONGMEMEVAL_QA_SAMPLE=mixed
 LONGMEMEVAL_JUDGE_MODEL=gpt-4o-2024-08-06 make longmemeval-judge
+# scripts/longmemeval_judge.sh maps gpt-4o-2024-08-06 → upstream evaluate_qa.py zoo key gpt-4o.
 
 # Optional scored mixed sample (same official pin + ONNX + session_id). Writes the card.
 LONGMEMEVAL_V1_RUN=1 LONGMEMEVAL_QA_LIMIT=12 make longmemeval-v1-card
@@ -104,31 +108,32 @@ RFC3339.
 
 ## Internal run log
 
-Label: **INTERNAL unpublished · not Memory GA · not hash-overlap**. This section is not a README number and not Memory GA.
+Label: **INTERNAL unpublished · not Memory GA · not hash-overlap**. This section is not a README number and not Memory GA. The official BGE-small-en-v1.5 card above stays unfilled — a MiniLM sample is **not** the official V1 embed pin.
 
-### 2026-09-12 — SKIPPED (no official-judge mixed sample recorded)
+### 2026-09-12 — mixed MiniLM ONNX generate+judge (INTERNAL unpublished)
 
-`data/longmemeval_oracle.json` is gitignored and is **not** in the committed tree. In-repo `testdata/longmemeval_oracle_subset.json` is **3 `single-session-user` items** — that is **not** mixed official V1.
-
-`make longmemeval-v1-card` prints a methodology card and exits 0 when the oracle is missing or is the in-repo subset (not a CI failure). A local operator may download the ~15 MB oracle JSON into gitignored `data/`; do **not** commit it. This change fetched that oracle locally to verify the mixed histogram path, then left it gitignored. `make download-dataset` would also pull `longmemeval_s_cleaned.json` (~277 MB); that file, LongMemEval-M (~2.7 GB), and V2 (~7 GB) were **not** downloaded and are not vendored.
-
-BGE-small-en-v1.5 ONNX was not available in this environment (Hugging Face model download returned 401), so no official-embed generate+judge sample ran. Hash overlap stays unpublished. **No accuracy number.**
+Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (not committed). Hypotheses JSONL and eval-results stayed gitignored. LongMemEval-M (~2.7 GB) and V2 (~7 GB) were not vendored. Hash overlap unpublished. **Not Memory GA. Not BGE official pin. Not a README number.**
 
 | Field | Value |
 |-------|--------|
-| Date (UTC) | 2026-09-12 |
-| Kernel commit SHA | recorded at runtime by `scripts/longmemeval_v1_card.sh` |
+| Date (UTC) | 2026-09-12T05:05:50Z |
+| Kernel commit SHA | `471dce551a2b81626f41f23463ad95ed98c755f8` (tag **v1.5.11**) |
 | Kernel tag | v1.5.11 |
-| Dataset variant | `longmemeval_oracle.json` **not committed** (gitignored `data/`) |
-| Sample | `mixed` (required) — subset ≠ mixed V1 |
-| n (questions) | SKIPPED (no official-judge sample) |
-| Type histogram | SKIPPED for a scored slice. Full oracle (local, uncommitted) is 500 mixed (`temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-user` 70, `single-session-assistant` 56, `single-session-preference` 30). Mixed n=12 is 2 of each type. |
+| Dataset variant | `longmemeval_oracle.json` **not committed** (gitignored `data/`, ~15 MB, 500 questions) |
+| Sample | `mixed` (`LONGMEMEVAL_QA_SAMPLE=mixed`, stratified by `question_type`) — **not** prefix-n |
+| n (questions) | 12 |
+| Type histogram | `knowledge-update` 2, `multi-session` 2, `single-session-assistant` 2, `single-session-preference` 2, `single-session-user` 2, `temporal-reasoning` 2 |
 | Session scope | `session_id` = official `conv_id` on `/retrieve` |
-| Embed mode | ONNX (BGE-small-en-v1.5, 384-d) required. **Not hash.** BGE not loaded here. |
-| Judge model pin | `gpt-4o-2024-08-06` (Makefile default `gpt-4o-mini` is **not** official V1) |
+| Embed mode | **ONNX MiniLM-L6-v2** (384-d, in-tree `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`, hugot GoMLX). **Not hash. Not BGE-small-en-v1.5. Not official V1 embed pin.** BGE was unavailable (Hugging Face download previously 401). |
+| Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions` (`cmd/longmemeval-server` `/retrieve`) |
+| Judge model pin | `gpt-4o-2024-08-06` (upstream `evaluate_qa.py` zoo key `gpt-4o`; Makefile default `gpt-4o-mini` is **not** official V1) |
+| Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
+| Qdrant | off |
 | dual_write | OFF |
 | Product claim | **not Memory GA** |
-| Status | SKIPPED — no official-judge mixed sample |
+| Status | scored official-judge mixed sample completed — **INTERNAL unpublished · not a README number** |
+
+In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-user` items** — that is **not** this mixed slice and **not** mixed official V1. Oracle JSON stays gitignored (`data/`). No accuracy number is published here or on the README.
 
 ## Honesty
 

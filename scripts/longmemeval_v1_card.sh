@@ -24,6 +24,8 @@
 #   LONGMEMEVAL_V1_CARD_OUT  optional write path (stdout always; default no file)
 #   LONGMEMEVAL_V1_RUN       1 = generate+judge mixed sample (needs key + ONNX + server)
 #   MEMORY_ONNX_MODEL_PATH   required for a scored official run (hash is not V1)
+#                            BGE-small-en-v1.5 if present; else in-tree MiniLM-L6-v2
+#                            (local path when BGE unavailable — not official V1 embed pin)
 #
 # Honesty: kernel-only · not Memory GA · dual_write OFF · no published score.
 set -euo pipefail
@@ -48,14 +50,31 @@ TAG="$(git describe --tags --exact-match 2>/dev/null || git describe --tags --ab
 DATE_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 DATE_DAY="$(date -u +%Y-%m-%d)"
 
+BGE_DIR="${ROOT}/testdata/models/KnightsAnalytics_bge-small-en-v1.5"
+MINILM_DIR="${ROOT}/testdata/models/KnightsAnalytics_all-MiniLM-L6-v2"
 ONNX_PATH="${MEMORY_ONNX_MODEL_PATH:-}"
-if [[ -z "${ONNX_PATH}" && -d "${ROOT}/testdata/models/KnightsAnalytics_bge-small-en-v1.5" ]]; then
-  ONNX_PATH="${ROOT}/testdata/models/KnightsAnalytics_bge-small-en-v1.5"
+if [[ -z "${ONNX_PATH}" && -d "${BGE_DIR}" ]]; then
+  ONNX_PATH="${BGE_DIR}"
+fi
+if [[ -z "${ONNX_PATH}" && -d "${MINILM_DIR}" ]]; then
+  # In-tree MiniLM is the local ONNX path when BGE is unavailable (HF may 401).
+  ONNX_PATH="${MINILM_DIR}"
 fi
 if [[ -n "${ONNX_PATH}" ]]; then
-  EMBED_MODE="ONNX (${ONNX_PATH})"
+  ONNX_BASE="$(basename "${ONNX_PATH}")"
+  case "${ONNX_BASE}" in
+    *MiniLM*|*minilm*)
+      EMBED_MODE="ONNX MiniLM-L6-v2 (384-d; in-tree local path when BGE unavailable — not official BGE-small-en-v1.5 pin) path=${ONNX_PATH}"
+      ;;
+    *bge-small*)
+      EMBED_MODE="ONNX BGE-small-en-v1.5 (384-d) path=${ONNX_PATH}"
+      ;;
+    *)
+      EMBED_MODE="ONNX (${ONNX_PATH})"
+      ;;
+  esac
 else
-  EMBED_MODE="ONNX required for official V1 (hash is not official; MEMORY_ONNX_MODEL_PATH unset)"
+  EMBED_MODE="ONNX required for official V1 (hash is not official; MEMORY_ONNX_MODEL_PATH unset; in-tree MiniLM is the local path when BGE is unavailable)"
 fi
 
 realpath_py() {
