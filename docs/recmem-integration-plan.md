@@ -1,8 +1,10 @@
 # RecMem Integration Plan for `memory` Package
 
+**Historical** (v1.2 baseline, May 2026). Current residual honesty: [`docs/operations/recmem-compaction-residual.md`](operations/recmem-compaction-residual.md). Compaction PASS ≠ invent Memory GA token-reduction. Kernel-only · **not Memory GA**.
+
 **Status**: Phase 2 Complete (v1.2 baseline)
 **Date**: May 20, 2026
-**Goal**: Incorporate Recurrence-Based Memory (RecMem) density-driven phase transitions and three-tier manifold into the existing Palace architecture for 87% token reduction and long-horizon stability.
+**Goal**: Incorporate Recurrence-Based Memory (RecMem) density-driven phase transitions and three-tier manifold into the existing Palace architecture. Research papers may cite token-reduction figures; **this kernel does not claim a product token-reduction SLA**.
 
 ## 1. Executive Summary
 The RecMem research introduces a physics-inspired "phase transition" model that defers expensive LLM consolidation until semantic density reaches critical mass. This directly extends the current `memory` package's compaction, vector, and tier system. Integration will add automatic recurrence triggering, a latent subconscious buffer, and a semantic refinement safety net while preserving full backward compatibility.
@@ -60,7 +62,7 @@ func (ps *PalaceStore) AutoRecMemCompaction(generateFn func(prompt string) strin
 3. **Phase 3 (v1.3)**: Semantic Refinement. [Planned]
 
 ## 5. Expected Benefits
-- 87% token reduction via density-driven consolidation.
+- Density-driven consolidation (research figure, not a product SLA).
 - Long-horizon stability.
 
 ## 6. Open Questions & Risks

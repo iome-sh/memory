@@ -2,6 +2,8 @@
 
 # M4 public-flip readiness (kernel)
 
+**Not current operator documentation.** Visibility is already **public MIT**. This file is a **maintainer residual** kept so `make public-flip-readiness-gate` still has an offline SSOT. It is **not** a how-to-go-public guide, **not** a product claim, and **not Memory GA**. New contributors should read [README.md](../README.md), [SECURITY.md](../SECURITY.md), and [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 Operator / maintainer residual for the **completed** public visibility flip of **`github.com/iome-sh/memory`** (Palace kernel). **Flip complete is current fact.** Pre-flip checklist language below is **historical**. This document is **readiness residual only** — it does **not** flip visibility again, does **not** invent Memory GA, and **M4 readiness ≠ M4 complete** (readiness docs ≠ product Memory GA).
 
 **Serial stamp (program continuum):** free eng residual pin **s1467** · free eng concurrent **s1467+** after free-floor **s1465** · lag **s1466** · peers **s1468** (mcp) · **s1469** (TUI) · **s1470** (private-plane residual) mention only · free-floor peer **s1471** · free eng **s1473** final TUI-parity audit closeout · free eng after free-floor peer **s1473+**.
@@ -54,7 +56,7 @@ Closeout checklist used on flip day (**historical**). Completing this list was *
 - [ ] Re-run `make public-flip-readiness-gate` + `make ci` (both green)  
 - [ ] [`OPEN_SOURCE_AUDIT.md`](OPEN_SOURCE_AUDIT.md) **Final TUI-parity audit (s1473)** section green (Partial rows honest: CodeQL, history)  
 - [ ] CONTRIBUTING **Public repository policy** present (forward PR surface)  
-- [ ] Fix GitHub description if it still mentions **sudo-jin** (maintainer: `gh repo edit`)  
+- [ ] Fix GitHub description if it still names a personal maintainer handle (maintainer: `gh repo edit`)  
 - [ ] Homepage **https://iome.sh**  
 - [ ] Topics: `golang`, `memory`, `rag`, `embeddings`, `qdrant`  
 - [ ] Delete-branch-on-merge enabled  

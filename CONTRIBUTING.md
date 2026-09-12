@@ -7,9 +7,9 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality, hon
 - **Local-primary memory kernel** — hierarchical Palace FS, hybrid search, temporal lite, optional Qdrant, optional ONNX embeddings  
 - **Kernel-only** — **not product Memory GA**  
 - Product path elsewhere: **dual_write OFF** by default (host policy, **not** a kernel product flag); hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
-- Future public MCP host naming honesty: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
+- Public MCP host: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
 
-This repository is **public** (MIT). **Public MIT ≠ Memory GA.** Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. See [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md) and [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
+This repository is **public** (MIT). **Public MIT ≠ Memory GA.** Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. Maintainer process residuals ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md), [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md)) are **not** operator how-tos — the visibility flip is already complete.
 
 ## Development setup
 
@@ -80,7 +80,7 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 - Hosted Palace sunset · mesh optional  
 - Residual PASS ≠ live dogfood / invent GA  
 - Residual PASS ≠ public flip · gate PASS ≠ product GA  
-- Future MCP host name: **iomesh-memory-mcp**  
+- Public MCP host: **iomesh-memory-mcp**  
 
 ## Issues & discussions
 

@@ -134,7 +134,7 @@ BGE-small-en-v1.5 ONNX was not available in this environment (Hugging Face model
 
 - Inspectable filesystem palace remains the source of truth.
 - Hash embeddings must never be persisted as `QueryVec` / stored vectors.
-- This card is not a Memory GA announcement and not a seed-deck exhibit.
+- This card is not a Memory GA announcement and not a fundraising exhibit.
 - Host walking skeleton (TUI `/memory digest --require-sources mesh,private`)
   is cite-both of mesh pull + private palace — a different clock from this eval.
 - `make longmemeval-v1-card` is optional and is **not** part of `make ci`.
