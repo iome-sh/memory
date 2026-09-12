@@ -2,7 +2,7 @@
 
 **Repository:** [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory)  
 **Scope:** Temporal features **inside this package** (`PalaceStore`), not MCP/TUI hosts.  
-**As of:** 2026-09-12 · tagged **v1.5.11** (docs after the tag are unreleased)
+**As of:** 2026-09-12 · tagged **v1.5.12** (T1 multi-session retrieve + count assembly)
 
 This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui), [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp)) are optional.
 
@@ -192,4 +192,4 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 
 - Prefer new options fields and methods over breaking `SearchMemory` signatures
 - Embedding dimension changes require Qdrant collection recreation; note in the release
-- v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card
+- v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card · v1.5.12 T1 SessionIDs / conv tags / count assembly

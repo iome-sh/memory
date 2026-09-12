@@ -128,7 +128,7 @@ Reporting: private Security Advisory or **security@iome.sh** — see [SECURITY.m
 
 ```bash
 make build
-go get github.com/iome-sh/memory@v1.5.11
+go get github.com/iome-sh/memory@v1.5.12
 ```
 
 ### Library module (no GoReleaser required)

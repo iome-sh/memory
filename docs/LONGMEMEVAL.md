@@ -52,7 +52,7 @@ real.
 |-------|--------|
 | Date (UTC) | — |
 | Kernel commit SHA | — |
-| Kernel tag | v1.5.11 (or the tag under test) |
+| Kernel tag | v1.5.12 (or the tag under test) |
 | Dataset variant | LongMemEval-S / oracle JSON (`longmemeval_oracle.json`) |
 | Sample | `mixed` (stratified by `question_type`) — **not** prefix-n |
 | n (questions) | — |
