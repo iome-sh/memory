@@ -133,31 +133,7 @@ Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (
 | Product claim | **not Memory GA** |
 | Status | scored official-judge mixed sample completed — **INTERNAL unpublished · not a README number** |
 
-In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-user` items** — that is **not** this mixed slice and **not** mixed official V1.
-
-### 2026-09-12 — SKIPPED (no official-judge mixed sample recorded)
-
-`data/longmemeval_oracle.json` is gitignored and is **not** in the committed tree. In-repo `testdata/longmemeval_oracle_subset.json` is **3 `single-session-user` items** — that is **not** mixed official V1.
-
-`make longmemeval-v1-card` prints a methodology card and exits 0 when the oracle is missing or is the in-repo subset (not a CI failure). A local operator may download the ~15 MB oracle JSON into gitignored `data/`; do **not** commit it. This change fetched that oracle locally to verify the mixed histogram path, then left it gitignored. `make download-dataset` would also pull `longmemeval_s_cleaned.json` (~277 MB); that file, LongMemEval-M (~2.7 GB), and V2 (~7 GB) were **not** downloaded and are not vendored.
-
-BGE-small-en-v1.5 ONNX was not available in this environment (Hugging Face model download returned 401), so no official-embed generate+judge sample ran. Hash overlap stays unpublished. **No accuracy number.**
-
-| Field | Value |
-|-------|--------|
-| Date (UTC) | 2026-09-12 |
-| Kernel commit SHA | recorded at runtime by `scripts/longmemeval_v1_card.sh` |
-| Kernel tag | v1.5.11 |
-| Dataset variant | `longmemeval_oracle.json` **not committed** (gitignored `data/`) |
-| Sample | `mixed` (required) — subset ≠ mixed V1 |
-| n (questions) | SKIPPED (no official-judge sample) |
-| Type histogram | SKIPPED for a scored slice. Full oracle (local, uncommitted) is 500 mixed (`temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-user` 70, `single-session-assistant` 56, `single-session-preference` 30). Mixed n=12 is 2 of each type. |
-| Session scope | `session_id` = official `conv_id` on `/retrieve` |
-| Embed mode | ONNX (BGE-small-en-v1.5, 384-d) required. **Not hash.** BGE not loaded here. |
-| Judge model pin | `gpt-4o-2024-08-06` (Makefile default `gpt-4o-mini` is **not** official V1) |
-| dual_write | OFF |
-| Product claim | **not Memory GA** |
-| Status | SKIPPED — no official-judge mixed sample |
+In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-user` items** — that is **not** this mixed slice and **not** mixed official V1. Oracle JSON stays gitignored (`data/`). No accuracy number is published here or on the README.
 
 ## Honesty
 
