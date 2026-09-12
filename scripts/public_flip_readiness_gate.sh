@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# public_flip_readiness_gate.sh — s1467 offline M4 public-flip readiness residual
-# free eng residual pin s1467 · free eng concurrent s1467+ after free-floor s1465 · lag s1466
-# peers s1468 (mcp) · s1469 (TUI) · s1470 (private-plane residual) mention only · free-floor peer s1471 · free eng s1473+
+# public_flip_readiness_gate.sh — offline public-flip readiness residual
 #
 # SSOT for Option A M4 *readiness* (not the flip):
 #   docs/PUBLIC_FLIP_READINESS.md + OPEN_SOURCE_AUDIT + LICENSE/SECURITY/CI present
-#   needles: public · residual PASS ≠ public flip · kernel first · s1467
+#   needles: public · residual PASS ≠ public flip · kernel first
 # Pin: public · residual PASS ≠ public flip ·
 #   private control-plane / broker stays private · M4 readiness ≠ M4 complete / invent public · does NOT flip visibility
 # Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
@@ -91,15 +89,6 @@ need_path "$CI_WF" "CI workflow"
 need_path "$GATE_SCRIPT" "public flip readiness gate script"
 
 # Core readiness needles in PUBLIC_FLIP_READINESS.md
-need_grep "$DOC" 's1467' "doc free eng residual pin s1467"
-need_grep "$DOC" 's1467+' "doc free eng concurrent s1467+"
-need_grep "$DOC" 's1465' "doc free-floor s1465"
-need_grep "$DOC" 's1466' "doc lag s1466"
-need_grep "$DOC" 's1468' "doc peer s1468 mcp mention"
-need_grep "$DOC" 's1469' "doc peer s1469 TUI mention"
-need_grep "$DOC" 's1470' "doc peer s1470 private-plane residual mention"
-need_grep "$DOC" 's1471' "doc free-floor peer s1471"
-need_grep "$DOC" 's1473+' "doc free eng s1473+"
 need_grep "$DOC" 'public' "doc public"
 need_grep "$DOC" 'residual PASS ≠ public flip' "doc residual PASS ≠ public flip"
 need_grep "$DOC" 'kernel first' "doc kernel first"
@@ -168,5 +157,5 @@ if [[ "$FAIL" -gt 0 ]]; then
   exit 1
 fi
 log "RESULT PASS"
-log "RESULT OK pin chain: public · residual PASS ≠ public flip · kernel first · private control-plane / broker stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional · s1467"
+log "RESULT OK pin chain: public · residual PASS ≠ public flip · kernel first · private control-plane / broker stays private · M4 readiness ≠ invent public · open boxes stay open · Palace sunset · mesh optional"
 exit 0

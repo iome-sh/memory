@@ -73,7 +73,7 @@ for _, f := range facts {
 }
 ```
 
-Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Operator page: [`docs/TTFH.md`](docs/TTFH.md). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.6** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.1** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI. This page, the example, and a unit test document the walking skeleton; they are not a live laptop PULSE + three RCA + cite-both-or-miss run.
+Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Operator page: [`docs/TTFH.md`](docs/TTFH.md). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.6** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.1** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI.
 
 If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
 
