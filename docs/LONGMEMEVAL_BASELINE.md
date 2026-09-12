@@ -6,6 +6,18 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## Wave F — T1 clothing-errand clusters (kernel `aa64dbc` / #115 on #114, 2026-09-12T20:35Z–20:57Z)
+
+Kernel `#115` (`AssembleCountEvidence` clusters dry-clean / return / pick-up) on `#114` (harness-only batch ONNX retrieve scoring). Health `embed_mode` verified. **Not a README number.**
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **11/12** | 0.917 | `hash` | **2/2** (clothes pass, projects pass) |
+| MiniLM ONNX | **12/12** | 1.000 | `onnx-minilm-l6-v2` | **2/2** |
+| BAAI BGE ONNX | **12/12** | 1.000 | `onnx-bge-small-en-v1.5` | **2/2** |
+
+Clothes (`0a995998`, gold 3) pass all three (return + pickup exchanged boots + dry-cleaning). Projects (`6d550036`, gold 2) pass all three. Hash miss is temporal `gpt4_2487a7cb` (event order inverted). Other types 2/2. n=12 clothes residual from Wave E is closed. Not official V1.
+
 ## n=60 scout — `origin/main` `1f5bb20` (kernel `f99c140` + Wave E docs, 2026-09-12T20:18Z–20:29Z)
 
 Internal locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`, 10 of each of 6 types). First 12 IDs = n=12 lock. Reader `gpt-4o-mini`. Judge `gpt-4o-2024-08-06`. Isolated palace. Health `embed_mode` verified. **BGE skipped** (too slow; parent runs BGE after kernel PRs). **Not a README number** · **not official V1**.
@@ -92,4 +104,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave E is kernel `f99c140` (#111). T1 done-when met (MiniLM 2/2, BGE 1/2). n=60 scout (hash 48/60, MiniLM 47/60, BGE skipped) is internal, not V1. Not a README number.
+- Wave F is kernel `aa64dbc` (#115 on #114). MiniLM/BGE 12/12 MS 2/2; hash 11/12 MS 2/2 (temporal `gpt4_2487a7cb`). Clothes residual closed. n=60 scout remains on kernel `f99c140`. Not a README number.
