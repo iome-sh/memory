@@ -104,11 +104,14 @@ Default ONNX export is **BGE-small-en-v1.5** (**384** dimensions). When using Qd
 
 `PersistEmbeddings` defaults **off**. When on, only a non-hash `EmbeddingModel` (e.g. `bge-small-en-v1.5`) is stored on entry JSON. Hash embeddings (`GenerateSimpleEmbedding`, empty or `"hash"` model) are **never** persisted as stored vectors / `QueryVec`. Embed miss is not ingest failure; JSON rename remains the ack. usearch, ORT, and Qdrant stay optional.
 
-Download helper:
+Download helper (fail-soft; BGE is optional):
 
 ```bash
 go run ./scripts/download_onnx_model.go
+export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
 ```
+
+Hugging Face **401/404** for `KnightsAnalytics/bge-small-en-v1.5` is **expected** (optional ONNX) and is not a broken install. The helper prints the hugot error on stderr, then uses in-tree MiniLM (`testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`) when that directory exists so the `MEMORY_ONNX_MODEL_PATH="$(go run …)"` assignment still works. MiniLM is a local 384-d fallback, **not** the official LongMemEval V1 BGE-small-en-v1.5 pin. Hash-overlap unpublished. If MiniLM is missing too, stdout is empty and TTFH cost-max stays the **hash embedder** (no ONNX required). `os.Exit(1)` only for mkdir failures — not for HF 401/404. Official V1 pin remains BGE-small-en-v1.5; this repo does not vendor BGE. Not Memory GA.
 
 ### Optional Qdrant
 
@@ -210,6 +213,8 @@ make ci      # + govulncheck + build
 make test
 make test-race   # optional
 ```
+
+Optional last-write-wins evidence (not a lock): `make two-process-writer-probe` / [`scripts/two_process_writer_probe.sh`](scripts/two_process_writer_probe.sh). Multi-process writers remain **unsupported**. Probe ≠ flock; flock is not shipped. Not part of `make ci` / `make test`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor guide and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
