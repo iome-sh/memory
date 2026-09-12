@@ -130,7 +130,7 @@ Reporting: private Security Advisory or **security@iome.sh** — see [SECURITY.m
 
 ```bash
 make build
-go get github.com/iome-sh/memory@v1.5.10
+go get github.com/iome-sh/memory@v1.5.11
 ```
 
 ### Library module (no GoReleaser required)
