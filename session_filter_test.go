@@ -360,8 +360,11 @@ func TestAssembleCountEvidence_CompoundReturnAndPickup(t *testing.T) {
 	if !strings.Contains(lower, "[pick-up]") {
 		t.Fatalf("compound must emit pick-up cluster: %q", got)
 	}
-	if strings.Count(got, "\n- ") < 2 {
-		t.Fatalf("compound should be two bullets, got %q", got)
+	if !strings.Contains(got, "1. ") || !strings.Contains(got, "2. ") {
+		t.Fatalf("compound should be two numbered bullets, got %q", got)
+	}
+	if strings.Contains(got, "3. ") {
+		t.Fatalf("compound should not emit a third numbered bullet, got %q", got)
 	}
 }
 
@@ -443,6 +446,14 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesClothingErrands(t *testing.T
 	if !strings.Contains(lower, "3 distinct items") {
 		t.Fatalf("assembly must label 3 distinct clothing clusters: %q", evidence)
 	}
+	for _, mark := range []string{"1. ", "2. ", "3. "} {
+		if !strings.Contains(evidence, mark) {
+			t.Fatalf("clothing evidence must number bullets, missing %q: %q", mark, evidence)
+		}
+	}
+	if strings.Contains(evidence, "\n- ") {
+		t.Fatalf("clothing bullets should be numbered, not dashed: %q", evidence)
+	}
 	if strings.Contains(lower, "the answer is") {
 		t.Fatalf("must not invent a numeric gold: %q", evidence)
 	}
@@ -507,6 +518,12 @@ func TestAssembleCountEvidence_FiveKitsDedupeB29(t *testing.T) {
 	}
 	if strings.Contains(lower, "distinct items") {
 		t.Fatalf("kit unique-entity path must not label N distinct items: %q", got)
+	}
+	if !strings.Contains(got, "\n- ") {
+		t.Fatalf("kit unique-entity path must stay unnumbered dashes: %q", got)
+	}
+	if strings.Contains(got, "\n1. ") || strings.Contains(got, "\n2. ") || strings.Contains(got, "\n3. ") {
+		t.Fatalf("kit unique-entity path must not number bullets: %q", got)
 	}
 }
 
@@ -609,6 +626,12 @@ func TestSearchMemoryWithOptions_CountQueryAssemblesFiveKits(t *testing.T) {
 	}
 	if strings.Contains(lower, "distinct items") {
 		t.Fatalf("kit unique-entity path must not label N distinct items: %q", evidence)
+	}
+	if !strings.Contains(evidence, "\n- ") {
+		t.Fatalf("kit unique-entity path must stay unnumbered dashes: %q", evidence)
+	}
+	if strings.Contains(evidence, "\n1. ") || strings.Contains(evidence, "\n2. ") || strings.Contains(evidence, "\n3. ") {
+		t.Fatalf("kit unique-entity path must not number bullets: %q", evidence)
 	}
 }
 
