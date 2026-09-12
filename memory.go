@@ -805,7 +805,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 	}
 
 	if isCountQuery(query) {
-		results = promoteFactEntries(results)
+		results = promoteFactEntriesForQuery(results, query)
 	}
 	// Limit. Diversify distinct SessionIDs so one haystack session cannot
 	// fill every slot (T1). Single-session sets prefix Limit as before.
@@ -1074,6 +1074,7 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 		regexp.MustCompile(`(?i)(\d+\s*(hours?|days?|weeks?|months?|years?|dollars?|bucks?|items?|shirts?|bikes?|plants?))`),
 		regexp.MustCompile(`(?i)(on .*? (birthday|anniversary|trip|vacation|wedding)|last (month|week|year)|this (month|year))`),
 		regexp.MustCompile(`(?i)(work at|job at|occupation|previous job|used to work)`),
+		regexp.MustCompile(`(?i)(\bled\b|\bleading\b).{0,80}(project|team|analysis)`),
 	}
 
 	for _, s := range sentences {

@@ -103,6 +103,12 @@ func isFactEntry(e MemoryEntry) bool {
 // promoteFactEntries puts turn_fact / fact_augmented children first so count
 // questions see extracted facts before haystack chatter (T1 assembly).
 func promoteFactEntries(results []MemoryEntry) []MemoryEntry {
+	return promoteFactEntriesForQuery(results, "")
+}
+
+// promoteFactEntriesForQuery puts turn_fact children first, ranked by keyword
+// overlap with query so noisy fallback facts cannot bury "led two projects".
+func promoteFactEntriesForQuery(results []MemoryEntry, query string) []MemoryEntry {
 	if len(results) < 2 {
 		return results
 	}
@@ -117,6 +123,9 @@ func promoteFactEntries(results []MemoryEntry) []MemoryEntry {
 	}
 	if len(facts) == 0 {
 		return results
+	}
+	if strings.TrimSpace(query) != "" {
+		facts = rankKeywordHitsByOverlap(facts, query)
 	}
 	return append(facts, rest...)
 }
