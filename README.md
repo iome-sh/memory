@@ -1,39 +1,51 @@
 # memory
 
 [![ci](https://github.com/iome-sh/memory/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/memory/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/iome-sh/memory)](https://github.com/iome-sh/memory/releases/latest)
 [![Go Reference](https://pkg.go.dev/badge/github.com/iome-sh/memory.svg)](https://pkg.go.dev/github.com/iome-sh/memory)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Hierarchical agent memory for Go** — a portable library for durable, searchable memory entries with optional vector search and temporal APIs.
+**Hierarchical agent memory for Go** — an embeddable, file-backed palace you can `cat`, `diff`, and search. Hybrid keyword + optional vectors, session/time filters, and temporal helpers. No required database.
 
-This is a **library kernel** (posture: embeddable filesystem palace), not a memory SaaS and not an agent runtime. It is also **not** [MemPalace](https://github.com/MemPalace) / `mempalace` (an unrelated Python project). Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memory)
+Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memory) · latest tag **[v1.5.12](https://github.com/iome-sh/memory/releases/tag/v1.5.12)**
 
-## Features
+This is a **library**, not a memory SaaS and not an agent runtime. It is also **not** [MemPalace](https://github.com/MemPalace) / `mempalace` (an unrelated Python project).
 
-- **File-backed store** — atomic writes, tiers (working / contextual / semantic / archival), caller-managed best-effort version snapshots (overwrite does not auto-increment)
-- **Hybrid search** — keyword + optional dense/sparse vectors (Qdrant) and multi-factor re-ranking
-- **Temporal APIs** — session/time filters, multi-session (`SessionIDs` / `conv:` grouping), event-time timelines, as-of fact listing, supersession helpers
-- **Multi-hop retrieval** — lightweight entity-graph expansion with hop-distance ranking
-- **Pluggable embeddings** — deterministic hash default for tests; production ONNX via [hugot](https://github.com/knights-analytics/hugot) (pure-Go GoMLX or optional ORT). `PersistEmbeddings` default **off**; hash vectors are never stored
-- **Compaction hooks** — kernel primitives for recency/compaction pipelines
-- **Benchmarks** — LongMemEval-oriented tooling under `cmd/` and `scripts/`
+## Table of contents
+
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Features](#features)
+- [When to use this kernel](#when-to-use-this-kernel)
+- [Topology](#topology)
+- [Optional embeddings](#optional-embeddings)
+- [Optional Qdrant](#optional-qdrant)
+- [API overview](#api-overview)
+- [Development](#development)
+- [Documentation](#documentation)
+- [Related projects](#related-projects)
+- [License](#license)
 
 ## Install
 
 ```bash
-go get github.com/iome-sh/memory@latest
-# or pin a release: go get github.com/iome-sh/memory@v1.5.12
+go get github.com/iome-sh/memory@v1.5.12
+# or follow the latest tagged release:
+# go get github.com/iome-sh/memory@latest
 ```
 
-Requires the Go version in [`go.mod`](go.mod). CI uses `GOTOOLCHAIN=auto`.
+Requires the Go version in [`go.mod`](go.mod) (currently **1.27**). CI uses `GOTOOLCHAIN=auto`.
 
-## Supported topology
+Optional hosts that already pin this module:
 
-**One process per palace root.** Multi-process writers on a shared `BaseDir` are **unsupported** — that is the product contract, not a defect to hide. In-process `writeMu` serializes the two shared files (`relations/entity-graph.json`, `indexes/event-time.json`). Per-entry JSON uses `CreateTemp` + `chmod 0600` + `Rename` (the rename is the ingest ack). Path isolation is not cloud tenancy. Operators can collect last-write-wins evidence with [`scripts/two_process_writer_probe.sh`](scripts/two_process_writer_probe.sh); flock is not shipped.
+```bash
+go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@v0.4.2
+go install github.com/iome-sh/iomesh-tui/cmd/iomesh@v1.3.7
+```
 
-## Quick start (TTFH-shaped)
+## Quick start
 
-The first worked path is the walking skeleton: ingest **three RCA-shaped turns**, **retrieve in the same process**, **list facts-as-of**, and **print `source_hint`**. Hash embedder · no Qdrant · no cloud palace. This is not a chatbot “favourite colour” demo.
+Ingest turns, search, and list facts-as-of in one process. Default embedder is a deterministic hash (no ONNX, no Qdrant).
 
 ```bash
 git clone https://github.com/iome-sh/memory.git
@@ -42,44 +54,81 @@ go run ./examples/ttfh_rca
 ```
 
 ```go
-store := memory.NewPalaceStore("./data/ttfh-palace")
-session := "inc-webhook-5xx"
+package main
 
-_ = store.IngestTurn(memory.MemoryEntry{
-	SessionID: session,
-	Content: memory.MemoryContent{
-		Summary: "PagerDuty page: webhook ingress 5xx",
-		Full:    "On-call: webhook ingress returned 5xx. Start RCA from the signed delivery, not the dashboard chrome.",
-		Tags:    []string{"pagerduty"},
-	},
-	ExtractedFacts: []string{"PagerDuty page fired for webhook ingress 5xx"},
-})
-// …two more RCA turns (HMAC 200 ≠ consume receipt; CreateConsumer mode NULL)…
+import (
+	"fmt"
 
-hits := store.SearchMemoryWithOptions("hmac consume receipt", memory.SearchMemoryOptions{
-	SessionID: session,
-	Limit:     10,
-})
-for _, h := range hits {
-	fmt.Println(h.Content.Summary, h.Provenance.SourceHint) // private
-}
+	"github.com/iome-sh/memory"
+)
 
-facts := store.ListFactsAsOf(memory.FactsAsOfOptions{
-	SessionID: session,
-	Limit:     10,
-})
-for _, f := range facts {
-	fmt.Println(f.Content.Summary, f.Provenance.SourceHint)
+func main() {
+	store := memory.NewPalaceStore("./data/ttfh-palace")
+	session := "inc-webhook-5xx"
+
+	_ = store.IngestTurn(memory.MemoryEntry{
+		SessionID: session,
+		Content: memory.MemoryContent{
+			Summary: "PagerDuty page: webhook ingress 5xx",
+			Full:    "On-call: webhook ingress returned 5xx. Start RCA from the signed delivery, not the dashboard chrome.",
+			Tags:    []string{"pagerduty"},
+		},
+		ExtractedFacts: []string{"PagerDuty page fired for webhook ingress 5xx"},
+	})
+
+	hits := store.SearchMemoryWithOptions("hmac consume receipt", memory.SearchMemoryOptions{
+		SessionID: session,
+		Limit:     10,
+	})
+	for _, h := range hits {
+		fmt.Println(h.Content.Summary, h.Provenance.SourceHint)
+	}
+
+	facts := store.ListFactsAsOf(memory.FactsAsOfOptions{
+		SessionID: session,
+		Limit:     10,
+	})
+	for _, f := range facts {
+		fmt.Println(f.Content.Summary, f.Provenance.SourceHint)
+	}
 }
 ```
 
-Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Operator page: [`docs/TTFH.md`](docs/TTFH.md). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.6** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.1** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI.
+Worked example: [`examples/ttfh_rca`](examples/ttfh_rca) (three RCA-shaped turns, same-process retrieve, facts-as-of, print `source_hint`). Operator notes: [`docs/TTFH.md`](docs/TTFH.md).
 
-If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
+If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications.
 
-This package is a **local filesystem library**, not a cloud multi-tenant service. It does not implement mesh `X-IOMesh-Org` headers. Isolation is the directory you pass as `BaseDir` (or OS isolation around that directory).
+## Features
 
-### Optional semantic embeddings
+- **File-backed store** — atomic JSON writes (`CreateTemp` + `chmod 0600` + `Rename`); tiers working / contextual / semantic / archival
+- **Hybrid search** — keyword first, optional dense re-rank; count and temporal-order queries skip vector scoring
+- **Temporal APIs** — `SessionID` / `SessionIDs`, `conv:` grouping, event-time timelines, as-of facts, supersession, dated-event and latest-value evidence helpers
+- **Multi-hop retrieval** — lightweight entity-graph expansion with hop-distance ranking
+- **Pluggable embeddings** — hash default for tests; production ONNX via [hugot](https://github.com/knights-analytics/hugot) (pure-Go GoMLX or optional ORT). `PersistEmbeddings` default **off**; hash vectors are never stored
+- **Compaction hooks** — kernel primitives for recency/compaction pipelines
+- **Eval harness** — LongMemEval-oriented tooling under `cmd/` and `scripts/` (optional; no published leaderboard number)
+
+## When to use this kernel
+
+| Job | Use |
+|-----|-----|
+| Inspectable local ops record (JSON files, `cat`/`diff`/cite) in Go, no required DB | **This kernel** |
+| Chatbot personalization API / drop-in memory SaaS | Mem0 |
+| Dual-clock temporal knowledge graph (Neo4j / FalkorDB / Neptune) | Graphiti / Zep |
+| Agent runtime that edits its own memory blocks | Letta |
+| Documents/tables → company knowledge graph | Cognee |
+| Already on LangGraph, want a Python library | LangMem |
+| Coding-agent session compressor / verbatim IDE store | claude-mem, **MemPalace** (unrelated Python project — name collision only) |
+
+**Naming:** MemPalace / `mempalace` is a different project. Roundups that list “MemPalace” next to Mem0 are not describing this repository.
+
+## Topology
+
+**One process per palace root.** Multi-process writers on a shared `BaseDir` are unsupported. In-process `writeMu` serializes `relations/entity-graph.json` and `indexes/event-time.json`. Isolation is the directory you pass as `BaseDir` (this library does not implement mesh `X-IOMesh-Org`).
+
+Last-write-wins evidence (not a lock): [`scripts/two_process_writer_probe.sh`](scripts/two_process_writer_probe.sh). Flock is not shipped.
+
+## Optional embeddings
 
 ```go
 embedFn, err := memory.NewGONNXEmbeddingFuncFromEnv()
@@ -100,20 +149,16 @@ store := memory.NewPalaceStoreWithConfig(memory.PalaceConfig{
 | `MEMORY_ORT_CUDA` | `1` to enable CUDA EP (Linux ORT builds) |
 | `MEMORY_EMBEDDING_STRICT` | `true` to disable hash fallback on inference errors |
 
-Default ONNX export is **BGE-small-en-v1.5** (**384** dimensions). When using Qdrant with that model, set collection `EmbeddingDim` to **384**.
-
-`PersistEmbeddings` defaults **off**. When on, only a non-hash `EmbeddingModel` (e.g. `bge-small-en-v1.5`) is stored on entry JSON. Hash embeddings (`GenerateSimpleEmbedding`, empty or `"hash"` model) are **never** persisted as stored vectors / `QueryVec`. Embed miss is not ingest failure; JSON rename remains the ack. usearch, ORT, and Qdrant stay optional.
-
-Download helper (fail-soft; BGE is optional):
+Default ONNX export is **BGE-small-en-v1.5** (**384-d**). `PersistEmbeddings` defaults **off**. Hash embeddings are **never** stored. usearch, ORT, and Qdrant stay optional.
 
 ```bash
 go run ./scripts/download_onnx_model.go
 export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
 ```
 
-Hugging Face **401/404** for `KnightsAnalytics/bge-small-en-v1.5` is **expected** — that repo is not published (valid token still **404**, not a login miss). The helper then downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) — **no Hugging Face login required**. `HF_TOKEN` is optional; on 401/403 with a token the helper retries **unauthenticated** so a bad token cannot block public BGE. Layout: `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored; ~127 MB; not vendored). If that fetch fails, in-tree MiniLM is the local 384-d fallback — **not** the official V1 BGE pin. Hash-overlap unpublished. If MiniLM is missing too, stdout is empty and TTFH cost-max stays the **hash embedder**. `os.Exit(1)` only for mkdir failures. Generate/judge need `OPENAI_API_KEY` (unrelated to HF). Auth matrix: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md#auth-requirements-checked-2026-09-12). Locked mixed n=12: same page (`make longmemeval-baseline`) — **not a README number**, not official V1.
+`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face repo (404). The helper downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) with no login required. Layout: `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored). MiniLM is the in-tree 384-d fallback. Details: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md).
 
-### Optional Qdrant
+## Optional Qdrant
 
 ```bash
 podman run -d --name qdrant \
@@ -127,36 +172,21 @@ store := memory.NewPalaceStoreWithConfig(memory.PalaceConfig{
 	BaseDir:          "./data/palace",
 	VectorURL:        "http://localhost:6333",
 	VectorCollection: "memory_collection",
-	EmbeddingFunc:    embedFn, // recommended for semantic recall
+	EmbeddingFunc:    embedFn,
 })
 ```
 
-Unit tests run without Podman/Qdrant. Integration helpers start a temporary container when available; set `PODMAN_QDRANT_SKIP=1` to force skip.
-
-## When to use this kernel
-
-Stars and vendor LongMemEval scores are a category error here.
-
-| Job | Use |
-|-----|-----|
-| Inspectable local ops record (JSON files, `cat`/`diff`/cite) in Go, no required DB or extract LLM | **This kernel** |
-| Chatbot personalization API / drop-in memory SaaS | Mem0 |
-| Dual-clock temporal knowledge graph (Neo4j / FalkorDB / Neptune) | Graphiti / Zep |
-| Agent runtime that edits its own memory blocks | Letta |
-| Documents/tables → company knowledge graph | Cognee |
-| Already on LangGraph, want a Python library | LangMem |
-| Coding-agent session compressor / verbatim IDE store | claude-mem, **MemPalace** (unrelated Python project — name collision only) |
-
-**Naming:** MemPalace / `mempalace` is a different project. Industry roundups that list “MemPalace” next to Mem0 are not describing this repository.
+Unit tests run without Podman/Qdrant. Set `PODMAN_QDRANT_SKIP=1` to skip integration helpers.
 
 ## API overview
 
 | Area | Entry points |
 |------|----------------|
-| Store | `NewPalaceStore`, `NewPalaceStoreWithConfig`, `Write`, `Read`, … |
+| Store | `NewPalaceStore`, `NewPalaceStoreWithConfig`, `Write`, `IngestTurn`, `Load` |
 | Search | `SearchMemory`, `SearchMemoryWithOptions` |
 | Timeline | `ListMemoryWithOptions` |
 | As-of facts | `ListFactsAsOf`, `ParseValidityWindow`, `EntryValidAt` |
+| Evidence helpers | `AssembleCountEvidence`, `AssembleTemporalEvidence`, `AssembleLatestValueEvidence` |
 | Supersession | `SupersedeEntityFacts`, `WriteAndSupersede` |
 | Multi-hop | `MultiHopRetrieve`, `ExpandRelatedEntities`, `ExpandRelatedEntitiesHops` |
 | Vectors | `NewVectorStore`, collection create/upsert helpers |
@@ -168,6 +198,7 @@ Stars and vendor LongMemEval scores are a category error here.
 from := time.Now().Add(-24 * time.Hour)
 results := store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOptions{
 	SessionID:      "sess-abc",
+	SessionIDs:     []string{"sess-abc", "sess-def"}, // any-of; also matches conv:<id> tags
 	TimeFrom:       &from,
 	Limit:          10,
 	ReRankTemporal: true,
@@ -176,15 +207,16 @@ results := store.SearchMemoryWithOptions("project goals", memory.SearchMemoryOpt
 
 | Field | Effect |
 |-------|--------|
-| `SessionID` | Keep entries with matching session |
+| `SessionID` | Keep entries with matching session (or `conv:<id>` tag) |
+| `SessionIDs` | Any-of session / conv-tag match |
 | `TimeFrom` / `TimeTo` | Inclusive event-time window |
 | `Limit` | Cap results (default 10 for search) |
 | `Tier` | Optional tier filter |
 | `IncludeArchival` | When `Tier` is nil, also walk Archival (default retrieve skips it) |
-| `QueryVec` | Dense re-rank when non-empty; keyword token hits stay ahead of `Limit` |
+| `QueryVec` | Dense re-rank when non-empty; skipped for count and temporal-order queries |
 | `ReRankTemporal` | Sort by relevance after keyword/vector path; keyword hits stay ahead of `Limit` |
 
-Default retrieve tiers are **Working + Contextual + Semantic** (Archival skipped), matching `ListMemoryWithOptions`. Archival is included when `IncludeArchival` is set, `Tier` is Archival, or the default-tier keyword hit set is empty (low-confidence fallback; not a numeric score cutoff).
+Default retrieve tiers: **Working + Contextual + Semantic**. Archival is included when `IncludeArchival` is set, `Tier` is Archival, or default-tier keyword hits are empty.
 
 ### Timeline list
 
@@ -197,7 +229,7 @@ timeline := store.ListMemoryWithOptions(memory.ListMemoryOptions{
 })
 ```
 
-Filters apply **before** `Limit`. Default limit is **50** when ≤ 0. Listing uses a best-effort in-memory meta index plus an optional durable snapshot (`indexes/event-time.json`). A clean index is patched on `Write` / unlink instead of walking every tier JSON; a new process skips re-parse when the stamp matches. FS Palace remains source of truth. `DisableMetaIndex` / `DisableDurableIndex` opt out. Btree/tag secondary indexes remain residual.
+Filters apply **before** `Limit` (default 50). Listing uses a best-effort in-memory meta index plus optional `indexes/event-time.json`. The filesystem palace remains the source of truth.
 
 Full reference: [pkg.go.dev/github.com/iome-sh/memory](https://pkg.go.dev/github.com/iome-sh/memory).
 
@@ -207,64 +239,49 @@ Full reference: [pkg.go.dev/github.com/iome-sh/memory](https://pkg.go.dev/github
 git clone https://github.com/iome-sh/memory.git
 cd memory
 go mod download
-
-make check   # fmt-check + vet + test
-make ci      # + govulncheck + build
+make check    # fmt-check + vet + test
+make ci       # + govulncheck + build
 make test
-make test-race   # optional
+make test-race
 ```
 
-Optional last-write-wins evidence (not a lock): `make two-process-writer-probe` / [`scripts/two_process_writer_probe.sh`](scripts/two_process_writer_probe.sh). Multi-process writers remain **unsupported**. Probe ≠ flock; flock is not shipped. Not part of `make ci` / `make test`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor guide and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+### LongMemEval (optional)
 
-### LongMemEval tooling (optional)
-
-Methodology card: [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). **No official number is published.** Official V1 is upstream `evaluate_qa.py` + judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (ONNX, mixed-type, `session_id` on retrieve). Makefile default judge `gpt-4o-mini` is a cheap local path — not official V1.
-
-Offline overlap smoke/bench (no OpenAI). Printed `aggregate recall` is **top-k gold-answer string overlap** (judge-free). It is **not** official V1 and **not** V2 LAFS Gain. Hash embeddings are the no-dep default; do not publish hash overlap as a leaderboard number.
+Methodology: [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). **No official number is published** in this README. Official V1 is upstream `evaluate_qa.py` + judge `gpt-4o-2024-08-06`. Makefile default `gpt-4o-mini` is a cheap local path.
 
 ```bash
 make longmemeval-smoke
-make longmemeval-recall-gate
-make longmemeval-bench
-make longmemeval-v2-bench   # official V2 file layout; does not vendor the 7GB snapshot
-make longmemeval-v1-card    # methodology card; SKIP if oracle missing (exit 0); not make ci
+make longmemeval-v1-card    # SKIP (exit 0) if the oracle file is missing; not part of make ci
 ```
 
-Official V1 scored QA: `make longmemeval-judge` (needs `OPENAI_API_KEY`). Official judge pin is **`gpt-4o-2024-08-06`**; Makefile default `gpt-4o-mini` is a cheap local path — not official V1. Methodology card (no published score): `make longmemeval-v1-card` — optional, not part of `make ci`; missing oracle is SKIP (exit 0). In-repo subset is 3 `single-session-user` items, not mixed official V1. Official V2 scored runs use the upstream harness with a fixed Qwen3.5-9B reader and GPT-5.2 judge — this kernel only loads V2 files and exposes Insert/Query. Full dataset / judge flows need extra deps and keys; see comments in `Makefile` and `scripts/`.
-
-`--limit N` on `scripts/longmemeval_qa_generate.py` is **dataset prefix order**. Official V1 starts with `temporal-reasoning`, so a small n is not a mixed V1 score. Use `--sample mixed` (or `LONGMEMEVAL_QA_SAMPLE=mixed`) for a stratified slice and print the type histogram. Prefix-n is not overall V1. overlap ≠ gpt-4o ≠ V2 LAFS.
-
-`/retrieve` accepts `session_id` (official generate passes `conv_id` / `question_id`). Shared-palace QA without it is other-session dominated. Hypothesis JSONL keeps `question_date`, retrieve snippets, and `embed_mode` for audit. Hash default. Not a leaderboard submit.
-
-Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC3339.
+Locked mixed slices and auth notes: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md).
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
-| [RELEASING.md](RELEASING.md) | How maintainers tag module versions; **support / version policy** for consumers |
-| [SECURITY.md](SECURITY.md) | Security policy and supported-versions table |
+| [RELEASING.md](RELEASING.md) | How maintainers tag module versions |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting and supported versions |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
-| [SUPPORT.md](SUPPORT.md) | How to get help; scope (library kernel) and related host |
-| [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (shipped vs T1–T5 next TODOs) |
-| [docs/TTFH.md](docs/TTFH.md) | Operator TTFH walking skeleton |
-| [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology card (no published official number) |
-| [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | Maintainer OSS process residual (not a product spec) |
+| [SUPPORT.md](SUPPORT.md) | How to get help |
+| [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap |
+| [docs/TTFH.md](docs/TTFH.md) | Walking-skeleton operator notes |
+| [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology (no published official number) |
 
 ## Related projects
 
 | Repository | Role |
 |------------|------|
-| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Lean MCP host binary for this kernel |
-| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Multi-provider agent TUI/CLI (optional mesh hooks) |
+| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | MCP host binary for this kernel (**v0.4.2**) |
+| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Multi-provider agent TUI/CLI (**v1.3.7**) |
 | [iomesh-client-sdk-go](https://github.com/iome-sh/iomesh-client-sdk-go) | Official Go client for I/O Mesh |
-| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client for I/O Mesh (**Beta** / pre-1.0) |
+| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client for I/O Mesh (Beta / pre-1.0) |
 
-This module is a **library** (tags for `go get`). Binary packaging, SBOM, and cosign apply to host tools such as `iomesh-memory-mcp` — see [RELEASING.md](RELEASING.md).
+This module is a **library** (`go get` tags). Binary packaging, SBOM, and cosign apply to host tools such as `iomesh-memory-mcp` — see [RELEASING.md](RELEASING.md).
 
 ## License
 
