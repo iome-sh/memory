@@ -22,6 +22,7 @@ func TestInferEmbeddingDimFromModelPath(t *testing.T) {
 	}{
 		{"/models/KnightsAnalytics_all-MiniLM-L6-v2", BGESmallEmbeddingDim},
 		{"/models/KnightsAnalytics_bge-small-en-v1.5", BGESmallEmbeddingDim},
+		{"/models/BAAI_bge-small-en-v1.5", BGESmallEmbeddingDim},
 		{"/models/unknown-model", 0},
 	}
 	for _, tc := range cases {

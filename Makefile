@@ -1,7 +1,7 @@
 .PHONY: all build test test-race cover vet fmt fmt-check tidy vuln check ci \
 	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-v2-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
-	longmemeval-v1-card two-process-writer-probe \
+	longmemeval-v1-card longmemeval-baseline two-process-writer-probe \
 	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate \
 	public-flip-readiness-gate \
 	clean
@@ -134,6 +134,11 @@ longmemeval-judge:
 # (384-d). MiniLM is the local path when BGE is unavailable (HF download may 401) — not the official V1 embed pin.
 longmemeval-v1-card:
 	bash scripts/longmemeval_v1_card.sh
+
+# Locked mixed n=12 hash vs MiniLM vs BAAI BGE. Needs oracle + OPENAI_API_KEY.
+# Optional; not make ci. Not official V1. Not a README number. Not Memory GA.
+longmemeval-baseline:
+	bash scripts/longmemeval_baseline.sh
 
 # Optional last-write-wins evidence. Not make ci / make test. Always exit 0.
 # Multi-process writers remain unsupported. Flock is not shipped.

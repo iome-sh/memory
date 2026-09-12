@@ -1,16 +1,16 @@
 // Download the default KnightsAnalytics bge-small-en-v1.5 ONNX model for local Palace recall.
 //
-// Hugging Face BGE download may 401/404. That is expected (optional ONNX) and
-// is not a broken install. Fail-soft:
+// Hugging Face KnightsAnalytics/bge-small-en-v1.5 401/404 is expected (repo
+// not published). Fail-soft:
 //
 //  1. print the hugot error on stderr
-//  2. if testdata/models/KnightsAnalytics_all-MiniLM-L6-v2 exists, print that
-//     path on stdout (so MEMORY_ONNX_MODEL_PATH="$(go run …)" still works)
-//  3. else print that TTFH cost-max is the hash embedder and exit 0 with no
-//     stdout path
+//  2. download public BAAI/bge-small-en-v1.5 ONNX and reshape to hugot layout
+//     (testdata/models/BAAI_bge-small-en-v1.5/model.onnx) — not vendored
+//  3. else MiniLM testdata/models/KnightsAnalytics_all-MiniLM-L6-v2 if present
+//  4. else empty stdout and TTFH cost-max hash (no ONNX required)
 //
-// MiniLM is a local 384-d fallback, not the official LongMemEval V1
-// BGE-small-en-v1.5 pin. Hash-overlap unpublished. Not Memory GA.
+// MiniLM is not the official LongMemEval V1 BGE pin. BAAI reshape is the
+// comparable BGE-small-en-v1.5 ONNX. Hash-overlap unpublished. Not Memory GA.
 // Mkdir failures still exit 1. This repo does not vendor BGE.
 //
 // Usage:
@@ -36,5 +36,6 @@ func main() {
 		Download: func(ctx context.Context, model, dest string) (string, error) {
 			return hugot.DownloadModel(ctx, model, dest, hugot.NewDownloadOptions())
 		},
+		FetchBAAI: onnxdownload.FetchBAAIToHugotLayout,
 	}))
 }

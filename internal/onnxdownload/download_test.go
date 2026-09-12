@@ -35,6 +35,32 @@ func TestDefaultModel(t *testing.T) {
 	}
 }
 
+func TestRun_FetchBAAIAfter404(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	baai := filepath.Join(t.TempDir(), "BAAI_bge-small-en-v1.5")
+	got := Run(context.Background(), &stdout, &stderr, Config{
+		DestDir: t.TempDir(),
+		Download: func(context.Context, string, string) (string, error) {
+			return "", fmt.Errorf("hugot: 404 Not Found")
+		},
+		FetchBAAI: func(context.Context, string) (string, error) {
+			return baai, nil
+		},
+	})
+	if got != 0 {
+		t.Fatalf("exit = %d stderr=%q", got, stderr.String())
+	}
+	if s := strings.TrimSpace(stdout.String()); s != baai {
+		t.Fatalf("stdout = %q want %q", stdout.String(), baai)
+	}
+	errOut := stderr.String()
+	for _, needle := range []string{"404", "BAAI/bge-small-en-v1.5", "not a KnightsAnalytics export", "Not Memory GA"} {
+		if !strings.Contains(errOut, needle) {
+			t.Fatalf("stderr missing %q: %q", needle, errOut)
+		}
+	}
+}
+
 func TestRun_DownloadSuccess(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	got := Run(context.Background(), &stdout, &stderr, Config{

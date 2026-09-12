@@ -7,8 +7,12 @@ import (
 )
 
 const (
-	// DefaultONNXModelHF is the recommended hugot ONNX export for agent memory (384-d, CPU ORT).
+	// DefaultONNXModelHF is the hugot-style ONNX export id. KnightsAnalytics has
+	// not published this repo (HF 404 with auth). Download falls back to BAAI.
 	DefaultONNXModelHF = "KnightsAnalytics/bge-small-en-v1.5"
+	// BAAIONNXModelHF is the public BGE-small-en-v1.5 source (onnx/model.onnx).
+	// Reshaped into hugot layout (root model.onnx) as testdata/models/BAAI_bge-small-en-v1.5.
+	BAAIONNXModelHF = "BAAI/bge-small-en-v1.5"
 	// LegacyONNXModelHF is the previous default (384-d MiniLM).
 	LegacyONNXModelHF = "KnightsAnalytics/all-MiniLM-L6-v2"
 	// BGESmallEmbeddingDim is the output width for BAAI/bge-small-en-v1.5 ONNX exports.

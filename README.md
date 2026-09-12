@@ -111,7 +111,7 @@ go run ./scripts/download_onnx_model.go
 export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
 ```
 
-Hugging Face **401/404** for `KnightsAnalytics/bge-small-en-v1.5` is **expected** (optional ONNX) and is not a broken install. The helper prints the hugot error on stderr, then uses in-tree MiniLM (`testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`) when that directory exists so the `MEMORY_ONNX_MODEL_PATH="$(go run …)"` assignment still works. MiniLM is a local 384-d fallback, **not** the official LongMemEval V1 BGE-small-en-v1.5 pin. Hash-overlap unpublished. If MiniLM is missing too, stdout is empty and TTFH cost-max stays the **hash embedder** (no ONNX required). `os.Exit(1)` only for mkdir failures — not for HF 401/404. Official V1 pin remains BGE-small-en-v1.5; this repo does not vendor BGE. Not Memory GA.
+Hugging Face **401/404** for `KnightsAnalytics/bge-small-en-v1.5` is **expected** — that repo is not published. The helper then downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) and reshapes it into hugot layout at `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored; ~127 MB; not vendored). If that fetch fails, in-tree MiniLM (`testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`) is the local 384-d fallback — **not** the official V1 BGE pin. Hash-overlap unpublished. If MiniLM is missing too, stdout is empty and TTFH cost-max stays the **hash embedder**. `os.Exit(1)` only for mkdir failures. Locked mixed n=12 comparison: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md) (`make longmemeval-baseline`) — **not a README number**, not official V1, not Memory GA.
 
 ### Optional Qdrant
 

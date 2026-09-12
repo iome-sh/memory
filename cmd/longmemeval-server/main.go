@@ -112,7 +112,10 @@ var (
 func main() {
 	flag.Parse()
 
-	baseDir := filepath.Join(os.TempDir(), "longmemeval_palace_v2")
+	baseDir := strings.TrimSpace(os.Getenv("LONGMEMEVAL_PALACE_ROOT"))
+	if baseDir == "" {
+		baseDir = filepath.Join(os.TempDir(), "longmemeval_palace_v2")
+	}
 	_ = os.MkdirAll(baseDir, 0755)
 
 	modelPath := strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath))
@@ -160,9 +163,13 @@ func main() {
 	http.HandleFunc("/retrieve", handleRetrieve)
 	http.HandleFunc("/synthesize", handleSynthesize)
 
-	log.Printf("LongMemEval server :8765 | turn=%v time=%v fact=%d con=%v",
-		*flagEnableTurnGranularity, *flagEnableTimeAware, *flagFactAugLevel, *flagEnableChainOfNote)
-	log.Fatal(http.ListenAndServe(":8765", nil))
+	addr := strings.TrimSpace(os.Getenv("LONGMEMEVAL_ADDR"))
+	if addr == "" {
+		addr = ":8765"
+	}
+	log.Printf("LongMemEval server %s palace=%s | turn=%v time=%v fact=%d con=%v",
+		addr, baseDir, *flagEnableTurnGranularity, *flagEnableTimeAware, *flagFactAugLevel, *flagEnableChainOfNote)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
 func handleIngest(w http.ResponseWriter, r *http.Request) {
@@ -334,10 +341,19 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 }
 
 func embedMode() string {
-	if strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath)) != "" && embeddingDim == memory.MiniLMEmbeddingDim {
+	path := strings.TrimSpace(os.Getenv(memory.EnvONNXModelPath))
+	if path == "" || embeddingDim != memory.MiniLMEmbeddingDim {
+		return "hash"
+	}
+	base := strings.ToLower(filepath.Base(path))
+	switch {
+	case strings.Contains(base, "bge"):
+		return "onnx-bge-small-en-v1.5"
+	case strings.Contains(base, "minilm"):
+		return "onnx-minilm-l6-v2"
+	default:
 		return "onnx"
 	}
-	return "hash"
 }
 
 func handleSynthesize(w http.ResponseWriter, r *http.Request) {
