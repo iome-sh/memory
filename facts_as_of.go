@@ -99,8 +99,10 @@ type FactsAsOfOptions struct {
 	AsOf time.Time
 	// Query optional case-insensitive substring on Summary / Full / OriginalText.
 	Query string
-	// SessionID, when non-empty, keeps only matching SessionID.
+	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags (T1).
 	SessionID string
+	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
+	SessionIDs []string
 	// Entity filters TemporalTags:
 	//   - if Entity contains ':', exact match on "entity:<value>" (or Entity itself
 	//     when it already has the "entity:" prefix);
@@ -183,10 +185,10 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 		}
 	}
 
-	if opts.SessionID != "" {
+	if opts.SessionID != "" || len(opts.SessionIDs) > 0 {
 		var filtered []MemoryEntry
 		for _, e := range results {
-			if e.SessionID == opts.SessionID {
+			if entryMatchesSessionFilter(e, opts.SessionID, opts.SessionIDs) {
 				filtered = append(filtered, e)
 			}
 		}

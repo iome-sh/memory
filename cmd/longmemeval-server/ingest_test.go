@@ -43,6 +43,7 @@ func postIngestRaw(t *testing.T, turns int) *http.Response {
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
+		SessionID string `json:"session_id"`
 	}, turns)
 	for i := 0; i < turns; i++ {
 		payloadTurns[i] = struct {
@@ -50,6 +51,7 @@ func postIngestRaw(t *testing.T, turns int) *http.Response {
 			Content   string `json:"content"`
 			Timestamp string `json:"timestamp"`
 			Cycle     int    `json:"cycle"`
+			SessionID string `json:"session_id"`
 		}{
 			Role:      "user",
 			Content:   "I adopted a golden retriever named Max in March 2024.",

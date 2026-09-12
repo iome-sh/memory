@@ -60,12 +60,14 @@ type IngestRequest struct {
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
+		SessionID string `json:"session_id"`
 	} `json:"turns"`
 	History []struct {
 		Role      string `json:"role"`
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
+		SessionID string `json:"session_id"`
 	} `json:"history"`
 }
 
@@ -193,17 +195,25 @@ func handleIngest(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		sess := strings.TrimSpace(t.SessionID)
+		if sess == "" {
+			sess = req.ConvID
+		}
+		tags := []string{longmemeval.IngestTag}
+		if conv := memory.ConvTag(req.ConvID); conv != "" {
+			tags = append(tags, conv)
+		}
 		entry := memory.MemoryEntry{
 			ID:           memory.GenerateMemoryID(),
 			Type:         "conversation_turn",
 			Tier:         memory.TierWorking,
-			Content:      memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280), Tags: []string{longmemeval.IngestTag}},
+			Content:      memory.MemoryContent{Full: t.Content, Summary: truncate(t.Content, 280), Tags: tags},
 			Cycle:        t.Cycle,
 			CreatedAt:    now,
 			UpdatedAt:    now,
 			Timestamp:    ts,
 			TurnID:       memory.GenerateMemoryID(),
-			SessionID:    req.ConvID,
+			SessionID:    sess,
 			OriginalText: t.Content,
 		}
 
@@ -391,6 +401,10 @@ func classifyTemporalIntent(query string) (bool, time.Time, time.Time) {
 	q := strings.ToLower(query)
 	now := time.Now()
 
+	// Count / how-many questions are not calendar windows (T1).
+	if strings.Contains(q, "how many") || strings.Contains(q, "how much") {
+		return false, time.Time{}, time.Time{}
+	}
 	if strings.Contains(q, "last week") || strings.Contains(q, "past week") {
 		return true, now.AddDate(0, 0, -7), now
 	}

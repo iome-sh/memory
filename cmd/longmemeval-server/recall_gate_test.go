@@ -134,6 +134,7 @@ func postIngest(baseURL, convID string, turns []ingestTurn) error {
 		Content   string `json:"content"`
 		Timestamp string `json:"timestamp"`
 		Cycle     int    `json:"cycle"`
+		SessionID string `json:"session_id"`
 	}, len(turns))
 	for i, turn := range turns {
 		payloadTurns[i].Role = turn.Role

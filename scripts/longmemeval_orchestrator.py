@@ -55,6 +55,7 @@ def ingest_history(conv_id: str, history: List[Dict[str, Any]]):
             "content": turn.get("content", ""),
             "timestamp": turn.get("timestamp", ""),
             "cycle": turn.get("cycle", 0),
+            "session_id": turn.get("session_id", ""),
         })
     payload = {"conv_id": conv_id, "turns": turns}
     r = requests.post(f"{SERVER_URL}/ingest", json=payload, timeout=30)

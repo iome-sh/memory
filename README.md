@@ -12,7 +12,7 @@ This is a **library kernel** (posture: embeddable filesystem palace), not a memo
 
 - **File-backed store** — atomic writes, tiers (working / contextual / semantic / archival), caller-managed best-effort version snapshots (overwrite does not auto-increment)
 - **Hybrid search** — keyword + optional dense/sparse vectors (Qdrant) and multi-factor re-ranking
-- **Temporal APIs** — session/time filters, event-time timelines, as-of fact listing, supersession helpers
+- **Temporal APIs** — session/time filters, multi-session (`SessionIDs` / `conv:` grouping), event-time timelines, as-of fact listing, supersession helpers
 - **Multi-hop retrieval** — lightweight entity-graph expansion with hop-distance ranking
 - **Pluggable embeddings** — deterministic hash default for tests; production ONNX via [hugot](https://github.com/knights-analytics/hugot) (pure-Go GoMLX or optional ORT). `PersistEmbeddings` default **off**; hash vectors are never stored
 - **Compaction hooks** — kernel primitives for recency/compaction pipelines

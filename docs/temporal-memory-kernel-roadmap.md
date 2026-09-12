@@ -108,11 +108,19 @@ BFS on `GetRelatedEntities`, collect by `entity:` tags, default **shorter hop fi
 
 Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand → T5 last**. Do not start K3/Qwen3 or a dual-clock KG before T1 is measured.
 
-### T1 — Multi-session temporal retrieve (next)
+### T1 — Multi-session temporal retrieve (**in progress**)
 
-**Why:** Original K1 session filter is single-`SessionID`. LongMemEval `multi-session` items need facts **spread across several haystack sessions** in one `conv_id` palace. Today retrieve returns on-topic chatter; the count gold (`3` clothes, `2` projects) is not assembled.
+**Why:** Original K1 session filter is single-`SessionID`. LongMemEval `multi-session` items need facts **spread across several haystack sessions** in one `conv_id` palace. Flattening ingest onto `SessionID=conv_id` plus Limit filled by one noisy session buries count gold.
 
-**In scope**
+**Shipped this slice**
+
+- `SearchMemoryOptions.SessionIDs` / `ListMemoryOptions.SessionIDs` / `FactsAsOfOptions.SessionIDs` / `MultiHopOptions.SessionIDs` (any-of)
+- `conv:<id>` tag match: retrieve with `SessionID=conv_id` still sees inner haystack sessions
+- Session-diverse ranking before Limit (round-robin distinct `SessionID`s)
+- LongMemEval ingest passes per-turn `session_id` and stamps `conv:<conv_id>`
+- Count questions (`how many` / `how much`) are not treated as calendar windows
+
+**In scope (measure)**
 
 - Palace-side retrieve that can seed from **several** `SessionID`s (or “all sessions in this palace / conv”) without dropping keyword gold past `Limit`
 - Time-aware expansion that does **not** classify ordinary count questions as a calendar window and hide gold
@@ -157,7 +165,7 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 
 ## Suggested implementation order
 
-1. **T1** multi-session retrieve + re-measure n=12 (then n=60) — **next TODO**
+1. **T1** multi-session retrieve (API + ingest + ranking shipped) — **re-measure n=12 then n=60**
 2. **T2** only if timeline list / rebuild cost is the limiter
 3. **T3 / T4** when T1 evidence says edges or compaction ate the gold
 4. **T5** last, consumer-driven
