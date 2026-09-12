@@ -1,6 +1,8 @@
 # Open-source readiness audit
 
-Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace kernel) vs public **iomesh-tui**. Visibility flip is **complete** (public MIT). Re-run before each major release.
+**Maintainer process residual** — not a product spec and not a user guide. Visibility is already **public MIT**. **Public MIT ≠ Memory GA.** Operators: [README.md](../README.md) · [SECURITY.md](../SECURITY.md).
+
+Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace kernel) vs public **iomesh-tui**. Visibility flip is **complete** (public MIT). Re-run before each major release. Sibling MCP host **`iomesh-memory-mcp`** is already public (separate act).
 
 > Operator residual + offline gate live in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Public MIT** (flip complete). **Public MIT ≠ Memory GA.** **Residual PASS ≠ public flip.** Gate PASS ≠ product GA. Readiness ≠ invent Memory GA / dual_write ON.
 
@@ -119,7 +121,7 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 5. CONTRIBUTING **public repository policy** already present — enforce on forward PRs  
 6. (Optional recommended) Enable CodeQL default setup  
 7. Do **not** publish private monorepo install paths or invent Memory GA  
-8. Flip order: **this kernel first** (done), then **`iomesh-memory-mcp`** public (done as a separate act; never invent Memory GA from residual PASS)
+8. Flip order (historical): **this kernel first** (done), then **`iomesh-memory-mcp`** public (done as a separate act; never invent Memory GA from residual PASS). Do not re-run a visibility flip.
 
 ## Out of scope for this kernel package
 

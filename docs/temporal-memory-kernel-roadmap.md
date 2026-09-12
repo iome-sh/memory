@@ -2,7 +2,7 @@
 
 **Repository**: `github.com/iome-sh/memory`  
 **Scope**: Temporal features **inside this package** (Palace kernel), not host product surfaces  
-**Serial**: s587 (docs); K1 = s586 / v1.5.2; K2 first slice = s611 / v1.5.3; K4 first slice = s616 / v1.5.4; A2 first slice = s619 / v1.5.5; A3 first slice = s632 / v1.5.6; A2 hop ranking = s1067 / v1.5.7 continuum; hop ranking residual honesty = s1278  
+Identifiers such as `sNNN` below are **historical engineering pins**, not a public product ledger.  
 **Last Updated**: 2026-08-05
 
 This is the standalone roadmap for temporal memory capabilities in the hierarchical agent memory library (Palace). It deliberately excludes private control-plane / broker / mesh add-on GA claims, multi-tenant product packaging, and host MCP/sidecar surfaces.

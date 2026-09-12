@@ -62,4 +62,4 @@ Production consumers should **pin semver tags** in `go.mod` (not only `@main`). 
 
 ## Honesty
 
-Support policy docs (**s1499** tip) ≠ invent Edge Memory GA · ≠ invent bare Memory GA · ≠ invent forever-green signed releases · dual_write **OFF** product path elsewhere · no invent live dogfood. Full version window: [RELEASING.md](RELEASING.md) · security matrix: [SECURITY.md](SECURITY.md).  
+Support policy docs ≠ invent Edge Memory GA · ≠ invent bare Memory GA · ≠ invent forever-green signed releases · dual_write **OFF** product path elsewhere · no invent live dogfood. Full version window: [RELEASING.md](RELEASING.md) · security matrix: [SECURITY.md](SECURITY.md).  

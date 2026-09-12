@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Public-docs hygiene:** `docs/PUBLIC_FLIP_READINESS.md` and `docs/OPEN_SOURCE_AUDIT.md` marked maintainer residuals (flip complete; not operator how-tos). Drop personal maintainer handle from flip checklist. CONTRIBUTING / SUPPORT / README / LONGMEMEVAL / RecMem plan: no “future public MCP”, no support-page ledger stamp, no fundraising exhibit wording, no product token-reduction SLA. Residual honesty gates and `docs/operations/` pins unchanged. Kernel-only · not Memory GA · dual_write OFF.
+
 ### Added
 - **LongMemEval V1 mixed-run methodology card runner:** `make longmemeval-v1-card` / `scripts/longmemeval_v1_card.sh` prints dataset, SHA, tag, mixed-sample histogram, embed mode, official judge pin (`gpt-4o-2024-08-06`), and date. Missing `data/longmemeval_oracle.json` is SKIP (exit 0), not a CI failure. In-repo subset is 3 `single-session-user` items — not mixed official V1. Makefile default `gpt-4o-mini` stays a cheap local path — not official V1. No published score. Kernel-only · not Memory GA · dual_write OFF.
 
