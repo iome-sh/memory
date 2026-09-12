@@ -102,8 +102,10 @@ func isTemporalEvidenceQuery(query string) bool {
 // AssembleTemporalEvidence lists unique dated-event bullets for temporal-order
 // or dated-span queries. Text date phrases are labeled separately from ingest
 // Timestamp (RFC3339) so the reader can see relative/absolute dates vs session
-// time. Sorted by parsed text time when available, else Timestamp. Empty when
-// the query is not temporal or no dated snippets match. Not persisted.
+// time. Sorted by parsed text time when available, else Timestamp. Multiple
+// bullets are prefixed with the cluster count ("N distinct events"); this does
+// not invent a day-delta or gold answer. Empty when the query is not temporal
+// or no dated snippets match. Not persisted.
 func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 	if !isTemporalEvidenceQuery(query) {
 		return ""
@@ -171,6 +173,9 @@ func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 		if len(out) >= maxTemporalEvidenceSnippets {
 			break
 		}
+	}
+	if len(out) > 1 {
+		return formatEvidenceBlock("Temporal evidence", len(out), "events", out)
 	}
 	return "Temporal evidence:\n- " + strings.Join(out, "\n- ")
 }
