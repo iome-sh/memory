@@ -136,8 +136,9 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - `f99c140` (#111) Wave E: MiniLM **12/12** `multi-session` **2/2**; BGE **11/12** **1/2**; hash **11/12** **1/2**. Projects pass all three. T1 done-when met. Residual n=12 miss: clothes (`0a995998` gold 3) on hash/BGE — this slice. Do not invent a remesure score.
 - `aa64dbc` (#115 on #114) Wave F: MiniLM **12/12** `multi-session` **2/2**; BGE **12/12** **2/2**; hash **11/12** **2/2**. Clothes pass all three. Residual: hash temporal `gpt4_2487a7cb`.
 - `b02abaf` (#119) Wave G: hash/MiniLM/BGE **11/12** `multi-session` **1/2**. Temporal `gpt4_2487a7cb` pass all three. Clothes (`0a995998` gold 3) miss all three (reader summed 2; retrieve still 3 clusters). Projects pass. `#120` not in this kernel.
+- `895f255` (#120) Wave H: hash **11/12** MS **1/2**; MiniLM **10/12** MS **0/2**; BGE **11/12** MS **1/2**. Clothes miss all three (`Count evidence (3 distinct items)` present; reader summed 2). MiniLM projects miss (`8 distinct items`). Temporal pass. `#122` not this kernel.
 
-**Still open for T1:** Wave G closed hash temporal `gpt4_2487a7cb`; clothes residual reopened on all three. Next: remesure n=12 on `#120` (`895f255`) then locked mixed **n=60**. Do not invent a remesure score. Not a README number.
+**Still open for T1:** Wave H (`#120`) did not close clothes; MiniLM projects regressed. Header N is correct for clothes (3) and noisy for projects (8). Next: locked mixed **n=60**. Do not invent a `#122` remesure score. Not a README number.
 
 **In scope (measure)**
 
@@ -184,7 +185,7 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 
 ## Suggested implementation order
 
-1. **T1** multi-session retrieve (API + ingest + ranking shipped) — Wave G n=12 on `#119` recorded; next remesure n=12 on `#120` then locked mixed **n=60** (do not invent remesure scores)
+1. **T1** multi-session retrieve (API + ingest + ranking shipped) — Wave H n=12 on `#120` recorded; clothes still reader-side; next locked mixed **n=60** (do not invent remesure scores)
 2. **T2** only if timeline list / rebuild cost is the limiter
 3. **T3 / T4** when T1 evidence says edges or compaction ate the gold
 4. **T5** last, consumer-driven
