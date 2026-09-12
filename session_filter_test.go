@@ -667,9 +667,44 @@ func TestAssembleTemporalEvidence_WebinarBeforeWorkshopSameTimestamp(t *testing.
 	if web < 0 || work < 0 || web > work {
 		t.Fatalf("webinar (two months ago) must list before workshop, got %q", got)
 	}
+	if strings.Contains(lower, "days apart") {
+		t.Fatalf("which-first must not append a dated-span delta: %q", got)
+	}
 }
 
-func TestAssembleTemporalEvidence_DatedBulletsNoDayDelta(t *testing.T) {
+func TestAssembleTemporalEvidence_DatedSpanTwelveDaysApart(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "start", Type: "turn_fact", Timestamp: ts, SessionID: "s-start",
+			Content: MemoryContent{Summary: "I started training on May 3."},
+		},
+		{
+			ID: "end", Type: "turn_fact", Timestamp: ts, SessionID: "s-end",
+			Content: MemoryContent{Summary: "I finished training on May 15."},
+		},
+	}
+	q := "How many days passed between starting training and finishing training?"
+	got := AssembleTemporalEvidence(q, entries)
+	if !strings.Contains(got, "May 3") {
+		t.Fatalf("missing May 3 bullet: %q", got)
+	}
+	if !strings.Contains(got, "May 15") {
+		t.Fatalf("missing May 15 bullet: %q", got)
+	}
+	wantDelta := "text dates 12 days apart (May 3 → May 15)"
+	if !strings.Contains(got, wantDelta) {
+		t.Fatalf("missing text-date delta %q in %q", wantDelta, got)
+	}
+	if !strings.Contains(got, "2 distinct events") {
+		t.Fatalf("must keep distinct-events prefix: %q", got)
+	}
+	if strings.Contains(strings.ToLower(got), "the answer is") {
+		t.Fatalf("must not invent a gold answer: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_DatedSpanUsesTextDatesNotIngest(t *testing.T) {
 	ts := time.Date(2023, 2, 20, 12, 0, 0, 0, time.UTC)
 	entries := []MemoryEntry{
 		{
@@ -690,8 +725,32 @@ func TestAssembleTemporalEvidence_DatedBulletsNoDayDelta(t *testing.T) {
 	if !strings.Contains(lower, "february 1st") {
 		t.Fatalf("missing February 1st bullet: %q", got)
 	}
-	if strings.Contains(lower, "30 day") || strings.Contains(lower, "31 day") {
-		t.Fatalf("kernel must not compute day-delta: %q", got)
+	if !strings.Contains(got, "text dates 30 days apart (January 2nd → February 1st)") {
+		t.Fatalf("delta must use parsed text dates, got %q", got)
+	}
+	if strings.Contains(got, "text dates 0 days apart") {
+		t.Fatalf("delta must not use shared ingest Timestamp: %q", got)
+	}
+	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a gold answer: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_SingleDatedBulletNoDelta(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "concert", Type: "turn_fact", Timestamp: ts, SessionID: "s-concert",
+			Content: MemoryContent{Summary: "I attended the concert on May 3."},
+		},
+	}
+	q := "How many days have passed since I attended the concert?"
+	got := AssembleTemporalEvidence(q, entries)
+	if !strings.Contains(got, "May 3") {
+		t.Fatalf("missing dated bullet: %q", got)
+	}
+	if strings.Contains(strings.ToLower(got), "days apart") {
+		t.Fatalf("one dated bullet must not append a delta: %q", got)
 	}
 }
 
@@ -716,8 +775,8 @@ func TestAssembleTemporalEvidence_SlashDatesHouseAndRachel(t *testing.T) {
 	if !strings.Contains(lower, "3/1") {
 		t.Fatalf("missing 3/1 bullet: %q", got)
 	}
-	if strings.Contains(lower, "14 day") {
-		t.Fatalf("kernel must not compute day-delta: %q", got)
+	if !strings.Contains(got, "text dates 14 days apart (2/15 → 3/1)") {
+		t.Fatalf("slash-date delta must use parsed text dates, got %q", got)
 	}
 }
 

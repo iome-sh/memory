@@ -3,6 +3,7 @@ package memory
 import (
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -103,23 +104,19 @@ func isTemporalEvidenceQuery(query string) bool {
 // or dated-span queries. Text date phrases are labeled separately from ingest
 // Timestamp (RFC3339) so the reader can see relative/absolute dates vs session
 // time. Sorted by parsed text time when available, else Timestamp. Multiple
-// bullets are prefixed with the cluster count ("N distinct events"); this does
-// not invent a day-delta or gold answer. Empty when the query is not temporal
-// or no dated snippets match. Not persisted.
+// bullets are prefixed with the cluster count ("N distinct events"). For
+// dated-span queries with two or more parsed text times, one extra line reports
+// the UTC calendar-day difference between the earliest and latest text dates
+// (`text dates N days apart (phrase → phrase)`). That line is text-date
+// arithmetic, not a gold answer, and never uses ingest Timestamp. Empty when
+// the query is not temporal or no dated snippets match. Not persisted.
 func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 	if !isTemporalEvidenceQuery(query) {
 		return ""
 	}
 	needles := queryEventNeedles(query)
-	type bullet struct {
-		snippet     string
-		textTime    time.Time
-		hasTextTime bool
-		ingest      time.Time
-		order       int
-	}
 	seen := make(map[string]struct{}, 8)
-	list := make([]bullet, 0, 8)
+	list := make([]temporalBullet, 0, 8)
 	n := 0
 	for _, e := range entries {
 		hay := entryKeywordHaystack(e)
@@ -145,8 +142,9 @@ func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 					continue
 				}
 				seen[key] = struct{}{}
-				list = append(list, bullet{
+				list = append(list, temporalBullet{
 					snippet:     formatTemporalLabel(h.phrase, e.Timestamp) + " " + snip,
+					textPhrase:  h.phrase,
 					textTime:    h.when,
 					hasTextTime: !h.when.IsZero(),
 					ingest:      e.Timestamp,
@@ -167,17 +165,74 @@ func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 		}
 		return list[i].order < list[j].order
 	})
+	if len(list) > maxTemporalEvidenceSnippets {
+		list = list[:maxTemporalEvidenceSnippets]
+	}
 	out := make([]string, 0, len(list))
 	for _, b := range list {
 		out = append(out, b.snippet)
-		if len(out) >= maxTemporalEvidenceSnippets {
-			break
+	}
+	var body string
+	if len(out) > 1 {
+		body = formatEvidenceBlock("Temporal evidence", len(out), "events", out)
+	} else {
+		body = "Temporal evidence:\n- " + strings.Join(out, "\n- ")
+	}
+	if delta := datedSpanTextDelta(query, list); delta != "" {
+		return body + "\n" + delta
+	}
+	return body
+}
+
+type temporalBullet struct {
+	snippet     string
+	textPhrase  string
+	textTime    time.Time
+	hasTextTime bool
+	ingest      time.Time
+	order       int
+}
+
+func datedSpanTextDelta(query string, bullets []temporalBullet) string {
+	if !isDatedSpanQuery(query) {
+		return ""
+	}
+	dated := make([]temporalBullet, 0, len(bullets))
+	for _, b := range bullets {
+		if b.hasTextTime {
+			dated = append(dated, b)
 		}
 	}
-	if len(out) > 1 {
-		return formatEvidenceBlock("Temporal evidence", len(out), "events", out)
+	if len(dated) < 2 {
+		return ""
 	}
-	return "Temporal evidence:\n- " + strings.Join(out, "\n- ")
+	earliest, latest := dated[0], dated[len(dated)-1]
+	days := utcCalendarDayDelta(earliest.textTime, latest.textTime)
+	return "text dates " + strconv.Itoa(days) + " days apart (" + textDatePhrase(earliest.textPhrase, earliest.textTime) + " → " + textDatePhrase(latest.textPhrase, latest.textTime) + ")"
+}
+
+func utcCalendarDayDelta(a, b time.Time) int {
+	ad := calendarDayUTC(a)
+	bd := calendarDayUTC(b)
+	if ad.After(bd) {
+		ad, bd = bd, ad
+	}
+	return int(bd.Sub(ad) / (24 * time.Hour))
+}
+
+func calendarDayUTC(t time.Time) time.Time {
+	u := t.UTC()
+	return time.Date(u.Year(), u.Month(), u.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func textDatePhrase(phrase string, when time.Time) string {
+	if p := strings.TrimSpace(phrase); p != "" {
+		return p
+	}
+	if when.IsZero() {
+		return "unknown"
+	}
+	return when.UTC().Format("2006-01-02")
 }
 
 func temporalSortTime(hasText bool, textTime, ingest time.Time) time.Time {

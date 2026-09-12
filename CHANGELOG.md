@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README:** install pin **v1.5.12**, companion hosts TUI **v1.3.7** / MCP **v0.4.2**, table of contents, compiling quickstart, `SessionIDs` on the search table, LongMemEval details moved to `docs/`. Release badge. No published LongMemEval number.
 
 ### Added
+- **Dated-span text-date delta:** `AssembleTemporalEvidence` appends `text dates N days apart (phrase → phrase)` from parsed text times (not ingest Timestamp) when a how-many-days-between query has ≥2 dated bullets. Does not invent a gold answer.
 - **T2 list-latency bench:** `BenchmarkListMemoryWithOptions_SessionTimeLimit` (meta index vs `DisableMetaIndex` O(n) fallback). Optional `BenchmarkSearchMemoryWithOptions_CountQuery` documents skip-vector (#122). btree / tag secondaries stay gated until this bench shows list rebuild cost.
 - **T4 compaction products remain ListFactsAsOf-visible:** after MERGE/SUMMARIZE, `ListFactsAsOf({SessionID, AsOf: now})` still returns the product; sources move to archival without invented `valid_until`. ARCHIVE that only moves tiers stays valid at now.
 - **Unique-entity count clusters:** `AssembleCountEvidence` clusters kits, plants, and hour+destination facts by distinctive object (repeated B-29 is one kit; two plants in one turn are two clusters; word numbers). Clothing action×object clustering is unchanged.
