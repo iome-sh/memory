@@ -14,7 +14,7 @@ This is a **library kernel** (posture: embeddable filesystem palace), not a memo
 - **Hybrid search** — keyword + optional dense/sparse vectors (Qdrant) and multi-factor re-ranking
 - **Temporal APIs** — session/time filters, event-time timelines, as-of fact listing, supersession helpers
 - **Multi-hop retrieval** — lightweight entity-graph expansion with hop-distance ranking
-- **Pluggable embeddings** — deterministic hash default for tests; production ONNX via [hugot](https://github.com/knights-analytics/hugot) (pure-Go GoMLX or optional ORT)
+- **Pluggable embeddings** — deterministic hash default for tests; production ONNX via [hugot](https://github.com/knights-analytics/hugot) (pure-Go GoMLX or optional ORT). `PersistEmbeddings` default **off**; hash vectors are never stored
 - **Compaction hooks** — kernel primitives for recency/compaction pipelines
 - **Benchmarks** — LongMemEval-oriented tooling under `cmd/` and `scripts/`
 
@@ -101,6 +101,8 @@ store := memory.NewPalaceStoreWithConfig(memory.PalaceConfig{
 | `MEMORY_EMBEDDING_STRICT` | `true` to disable hash fallback on inference errors |
 
 Default ONNX export is **BGE-small-en-v1.5** (**384** dimensions). When using Qdrant with that model, set collection `EmbeddingDim` to **384**.
+
+`PersistEmbeddings` defaults **off**. When on, only a non-hash `EmbeddingModel` (e.g. `bge-small-en-v1.5`) is stored on entry JSON. Hash embeddings (`GenerateSimpleEmbedding`, empty or `"hash"` model) are **never** persisted as stored vectors / `QueryVec`. Embed miss is not ingest failure; JSON rename remains the ack. usearch, ORT, and Qdrant stay optional.
 
 Download helper:
 
