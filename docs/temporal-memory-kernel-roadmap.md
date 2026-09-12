@@ -184,7 +184,7 @@ Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader
 |----------|----------|------------|
 | Clothes gold 3, reader sums 2 | Waves G–H: 3 clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Remesure **TBD** — do not invent. Does not invent “the answer is 3”. |
 | Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)) — remesure after #122+#124+#127 |
-| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | Remesure n=60 on #119+#122+#124; generalize catalogs (**T7**) |
+| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | Remesure n=60 on #119+#122+#124; generalize catalogs (**T7**, in-flight [#132](https://github.com/iome-sh/memory/pull/132)) |
 | Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`): `text dates N days apart (phrase → phrase)` from parsed text times. Remesure **TBD**. Does not invent gold. |
 | KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)) — remesure |
 | Skip-vector + #124 + #127 n=12 | not remesured | Wave after #122+#124+#127 |
@@ -265,7 +265,7 @@ Remesure of n=60 TR days-between is **TBD**.
 
 **Out of scope:** clothing path changes; `(N distinct items)` on unique-entity; inventing “the answer is N”.
 
-**Status:** next slice. No kernel PR cited on `main` as of this doc.
+**Status:** in-flight [#132](https://github.com/iome-sh/memory/pull/132) (`feat/t1-unique-entity-generalize`) — not on `main` as of this doc. Cite, do not wait; this docs PR does not implement it.
 
 ### T8 — Dual-clock store (parked)
 
@@ -288,7 +288,7 @@ A dual-clock store would record **when the row was written** separately from eve
 1. **Remesure n=12** after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) (do not invent)
 2. **Remesure n=60** after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129) (do not invent; the v1.5.12 n=60 row above is **before** #119)
 3. **T6** dated-span text-date delta — **shipped** [#129](https://github.com/iome-sh/memory/pull/129)
-4. **T7** generalized unique-entity
+4. **T7** generalized unique-entity (in-flight [#132](https://github.com/iome-sh/memory/pull/132))
 5. **T2 btree** only if the [#128](https://github.com/iome-sh/memory/pull/128) bench says rebuild is the limiter — [#131](https://github.com/iome-sh/memory/pull/131) measure **parks** it
 6. **T3** typed edges only if gold is an expired relation
 7. **T8** dual-clock only if an expired-window miss shows up
