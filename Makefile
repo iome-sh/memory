@@ -115,6 +115,8 @@ longmemeval-qa-generate:
 	$$(if [ -n "$${LONGMEMEVAL_QA_LIMIT:-}" ] && [ "$${LONGMEMEVAL_QA_LIMIT}" != "0" ]; then echo --limit $${LONGMEMEVAL_QA_LIMIT}; fi) \
 	$$(if [ -n "$${LONGMEMEVAL_QA_SAMPLE:-}" ]; then echo --sample $${LONGMEMEVAL_QA_SAMPLE}; fi)
 
+# Official V1 judge pin is gpt-4o-2024-08-06 (docs/LONGMEMEVAL.md).
+# Default gpt-4o-mini is a cheap local path — not official V1.
 longmemeval-judge:
 	bash scripts/longmemeval_judge.sh \
 	$${LONGMEMEVAL_JUDGE_MODEL:-gpt-4o-mini} \
