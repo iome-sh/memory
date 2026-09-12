@@ -73,7 +73,7 @@ for _, f := range facts {
 }
 ```
 
-Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.3** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.3.2** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI.
+Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Operator page: [`docs/TTFH.md`](docs/TTFH.md). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.6** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.1** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI. This page, the example, and a unit test do **not** satisfy **E-G1** (real laptop PULSE+3 RCA+cite-both-or-miss).
 
 If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
 
@@ -246,6 +246,7 @@ Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC33
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
 | [SUPPORT.md](SUPPORT.md) | How to get help; scope (library kernel) and related host |
 | [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (K0–K4 style) |
+| [docs/TTFH.md](docs/TTFH.md) | Operator TTFH walking skeleton (not E-G1 · not Memory GA) |
 | [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology card (no published official number) |
 | [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | Maintainer OSS process residual (not a product claim; public MIT ≠ Memory GA) |
 
