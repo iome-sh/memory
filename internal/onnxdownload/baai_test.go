@@ -2,6 +2,9 @@ package onnxdownload
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -108,5 +111,84 @@ func TestFetchBAAI_ReshapeOnnxSubdir(t *testing.T) {
 	}
 	if len(seen) != len(baaIHugotFiles) {
 		t.Fatalf("fetched %d files, want %d: %v", len(seen), len(baaIHugotFiles), seen)
+	}
+}
+
+func TestHTTPGetToFile_RetryUnauthOn401(t *testing.T) {
+	var sawAuth, sawUnauth int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			sawAuth++
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, "Invalid username or password.")
+			return
+		}
+		sawUnauth++
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "public-ok")
+	}))
+	t.Cleanup(srv.Close)
+
+	prev := httpDo
+	httpDo = srv.Client().Do
+	t.Cleanup(func() { httpDo = prev })
+
+	t.Setenv("HF_TOKEN", "hf_bad_token")
+	t.Setenv("HUGGING_FACE_HUB_TOKEN", "")
+	dest := filepath.Join(t.TempDir(), "config.json")
+	if err := HTTPGetToFile(context.Background(), srv.URL+"/config.json", dest); err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+	if sawAuth != 1 || sawUnauth != 1 {
+		t.Fatalf("sawAuth=%d sawUnauth=%d want 1,1", sawAuth, sawUnauth)
+	}
+	b, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "public-ok" {
+		t.Fatalf("body = %q", b)
+	}
+}
+
+func TestHTTPGetToFile_404NotRetried(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, "Repository not found")
+	}))
+	t.Cleanup(srv.Close)
+	prev := httpDo
+	httpDo = srv.Client().Do
+	t.Cleanup(func() { httpDo = prev })
+	t.Setenv("HF_TOKEN", "hf_any")
+	err := HTTPGetToFile(context.Background(), srv.URL+"/missing", filepath.Join(t.TempDir(), "x"))
+	if err == nil || !strings.Contains(err.Error(), "HTTP 404") {
+		t.Fatalf("err = %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("requests = %d want 1 (404 is missing-repo, not auth miss)", n)
+	}
+}
+
+func TestHTTPGetToFile_401WithoutTokenNoRetry(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	prev := httpDo
+	httpDo = srv.Client().Do
+	t.Cleanup(func() { httpDo = prev })
+	t.Setenv("HF_TOKEN", "")
+	t.Setenv("HUGGING_FACE_HUB_TOKEN", "")
+	err := HTTPGetToFile(context.Background(), srv.URL+"/x", filepath.Join(t.TempDir(), "x"))
+	if err == nil || !strings.Contains(err.Error(), "HTTP 401") {
+		t.Fatalf("err = %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("requests = %d want 1", n)
 	}
 }
