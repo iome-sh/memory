@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Temporal kernel roadmap:** [`docs/temporal-memory-kernel-roadmap.md`](docs/temporal-memory-kernel-roadmap.md) re-evaluates K0–K4 / A2–A3 against v1.5.11 and sequences next work as T1 multi-session retrieve → T2 event-time index → T3 temporal edges → T4 compaction/validity → T5 optional 1024-d preset. LongMemEval locked mixed n=12 `multi-session` 0/2 is the T1 trigger.
 - **Operator copy polish:** README, SUPPORT, SECURITY, RELEASING, CONTRIBUTING, operator docs, exported comments, and residual-gate needles. Walking skeleton, LongMemEval methodology, single-writer, and inspectable FS facts unchanged.
 - **HF auth: public BAAI must not depend on HF_TOKEN:** `HTTPGetToFile` treats `HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN` as optional. BAAI/bge-small-en-v1.5 is **public (no auth)**. If a token is set and Hugging Face returns 401/403, retry once **without** Authorization so a bad/expired token cannot block the public ONNX. 404 is **not** retried (`KnightsAnalytics/bge-small-en-v1.5` is a missing repo, not an auth miss). `OPENAI_API_KEY` is required only for generate/judge.
 - **QA reader uses full retrieve-k:** `longmemeval_qa_generate.py` default `LONGMEMEVAL_READER_K=0` feeds **all** retrieved snippets to the reader (was `memories[:15]` while retrieve k=40). Multi-session 0/2 on n=12 was retrieve/reader context, not embedder. Not official V1.
