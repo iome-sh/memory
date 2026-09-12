@@ -126,7 +126,7 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - Clothing-errand named extract (dry-clean, pick-up/return × boot/blazer/Zara; not poster/case-competition)
 - `AssembleCountEvidence` diversifies clothing counts by action+object (one snippet per cluster; compound return+pick-up is two bullets; dry-clean kept on pick/return/store queries)
 - Unique-entity count clusters: kit identity (dedupe repeated B-29), plant names (two plants in one turn are two clusters), hour+destination (word numbers)
-- Temporal dated-event evidence: text date phrase vs ingest Timestamp; which-first sorts by parsed text time; dated-span how-many-days lists bullets and does not invent a day-delta; search promotes event-name hits
+- Temporal dated-event evidence: text date phrase vs ingest Timestamp; which-first sorts by parsed text time; dated-span how-many-days lists bullets and, with ≥2 parsed text times, appends `text dates N days apart (phrase → phrase)` (not ingest Timestamp, not a gold answer); search promotes event-name hits
 
 **Measure (2026-09-12):**
 
