@@ -6,9 +6,9 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
-## Wave D — T1 overlap-rank + led extract (kernel `2695e02` / #110, 2026-09-12T19:25Z–19:36Z)
+## Wave D — T1 overlap-rank + led extract (kernel `2695e02` / #110, 2026-09-12T19:36:11Z)
 
-Kernel `#110` only. Does **not** include `f99c140` (#111 count-assembly).
+Kernel `#110` only. Does **not** include `f99c140` (#111 count-assembly). Health `embed_mode` verified.
 
 | Embed | Judge-true | Rate | health `embed_mode` | multi-session |
 |-------|------------|------|---------------------|---------------|
@@ -16,7 +16,7 @@ Kernel `#110` only. Does **not** include `f99c140` (#111 count-assembly).
 | MiniLM ONNX | **11/12** | 0.917 | `onnx-minilm-l6-v2` | **1/2** (clothes pass, projects miss) |
 | BAAI BGE ONNX | **10/12** | 0.833 | `onnx-bge-small-en-v1.5` | **0/2** (clothes miss, projects miss) |
 
-Clothes (`0a995998`, gold 3) pass on MiniLM only. Projects (`6d550036`, gold 2) fail all three. Hash also misses temporal `gpt4_2487a7cb`. T1 done-when (MiniLM **and** BGE multi-session no longer 0/2) **not met**. Not a README number.
+Clothes (`0a995998`, gold 3): MiniLM counts boots pick-up + return + dry-cleaning; hash and BGE only boots pick-up + return (lost dry-cleaning vs Wave C). Projects (`6d550036`, gold 2) still miss all three. Hash temporal **1/2** (`gpt4_2487a7cb`). Versus Wave C (`a25a883`), overlap-rank (#110) helped MiniLM and dropped hash/BGE clothes. T1 done-when (MiniLM **and** BGE multi-session no longer 0/2) **not met**. Not a README number.
 
 ## Wave C — T1 + count-query fact promotion (kernel `a25a883`, 2026-09-12T19:12Z)
 
@@ -62,4 +62,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave D is kernel `2695e02` (#110 only). Next: remesure n=12 on `f99c140` (#111 count-assembly). T1 done-when not met (BGE still 0/2). Not a README number.
+- Wave D is kernel `2695e02` (#110 only). Next: remesure n=12 on `f99c140` (#111 count-assembly, landed). Do not invent a Wave E row until that run exists. T1 done-when not met (MiniLM 1/2, BGE still 0/2). Not a README number.
