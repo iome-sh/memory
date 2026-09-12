@@ -237,3 +237,79 @@ func TestIngestTurn_FactChildrenInheritCallerLongmemeval(t *testing.T) {
 		t.Fatalf("local-palace ingest must stamp private source class; hint=%q tags=%v", facts[0].Provenance.SourceHint, facts[0].Content.Tags)
 	}
 }
+
+// TTFH-shaped walking skeleton (README / examples/ttfh_rca): three RCA turns,
+// retrieve in the same process, facts-as-of, observable source_hint=private.
+// A green unit test is not E-G1 (real laptop). Kernel-only · not Memory GA.
+func TestIngestTurn_TTFHShapedWalkingSkeleton(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	session := "inc-webhook-5xx"
+	turns := []MemoryEntry{
+		{
+			SessionID: session,
+			Content: MemoryContent{
+				Summary: "PagerDuty page: webhook ingress 5xx",
+				Full:    "On-call: webhook ingress returned 5xx.",
+				Tags:    []string{"pagerduty"},
+			},
+			ExtractedFacts: []string{"PagerDuty page fired for webhook ingress 5xx"},
+		},
+		{
+			SessionID: session,
+			Content: MemoryContent{
+				Summary: "Signed delivery HTTP 200; dashboard still waiting",
+				Full:    "HMAC-verified delivery returned 200. Consume receipt is a different clock.",
+				Tags:    []string{"hmac"},
+			},
+			ExtractedFacts: []string{"HMAC 200 is not a consume receipt"},
+		},
+		{
+			SessionID: session,
+			Content: MemoryContent{
+				Summary: "CreateConsumer failed: mode column NULL",
+				Full:    "Durable consumer insert wrote SQL NULL into a NOT NULL mode column.",
+				Tags:    []string{"storage"},
+			},
+			ExtractedFacts: []string{"CreateConsumer 500 when consumers.mode is NULL"},
+		},
+	}
+	for i, turn := range turns {
+		if err := store.IngestTurn(turn); err != nil {
+			t.Fatalf("ingest %d: %v", i+1, err)
+		}
+	}
+
+	hits := store.SearchMemoryWithOptions("hmac consume receipt", SearchMemoryOptions{
+		SessionID: session,
+		Limit:     10,
+	})
+	if len(hits) == 0 {
+		t.Fatal("retrieve-after-ingest empty (same process)")
+	}
+	sawPrivate := false
+	sawHMAC := false
+	for _, h := range hits {
+		if h.Provenance.SourceHint == SourceHintPrivate {
+			sawPrivate = true
+		}
+		if strings.Contains(strings.ToLower(h.Content.Summary+h.Content.Full), "hmac") {
+			sawHMAC = true
+		}
+	}
+	if !sawPrivate {
+		t.Fatalf("expected source_hint=private on retrieve hits: %+v", hits[0].Provenance)
+	}
+	if !sawHMAC {
+		t.Fatalf("expected HMAC RCA turn in same-session retrieve, got %d hits", len(hits))
+	}
+
+	facts := store.ListFactsAsOf(FactsAsOfOptions{SessionID: session, Limit: 10})
+	if len(facts) < 3 {
+		t.Fatalf("facts-as-of got %d, want >= 3 extracted facts", len(facts))
+	}
+	for _, f := range facts {
+		if f.Provenance.SourceHint != SourceHintPrivate {
+			t.Fatalf("fact %s source_hint=%q want private", f.ID, f.Provenance.SourceHint)
+		}
+	}
+}

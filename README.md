@@ -6,7 +6,7 @@
 
 **Hierarchical agent memory for Go** — a portable library for durable, searchable memory entries with optional vector search and temporal APIs.
 
-Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memory)
+This is a **library kernel** (posture: embeddable filesystem palace), not a memory SaaS, not an agent runtime, and **not Memory GA**. It is also **not** [MemPalace](https://github.com/MemPalace) / `mempalace` (an unrelated Python project). Module: [`github.com/iome-sh/memory`](https://pkg.go.dev/github.com/iome-sh/memory)
 
 ## Features
 
@@ -27,35 +27,53 @@ go get github.com/iome-sh/memory@latest
 
 Requires the Go version in [`go.mod`](go.mod). CI uses `GOTOOLCHAIN=auto`.
 
-## Quick start
+## Supported topology
+
+**One process per palace root.** Multi-process writers on a shared `BaseDir` are **unsupported** — that is the product contract, not a defect to hide. In-process `writeMu` serializes the two shared files (`relations/entity-graph.json`, `indexes/event-time.json`). Per-entry JSON uses `CreateTemp` + `chmod 0600` + `Rename` (the rename is the ingest ack). Path isolation is not cloud tenancy.
+
+## Quick start (TTFH-shaped)
+
+The first worked path is the walking skeleton: ingest **three RCA-shaped turns**, **retrieve in the same process**, **list facts-as-of**, and **print `source_hint`**. Hash embedder · no Qdrant · no cloud palace. This is not a chatbot “favourite colour” demo.
+
+```bash
+git clone https://github.com/iome-sh/memory.git
+cd memory
+go run ./examples/ttfh_rca
+```
 
 ```go
-package main
+store := memory.NewPalaceStore("./data/ttfh-palace")
+session := "inc-webhook-5xx"
 
-import (
-	"fmt"
+_ = store.IngestTurn(memory.MemoryEntry{
+	SessionID: session,
+	Content: memory.MemoryContent{
+		Summary: "PagerDuty page: webhook ingress 5xx",
+		Full:    "On-call: webhook ingress returned 5xx. Start RCA from the signed delivery, not the dashboard chrome.",
+		Tags:    []string{"pagerduty"},
+	},
+	ExtractedFacts: []string{"PagerDuty page fired for webhook ingress 5xx"},
+})
+// …two more RCA turns (HMAC 200 ≠ consume receipt; CreateConsumer mode NULL)…
 
-	"github.com/iome-sh/memory"
-)
+hits := store.SearchMemoryWithOptions("hmac consume receipt", memory.SearchMemoryOptions{
+	SessionID: session,
+	Limit:     10,
+})
+for _, h := range hits {
+	fmt.Println(h.Content.Summary, h.Provenance.SourceHint) // private
+}
 
-func main() {
-	store := memory.NewPalaceStore("./data/palace")
-
-	id := memory.GenerateMemoryID()
-	_ = store.Write(memory.MemoryEntry{
-		ID:   id,
-		Tier: memory.TierContextual,
-		Content: memory.MemoryContent{
-			Summary: "Project alpha ships on Friday",
-		},
-	})
-
-	hits := store.SearchMemory("project alpha", nil, 5, nil)
-	for _, h := range hits {
-		fmt.Println(h.Content.Summary)
-	}
+facts := store.ListFactsAsOf(memory.FactsAsOfOptions{
+	SessionID: session,
+	Limit:     10,
+})
+for _, f := range facts {
+	fmt.Println(f.Content.Summary, f.Provenance.SourceHint)
 }
 ```
+
+Full program: [`examples/ttfh_rca`](examples/ttfh_rca). Host path (optional): [iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.3** + [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.3.2** — `/memory ingest` three RCA turns, then `/memory digest --require-sources mesh,private` (cite-both or explicit miss). Cost-max: hash embedder, no Qdrant, no cloud palace, optional Ollama via the TUI.
 
 If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store uses **`.palace`** under the process working directory (`DefaultPalaceBaseDir`). Prefer an explicit path in applications. This is a local filesystem root — not a leftover `.ossa` product path and not a hosted palace.
 
@@ -109,6 +127,22 @@ store := memory.NewPalaceStoreWithConfig(memory.PalaceConfig{
 ```
 
 Unit tests run without Podman/Qdrant. Integration helpers start a temporary container when available; set `PODMAN_QDRANT_SKIP=1` to force skip.
+
+## When to use this kernel
+
+Residual-honest buyer table. Stars and vendor LongMemEval scores are a category error here.
+
+| Job | Use |
+|-----|-----|
+| Inspectable local ops record (JSON files, `cat`/`diff`/cite) in Go, no required DB or extract LLM | **This kernel** |
+| Chatbot personalization API / drop-in memory SaaS | Mem0 |
+| Dual-clock temporal knowledge graph (Neo4j / FalkorDB / Neptune) | Graphiti / Zep |
+| Agent runtime that edits its own memory blocks | Letta |
+| Documents/tables → company knowledge graph | Cognee |
+| Already on LangGraph, want a Python library | LangMem |
+| Coding-agent session compressor / verbatim IDE store | claude-mem, **MemPalace** (unrelated Python project — name collision only) |
+
+**Naming:** MemPalace / `mempalace` is a different project. Industry roundups that list “MemPalace” next to Mem0 are not describing this repository.
 
 ## API overview
 
@@ -179,7 +213,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contributor guide and [SECURITY.m
 
 ### LongMemEval tooling (optional)
 
-Offline overlap smoke/bench (no OpenAI). Printed `aggregate recall` is **top-k gold-answer string overlap** (judge-free). It is **not** official V1 `evaluate_qa.py` + gpt-4o accuracy and **not** V2 LAFS Gain. Hash embeddings are the no-dep default; do not publish hash overlap as a leaderboard number. dual_write stays OFF. Not Memory GA.
+Methodology card: [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). **No official number is published.** Official V1 is upstream `evaluate_qa.py` + judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (ONNX, mixed-type, `session_id` on retrieve). Makefile default judge `gpt-4o-mini` is a cheap local path — not official V1.
+
+Offline overlap smoke/bench (no OpenAI). Printed `aggregate recall` is **top-k gold-answer string overlap** (judge-free). It is **not** official V1 and **not** V2 LAFS Gain. Hash embeddings are the no-dep default; do not publish hash overlap as a leaderboard number. dual_write stays OFF. Not Memory GA.
 
 ```bash
 make longmemeval-smoke
@@ -207,6 +243,7 @@ Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as RFC33
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
 | [SUPPORT.md](SUPPORT.md) | How to get help; scope (library kernel) and related host |
 | [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap (K0–K4 style) |
+| [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology card (no published official number) |
 | [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md) | OSS process checklist |
 
 ## Related projects
