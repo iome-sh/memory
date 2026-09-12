@@ -25,6 +25,101 @@ func writeCompactionNote(t *testing.T, store *PalaceStore, id string) {
 	}
 }
 
+func writeSessionCompactionNote(t *testing.T, store *PalaceStore, id, session string, ts time.Time) {
+	t.Helper()
+	err := store.Write(MemoryEntry{
+		ID:        id,
+		Type:      "note",
+		Tier:      TierContextual,
+		Version:   1,
+		CreatedAt: ts,
+		UpdatedAt: ts,
+		SessionID: session,
+		Timestamp: ts,
+		Content:   MemoryContent{Summary: "sprint note " + id, Full: "sprint planning notes " + id},
+		Metrics:   MemoryMetrics{ScoreImpact: 0.5},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func findContextualProduct(t *testing.T, store *PalaceStore, typ string) MemoryEntry {
+	t.Helper()
+	for _, e := range store.ListEntriesInTier(TierContextual) {
+		if e.Type == typ {
+			return e
+		}
+	}
+	t.Fatalf("expected %s product in contextual tier", typ)
+	return MemoryEntry{}
+}
+
+func assertOpenValidityAtNow(t *testing.T, e MemoryEntry, now time.Time) {
+	t.Helper()
+	from, until := ParseValidityWindow(e)
+	if until != nil {
+		t.Fatalf("did not expect valid_until on %s type=%s tags=%v", e.ID, e.Type, e.TemporalTags)
+	}
+	if !EntryValidAt(e, now) {
+		t.Fatalf("EntryValidAt(now) false for %s type=%s from=%v tags=%v", e.ID, e.Type, from, e.TemporalTags)
+	}
+}
+
+func assertListFactsAsOfCompactionProduct(t *testing.T, store *PalaceStore, session, productType string, sourceIDs []string) {
+	t.Helper()
+	now := time.Now().UTC()
+	product := findContextualProduct(t, store, productType)
+	if product.SessionID != session {
+		t.Fatalf("%s SessionID = %q, want %q", productType, product.SessionID, session)
+	}
+	assertOpenValidityAtNow(t, product, now)
+
+	facts := store.ListFactsAsOf(FactsAsOfOptions{SessionID: session, AsOf: now})
+	foundProduct := false
+	listed := map[string]bool{}
+	for _, e := range facts {
+		listed[e.ID] = true
+		if e.ID == product.ID {
+			foundProduct = true
+		}
+	}
+	if !foundProduct {
+		t.Fatalf("ListFactsAsOf(session=%s, asOf=now) missing %s product %s; got %v", session, productType, product.ID, idsOf(facts))
+	}
+
+	for _, id := range sourceIDs {
+		if _, ok := store.Load(id, TierContextual); ok {
+			t.Fatalf("source %s still in contextual", id)
+		}
+		src, ok := store.Load(id, TierArchival)
+		if !ok {
+			t.Fatalf("expected source %s in archival", id)
+		}
+		if src.Tier != TierArchival {
+			t.Fatalf("source %s Tier = %d, want archival", id, src.Tier)
+		}
+		assertOpenValidityAtNow(t, src, now)
+		if listed[id] {
+			t.Fatalf("archived source %s still in default ListFactsAsOf %v", id, idsOf(facts))
+		}
+	}
+
+	withArch := store.ListFactsAsOf(FactsAsOfOptions{SessionID: session, AsOf: now, IncludeArchival: true})
+	archListed := map[string]bool{}
+	for _, e := range withArch {
+		archListed[e.ID] = true
+	}
+	if !archListed[product.ID] {
+		t.Fatalf("IncludeArchival ListFactsAsOf missing product %s; got %v", product.ID, idsOf(withArch))
+	}
+	for _, id := range sourceIDs {
+		if !archListed[id] {
+			t.Fatalf("IncludeArchival ListFactsAsOf missing archival source %s; got %v", id, idsOf(withArch))
+		}
+	}
+}
+
 func TestPerformCompaction_StampsLastCompaction(t *testing.T) {
 	store := NewPalaceStore(t.TempDir())
 	if !store.GetStats().LastCompaction.IsZero() {
@@ -156,6 +251,73 @@ func TestHandleSummarize_StampsValidFrom(t *testing.T) {
 	}
 	if _, ok := store.Load("p1", TierArchival); !ok {
 		t.Fatal("expected p1 in archival after summarize")
+	}
+}
+
+func TestListFactsAsOf_AfterSummarize(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	session := "sess-t4-summarize"
+	ts := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
+	writeSessionCompactionNote(t, store, "p1", session, ts)
+	writeSessionCompactionNote(t, store, "p2", session, ts)
+
+	if err := store.handleSummarize([]string{"p1", "p2"}, TierContextual, DefaultCompactionConfig, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	assertListFactsAsOfCompactionProduct(t, store, session, "summary", []string{"p1", "p2"})
+}
+
+func TestListFactsAsOf_AfterMerge(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	session := "sess-t4-merge"
+	ts := time.Now().UTC().Add(-90 * time.Minute).Truncate(time.Second)
+	writeSessionCompactionNote(t, store, "m1", session, ts)
+	writeSessionCompactionNote(t, store, "m2", session, ts)
+
+	if err := store.handleMerge([]string{"m1", "m2"}, TierContextual, DefaultCompactionConfig, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	assertListFactsAsOfCompactionProduct(t, store, session, "merged", []string{"m1", "m2"})
+}
+
+func TestListFactsAsOf_AfterArchive_StillValidAtNow(t *testing.T) {
+	store := NewPalaceStore(t.TempDir())
+	session := "sess-t4-archive"
+	ts := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	writeSessionCompactionNote(t, store, "keep-1", session, ts)
+
+	if err := store.handleArchive([]string{"keep-1"}, TierContextual, DefaultCompactionConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().UTC()
+	if _, ok := store.Load("keep-1", TierContextual); ok {
+		t.Fatal("source still in contextual after ARCHIVE")
+	}
+	got, ok := store.Load("keep-1", TierArchival)
+	if !ok {
+		t.Fatal("expected archival copy after ARCHIVE")
+	}
+	assertOpenValidityAtNow(t, got, now)
+
+	current := store.ListFactsAsOf(FactsAsOfOptions{SessionID: session, AsOf: now})
+	for _, e := range current {
+		if e.ID == "keep-1" {
+			t.Fatal("ARCHIVE-only entry still in default ListFactsAsOf (archival excluded)")
+		}
+	}
+	withArch := store.ListFactsAsOf(FactsAsOfOptions{SessionID: session, AsOf: now, IncludeArchival: true})
+	found := false
+	for _, e := range withArch {
+		if e.ID == "keep-1" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("IncludeArchival ListFactsAsOf missing archived keep-1; got %v", idsOf(withArch))
 	}
 }
 
