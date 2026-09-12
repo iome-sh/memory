@@ -58,11 +58,16 @@ type MemoryEntry struct {
 	Relations  MemoryRelations  `json:"relations"`
 }
 
-// MemoryContent holds summary/full/tags
+// MemoryContent holds summary/full/tags and optional persisted ONNX vectors.
+// Embedding fields are omitted unless PersistEmbeddings is on and the model is
+// a non-hash id. Hash vectors are never stored (kernel #45).
 type MemoryContent struct {
-	Summary string   `json:"summary"`
-	Full    string   `json:"full,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
+	Summary        string    `json:"summary"`
+	Full           string    `json:"full,omitempty"`
+	Tags           []string  `json:"tags,omitempty"`
+	Embedding      []float32 `json:"embedding,omitempty"`
+	EmbeddingModel string    `json:"embedding_model,omitempty"`
+	EmbeddingDim   int       `json:"embedding_dim,omitempty"`
 }
 
 // MemoryProvenance tracks origin
@@ -116,6 +121,17 @@ type PalaceConfig struct {
 	CompactionConfig   CompactionConfig
 	EmbeddingFunc      EmbeddingFunc      `json:"-"` // pluggable (Phase 5.1)
 	BatchEmbeddingFunc BatchEmbeddingFunc `json:"-"` // optional ONNX batch path (Phase 5.1)
+	// PersistEmbeddings stores ONNX vectors on MemoryContent when true.
+	// Default false: Write does not persist embeddings. Hash models
+	// (EmbeddingModel empty or "hash") are never persisted even when true.
+	PersistEmbeddings bool
+	// EmbeddingModel is "hash" or empty for GenerateSimpleEmbedding; ONNX
+	// callers set a model id (e.g. "bge-small-en-v1.5"). Persist and search
+	// match on this string — not EmbeddingFunc pointer identity.
+	EmbeddingModel string
+	// EmbeddingDim is the expected vector width. 0 infers from EmbeddingFunc
+	// output or DefaultHashEmbeddingDim.
+	EmbeddingDim int
 	// DisableMetaIndex forces ListMemoryWithOptions to use the full FS scan path
 	// instead of the best-effort in-memory metadata index (K2 residual / s1066).
 	// Default false (index enabled). Useful for parity tests.
@@ -156,6 +172,8 @@ type PalaceStore struct {
 
 // NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3).
 // Empty BaseDir defaults to DefaultPalaceBaseDir (".palace") under the process cwd.
+// EmbeddingModel is left empty (hash default) unless the caller set it.
+// PersistEmbeddings stays false unless the caller set it.
 func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 	if cfg.BaseDir == "" {
 		cfg.BaseDir = DefaultPalaceBaseDir
@@ -169,6 +187,7 @@ func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 	if cfg.EmbeddingFunc == nil {
 		cfg.EmbeddingFunc = GenerateSimpleEmbedding
 	}
+	// Do not default EmbeddingModel to "hash"; empty means hash.
 	ps := &PalaceStore{
 		BaseDir:        cfg.BaseDir,
 		Config:         cfg,
@@ -267,6 +286,7 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 	if entry.Version == 0 {
 		entry.Version = 1
 	}
+	stripEntryEmbedding(&entry)
 	if err := ps.archiveToVersions(entry); err != nil {
 		// Non-fatal: versioning is best-effort
 	}
@@ -294,6 +314,13 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 // of the same ID and Version overwrites both the live tier file and that
 // snapshot. Callers who want history must increment Version themselves. This is
 // not automatic overwrite versioning and not a hosted version store.
+//
+// PersistEmbeddings default false strips embedding fields before marshal
+// (including stuffed floats). Hash models (EmbeddingModel empty or "hash")
+// never persist vectors, even when the flag is true (kernel #45). When the
+// flag is on and EmbeddingModel is a non-hash id, the JSON rename is the
+// ingest ack; embedding is then filled best-effort. Embed miss, empty output,
+// or panic is not an ingest failure.
 func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
@@ -303,14 +330,41 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if entry.Version == 0 {
 		entry.Version = 1
 	}
+
+	prev, hasPrev := ps.loadSameID(entry.ID, entry.Tier)
+	entry = ps.preparePersistedEntry(entry, prev, hasPrev)
+
 	if err := ps.archiveToVersions(entry); err != nil {
 		// Non-fatal: versioning is best-effort
 	}
 
-	dir := ps.getTierDir(entry.Tier)
-	filename := fmt.Sprintf("%s.json", entry.ID)
-	path := filepath.Join(dir, filename)
+	if err := ps.persistEntryFile(entry); err != nil {
+		return err
+	}
 
+	if !ps.shouldComputePersistedEmbedding(entry) {
+		return nil
+	}
+	vec, ok := ps.safeEmbedEntry(entry)
+	if !ok {
+		return nil
+	}
+	entry.Content.Embedding = vec
+	entry.Content.EmbeddingModel = strings.TrimSpace(ps.Config.EmbeddingModel)
+	entry.Content.EmbeddingDim = len(vec)
+	if err := ps.persistEntryFile(entry); err != nil {
+		// Ingest already acked on the first rename.
+		return nil
+	}
+	_ = ps.archiveToVersions(entry)
+	return nil
+}
+
+// persistEntryFile marshals entry to its tier JSON via CreateTemp+chmod 0600+Rename
+// and patches the meta index. The rename is the ingest ack.
+func (ps *PalaceStore) persistEntryFile(entry MemoryEntry) error {
+	dir := ps.getTierDir(entry.Tier)
+	path := filepath.Join(dir, entry.ID+".json")
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal failed: %w", err)
@@ -318,7 +372,6 @@ func (ps *PalaceStore) Write(entry MemoryEntry) error {
 	if err := palaceWriteFileAtomic(dir, path, ".tmp-"+entry.ID+"-*.json", data); err != nil {
 		return err
 	}
-	// Patch a clean meta index in place; stay dirty if unbuilt (s1066 / #63).
 	ps.upsertMetaIndex(entry, path)
 	return nil
 }
@@ -414,29 +467,49 @@ func entryEmbedText(e MemoryEntry) string {
 }
 
 // scoreEntriesByVector precomputes cosine similarity per entry (one embed per entry, not O(n log n) per sort compare).
-// When batchFn is set and len(results) > 1, uses a single batch ONNX forward pass.
-func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn EmbeddingFunc, batchFn BatchEmbeddingFunc) []scoredMemoryEntry {
+// When an entry already has a persisted Content.Embedding whose model and dim
+// match the query vec / store config, that vector is used and EmbeddingFunc is
+// not called for that entry. Hash models never use a stored vector (kernel #45).
+// When batchFn is set and more than one entry still needs an embed, uses a
+// single batch ONNX forward pass for those misses only.
+func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn EmbeddingFunc, batchFn BatchEmbeddingFunc, cfg PalaceConfig) []scoredMemoryEntry {
 	if len(results) == 0 {
 		return nil
 	}
 	dim := len(vec)
 	scored := make([]scoredMemoryEntry, len(results))
+	needEmbed := make([]int, 0, len(results))
 
-	if batchFn != nil && len(results) > 1 {
-		texts := make([]string, len(results))
-		for i, e := range results {
-			texts[i] = entryEmbedText(e)
+	for i, e := range results {
+		if persisted := persistedVectorForQuery(e, vec, cfg); len(persisted) > 0 {
+			scored[i] = scoredMemoryEntry{entry: e, score: CosineSimilarity(persisted, vec)}
+			continue
+		}
+		needEmbed = append(needEmbed, i)
+	}
+	if len(needEmbed) == 0 {
+		return scored
+	}
+
+	if batchFn != nil && len(needEmbed) > 1 {
+		texts := make([]string, len(needEmbed))
+		for j, i := range needEmbed {
+			texts[j] = entryEmbedText(results[i])
 		}
 		vecs, err := batchFn(texts, dim)
-		if err == nil && len(vecs) == len(results) {
-			for i, e := range results {
-				scored[i] = scoredMemoryEntry{entry: e, score: CosineSimilarity(vecs[i], vec)}
+		if err == nil && len(vecs) == len(needEmbed) {
+			for j, i := range needEmbed {
+				scored[i] = scoredMemoryEntry{entry: results[i], score: CosineSimilarity(vecs[j], vec)}
 			}
 			return scored
 		}
 	}
 
-	for i, e := range results {
+	if embedFn == nil {
+		embedFn = GenerateSimpleEmbedding
+	}
+	for _, i := range needEmbed {
+		e := results[i]
 		eVec := embedFn(entryEmbedText(e), dim)
 		scored[i] = scoredMemoryEntry{entry: e, score: CosineSimilarity(eVec, vec)}
 	}
@@ -678,6 +751,9 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 
 // SearchMemoryWithOptions provides hybrid retrieval with optional session, time-window,
 // and temporal re-ranking. Uses the configured EmbeddingFunc for vector re-ranking.
+// A persisted Content.Embedding is reused when EmbeddingModel and dim match the
+// query vec / store config; otherwise the entry is re-embedded. Keyword hits
+// still rank ahead of Limit.
 //
 // Default tiers when Tier==nil match ListMemoryWithOptions: Working+Contextual+Semantic.
 // Archival is included when IncludeArchival is set, or when the default-tier keyword
@@ -707,7 +783,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		if embedFn == nil {
 			embedFn = GenerateSimpleEmbedding
 		}
-		scored := scoreEntriesByVector(results, opts.QueryVec, embedFn, ps.Config.BatchEmbeddingFunc)
+		scored := scoreEntriesByVector(results, opts.QueryVec, embedFn, ps.Config.BatchEmbeddingFunc, ps.Config)
 		sort.Slice(scored, func(i, j int) bool {
 			return scored[i].score > scored[j].score
 		})
@@ -1235,6 +1311,7 @@ func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 				},
 			}
 			applyParentSessionAndValidFrom(&factEntry, entry, now)
+			ps.applyCompactionParentEmbedding(&factEntry, entry)
 
 			if err := ps.Write(factEntry); err != nil {
 				return fmt.Errorf("failed to write semantic fact: %w", err)

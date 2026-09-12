@@ -348,6 +348,7 @@ func (ps *PalaceStore) handleSummarize(ids []string, tier MemoryTier, cfg Compac
 		},
 	}
 	applyParentSessionAndValidFrom(&newEntry, firstParent, now)
+	ps.applyCompactionParentEmbedding(&newEntry, firstParent)
 	if err := ps.Write(newEntry); err != nil {
 		return fmt.Errorf("failed to write summary: %w", err)
 	}
@@ -425,6 +426,7 @@ func (ps *PalaceStore) handleCreateCorePrinciple(ids []string, tier MemoryTier, 
 		Metrics:    MemoryMetrics{ScoreImpact: totalScore/float64(len(parents)) + 1.0, UsageCount: 1},
 	}
 	applyParentSessionAndValidFrom(&newEntry, firstParent, now)
+	ps.applyCompactionParentEmbedding(&newEntry, firstParent)
 	if err := ps.Write(newEntry); err != nil {
 		return fmt.Errorf("failed to write core principle: %w", err)
 	}
@@ -517,6 +519,7 @@ func (ps *PalaceStore) handleMerge(ids []string, tier MemoryTier, cfg Compaction
 		Metrics:    MemoryMetrics{ScoreImpact: totalScore / float64(len(parents)), UsageCount: 1},
 	}
 	applyParentSessionAndValidFrom(&newEntry, firstParent, now)
+	ps.applyCompactionParentEmbedding(&newEntry, firstParent)
 	if err := ps.Write(newEntry); err != nil {
 		return fmt.Errorf("failed to write merge: %w", err)
 	}
