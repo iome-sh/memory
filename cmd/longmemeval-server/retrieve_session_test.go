@@ -114,3 +114,71 @@ func retrieveHasNeedle(out RetrieveResponse, needle string) bool {
 	}
 	return false
 }
+
+func TestLongMemEval_RetrieveCountQueryAssemblesCrossSessionFacts(t *testing.T) {
+	setupHashHarness(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ingest", handleIngest)
+	mux.HandleFunc("/retrieve", handleRetrieve)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	conv := "count-assembly-conv"
+	led := []ingestTurn{{
+		Role:      "user",
+		Content:   "I've had some experience from my Marketing Research class project, where I led the data analysis team and we did a comprehensive market analysis for a new product launch.",
+		Timestamp: time.Date(2023, 5, 28, 17, 25, 0, 0, time.UTC),
+		Cycle:     1,
+		SessionID: "hay-led",
+	}}
+	solo := []ingestTurn{{
+		Role:      "user",
+		Content:   "I've been working on a solo project for my Data Mining class, and I'm really interested in applying some of these techniques to my customer purchase data.",
+		Timestamp: time.Date(2023, 5, 24, 9, 36, 0, 0, time.UTC),
+		Cycle:     1,
+		SessionID: "hay-solo",
+	}}
+	if err := postIngest(srv.URL, conv, led); err != nil {
+		t.Fatal(err)
+	}
+	if err := postIngest(srv.URL, conv, solo); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		noise := []ingestTurn{{
+			Role:      "user",
+			Content:   "The elbow method is an excellent choice for clustering how many analysis techniques appear in project dashboards and number of projects metrics " + string(rune('a'+i)) + ".",
+			Timestamp: time.Date(2023, 5, 20, 6, 16, 0, 0, time.UTC),
+			Cycle:     1,
+			SessionID: "hay-noise",
+		}}
+		if err := postIngest(srv.URL, conv, noise); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	out, err := postRetrieveSession(srv.URL, "How many projects have I led", 8, conv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Memories) == 0 {
+		t.Fatal("expected retrieved memories")
+	}
+	if out.Memories[0].ID != "count-evidence" {
+		t.Fatalf("count query should lead with synthetic assembly, got id=%q summary=%q", out.Memories[0].ID, out.Memories[0].Summary)
+	}
+	blob := strings.ToLower(out.Memories[0].Summary + " " + out.Memories[0].Full)
+	if !strings.Contains(blob, "led the data analysis") {
+		t.Fatalf("assembly missing led-team gold: %#v", out.Memories[0])
+	}
+	if !strings.Contains(blob, "solo project") {
+		t.Fatalf("assembly missing solo-project gold: %#v", out.Memories[0])
+	}
+	if !retrieveHasNeedle(out, "led the data analysis") {
+		t.Fatalf("retrieve missed led-team gold; got %#v", out.Memories)
+	}
+	if !retrieveHasNeedle(out, "solo project") {
+		t.Fatalf("retrieve missed solo-project gold; got %#v", out.Memories)
+	}
+}

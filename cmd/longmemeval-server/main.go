@@ -327,6 +327,18 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Count queries: compact unique facts at the front of the reader context.
+	// Synthetic hit only — not written to the palace.
+	if evidence := memory.AssembleCountEvidence(req.Query, keywordResults); evidence != "" {
+		synth := memory.MemoryEntry{
+			ID:        "count-evidence",
+			Type:      "count_evidence",
+			SessionID: sessionID,
+			Content:   memory.MemoryContent{Summary: evidence, Full: evidence},
+		}
+		combined = append([]memory.MemoryEntry{synth}, combined...)
+	}
+
 	if len(combined) > req.Limit {
 		combined = combined[:req.Limit]
 	}

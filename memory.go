@@ -762,6 +762,9 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 // Archival is included when IncludeArchival is set, or when the default-tier keyword
 // hit set is empty (low-confidence fallback). That fallback is the empty keyword-hit
 // set, not a numeric cosine cutoff (Memory P0: do not invent a threshold).
+// Count queries (`how many` / `how much`) union matching turn_facts from the
+// session/`conv:` candidate set, rank named-pattern facts above fallback chatter,
+// then session-diversify before Limit.
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
 	limit := opts.Limit
 	if limit <= 0 {
@@ -781,6 +784,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = filterSearchCandidates(ps.collectSearchCandidates(expanded), expanded)
 		keywordHits = rankKeywordHitsByOverlap(filterEntriesByKeywords(results, query), query)
 	}
+	candidates := results
 	if len(opts.QueryVec) > 0 {
 		embedFn := ps.Config.EmbeddingFunc
 		if embedFn == nil {
@@ -805,6 +809,10 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 	}
 
 	if isCountQuery(query) {
+		// Pull matching turn_facts from the session/conv set, not only keyword
+		// hits, so "I led X" / "solo project" in another haystack session still
+		// reach Limit. Named-pattern facts outrank fallback chatter.
+		results = unionCountQueryFacts(results, candidates, query)
 		results = promoteFactEntriesForQuery(results, query)
 	}
 	// Limit. Diversify distinct SessionIDs so one haystack session cannot
@@ -1051,6 +1059,33 @@ func (ps *PalaceStore) ListEntriesInTier(tier MemoryTier) []MemoryEntry {
 	return entries
 }
 
+// atomicFactPatterns are named extractors. Hits outrank the first-person /
+// capital-letter fallback on count queries so chatter cannot bury "I led".
+var atomicFactPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(graduated|degree|studied|university|college|bachelor|master|phd|major in)`),
+	regexp.MustCompile(`(?i)(my name (is|was)|last name|changed my name|used to be called)`),
+	regexp.MustCompile(`(?i)(live in|moved to|from .*? (city|town|state|country)|grew up in)`),
+	regexp.MustCompile(`(?i)(favorite|love|hate|prefer|always .*? (eat|drink|listen|watch|read|wear))`),
+	regexp.MustCompile(`(?i)(bought|got a new|own|just purchased|added to my collection)`),
+	regexp.MustCompile(`(?i)(spent .*? (on|for)|paid .*? dollars|cost me)`),
+	regexp.MustCompile(`(?i)(\d+\s*(hours?|days?|weeks?|months?|years?|dollars?|bucks?|items?|shirts?|bikes?|plants?))`),
+	regexp.MustCompile(`(?i)(on .*? (birthday|anniversary|trip|vacation|wedding)|last (month|week|year)|this (month|year))`),
+	regexp.MustCompile(`(?i)(work at|job at|occupation|previous job|used to work)`),
+	regexp.MustCompile(`(?i)(\bled\b|\bleading\b).{0,80}(project|team|analysis)`),
+}
+
+func matchesNamedFactPattern(text string) bool {
+	if strings.TrimSpace(text) == "" {
+		return false
+	}
+	for _, re := range atomicFactPatterns {
+		if re.MatchString(text) {
+			return true
+		}
+	}
+	return false
+}
+
 // ExtractAtomicFacts extracts high-value personal facts from a memory entry.
 func ExtractAtomicFacts(entry MemoryEntry) []string {
 	text := entry.Content.Full
@@ -1064,19 +1099,6 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 	var facts []string
 	sentences := strings.Split(text, ". ")
 
-	factPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)(graduated|degree|studied|university|college|bachelor|master|phd|major in)`),
-		regexp.MustCompile(`(?i)(my name (is|was)|last name|changed my name|used to be called)`),
-		regexp.MustCompile(`(?i)(live in|moved to|from .*? (city|town|state|country)|grew up in)`),
-		regexp.MustCompile(`(?i)(favorite|love|hate|prefer|always .*? (eat|drink|listen|watch|read|wear))`),
-		regexp.MustCompile(`(?i)(bought|got a new|own|just purchased|added to my collection)`),
-		regexp.MustCompile(`(?i)(spent .*? (on|for)|paid .*? dollars|cost me)`),
-		regexp.MustCompile(`(?i)(\d+\s*(hours?|days?|weeks?|months?|years?|dollars?|bucks?|items?|shirts?|bikes?|plants?))`),
-		regexp.MustCompile(`(?i)(on .*? (birthday|anniversary|trip|vacation|wedding)|last (month|week|year)|this (month|year))`),
-		regexp.MustCompile(`(?i)(work at|job at|occupation|previous job|used to work)`),
-		regexp.MustCompile(`(?i)(\bled\b|\bleading\b).{0,80}(project|team|analysis)`),
-	}
-
 	for _, s := range sentences {
 		s := strings.TrimSpace(s)
 		if len(s) < 8 {
@@ -1084,7 +1106,7 @@ func ExtractAtomicFacts(entry MemoryEntry) []string {
 		}
 
 		matched := false
-		for _, re := range factPatterns {
+		for _, re := range atomicFactPatterns {
 			if re.MatchString(s) {
 				facts = append(facts, s)
 				matched = true

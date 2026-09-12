@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -205,6 +206,21 @@ func TestPromoteFactEntriesForQuery_RanksLedOverChatterFacts(t *testing.T) {
 	}
 }
 
+func TestPromoteFactEntriesForQuery_NamedOutranksFallbackChatter(t *testing.T) {
+	chatter := MemoryEntry{
+		ID: "f-chatter", Type: "turn_fact",
+		Content: MemoryContent{Summary: "I have many projects this semester in clustering class."},
+	}
+	gold := MemoryEntry{
+		ID: "f-led", Type: "turn_fact",
+		Content: MemoryContent{Summary: "I led the data analysis team on a marketing research class project."},
+	}
+	got := promoteFactEntriesForQuery([]MemoryEntry{chatter, gold}, "How many projects have I led")
+	if len(got) != 2 || got[0].ID != "f-led" {
+		t.Fatalf("named led-project fact should outrank fallback chatter, ids=%v", idsOf(got))
+	}
+}
+
 func TestExtractAtomicFacts_LedProject(t *testing.T) {
 	got := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
 		Full: "I led the data analysis team on a class project. The elbow method is useful.",
@@ -218,4 +234,100 @@ func TestExtractAtomicFacts_LedProject(t *testing.T) {
 	if !found {
 		t.Fatalf("expected led-project sentence in %v", got)
 	}
+
+	leading := ExtractAtomicFacts(MemoryEntry{Content: MemoryContent{
+		Full: "I am currently leading a data analysis project at work. Clustering is optional.",
+	}})
+	found = false
+	for _, s := range leading {
+		if strings.Contains(strings.ToLower(s), "leading a data analysis") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected leading-project sentence in %v", leading)
+	}
+}
+
+func TestSearchMemoryWithOptions_CountQueryAssemblesFactsAcrossSessions(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	conv := "proj-count"
+	if err := store.IngestTurn(MemoryEntry{
+		ID:        "turn-led",
+		SessionID: "hay-led",
+		Content: MemoryContent{
+			Full: "By the way, I've had some experience from my Marketing Research class project, where I led the data analysis team and we did a comprehensive market analysis for a new product launch.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.IngestTurn(MemoryEntry{
+		ID:        "turn-solo",
+		SessionID: "hay-solo",
+		Content: MemoryContent{
+			Full: "I've been working on a solo project for my Data Mining class, and I'm really interested in applying some of these techniques to my customer purchase data.",
+			Tags: []string{ConvTag(conv)},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 16; i++ {
+		if err := store.IngestTurn(MemoryEntry{
+			ID:        "turn-noise-" + strconv.Itoa(i),
+			SessionID: "hay-noise",
+			Content: MemoryContent{
+				Full: "The elbow method is an excellent choice for clustering how many analysis techniques appear in project dashboards and number of projects metrics " + strconv.Itoa(i) + ".",
+				Tags: []string{ConvTag(conv)},
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	q := "How many projects have I led"
+	hits := store.SearchMemoryWithOptions(q, SearchMemoryOptions{SessionID: conv, Limit: 6})
+	if !searchHayContains(hits, "led the data analysis") {
+		t.Fatalf("missing led-team gold under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+	if !searchHayContains(hits, "solo project") {
+		t.Fatalf("missing solo-project gold under small Limit; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
+	}
+
+	evidence := AssembleCountEvidence(q, hits)
+	lower := strings.ToLower(evidence)
+	if !strings.Contains(lower, "led the data analysis") {
+		t.Fatalf("assembly missing led fact: %q", evidence)
+	}
+	if !strings.Contains(lower, "solo project") {
+		t.Fatalf("assembly missing solo fact: %q", evidence)
+	}
+}
+
+func TestAssembleCountEvidence_SkipsNonCountQuery(t *testing.T) {
+	facts := []MemoryEntry{{
+		ID: "f-led", Type: "turn_fact",
+		Content: MemoryContent{Summary: "I led the data analysis team on a class project."},
+	}}
+	if got := AssembleCountEvidence("where do I work", facts); got != "" {
+		t.Fatalf("non-count query must not assemble, got %q", got)
+	}
+}
+
+func searchHayContains(hits []MemoryEntry, needle string) bool {
+	n := strings.ToLower(needle)
+	for _, h := range hits {
+		if strings.Contains(strings.ToLower(entryKeywordHaystack(h)), n) {
+			return true
+		}
+	}
+	return false
+}
+
+func summariesOf(hits []MemoryEntry) []string {
+	out := make([]string, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, h.Content.Summary)
+	}
+	return out
 }

@@ -50,3 +50,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
+- Next: remesure n=12 after #110 (overlap ranking + led extract) + count-assembly (named-fact rank, collect facts across sessions). Do not invent a Wave D row until that run exists.

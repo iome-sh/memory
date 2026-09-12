@@ -120,19 +120,23 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - LongMemEval ingest passes per-turn `session_id` and stamps `conv:<conv_id>`
 - Count questions (`how many` / `how much`) are not treated as calendar windows
 - Count queries promote `turn_fact` / `fact_augmented` children before Limit
+- Count queries rank named-pattern facts (led/leading+project, bought, spent, …) above fallback chatter
+- Count queries collect matching `turn_fact` children across the palace/`conv:` session set (stemmed noun overlap), not only the keyword hit list, then diversify+Limit
+- `AssembleCountEvidence` compact unique snippets (LongMemEval retrieve prepends a synthetic hit; not persisted)
 
 **Measure (2026-09-12):**
 
 - `ef6a3e9` T1 retrieve only: MiniLM/BGE **10/12**, `multi-session` **0/2**; all inner sessions in k=40.
 - `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
+- `2695e02` (#110) overlap ranking + led/leading extract: not remesured on n=12 yet.
 
-**Still open for T1:** rank `turn_fact` children by query overlap (noisy fallback facts); named extract for `led`/`leading` + project/team. Re-measure n=12 after that; then n=60.
+**Still open for T1:** remesure locked mixed n=12 on MiniLM **and** BGE after #110 + count-assembly. Do not mark T1 done until that remesure. Then n=60.
 
 **In scope (measure)**
 
 - Palace-side retrieve that can seed from **several** `SessionID`s (or “all sessions in this palace / conv”) without dropping keyword gold past `Limit`
 - Time-aware expansion that does **not** classify ordinary count questions as a calendar window and hide gold
-- Optional: assemble `ExtractedFacts` / facts-as-of across sessions before the reader (kernel helper, not an LLM)
+- Optional: assemble `ExtractedFacts` / facts-as-of across sessions before the reader (kernel helper, not an LLM) — **shipped this slice** (`AssembleCountEvidence` + search union)
 - Re-run locked mixed **n=12** (same IDs) then **n=60** (`testdata/longmemeval_baseline_ids_n60.json`) after the change
 
 **Out of scope**
