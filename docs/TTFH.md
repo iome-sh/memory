@@ -1,8 +1,8 @@
 # TTFH (walking skeleton)
 
-This is the operator-facing TTFH page for `github.com/iome-sh/memory`. It
-documents the **walking skeleton** only: ingest three RCA-shaped turns,
-retrieve in the **same process**, list facts-as-of, and print `source_hint`.
+This page documents the first worked path for `github.com/iome-sh/memory`:
+ingest three RCA-shaped turns, retrieve in the **same process**, list
+facts-as-of, and print `source_hint`.
 
 ## Walking skeleton
 
@@ -41,7 +41,7 @@ Retrieve query: `hmac consume receipt` (session `inc-webhook-5xx`). Then
 
 A green `go run` and a green unit test
 (`TestIngestTurn_TTFHShapedWalkingSkeleton`) lock retrieve-after-ingest for
-this kernel path. They are the walking skeleton, not a live laptop PULSE run.
+this kernel path.
 
 ## Host path (optional)
 
@@ -61,14 +61,11 @@ Cite-both needs a mesh-class receipt **and** a private-class receipt in the
 digest window. Catalog list is not consume. Grant-only is not cite-both. An
 explicit miss is success for this flag; inventing mesh is not.
 
-### Air-gap / no-PULSE worked miss
+### Local-only cite-both miss
 
-This transcript is **docs**, not a laptop PULSE run.
-
-Air-gap: no broker, no PULSE consume, local overlay only. After three private
-RCA ingest turns (same content as `examples/ttfh_rca`), cite-both must miss
-mesh. Do **not** stamp mesh on the local overlay to force cite-both.
-Catalog / grant / `source=external` never satisfy cite-both.
+With no mesh receipts (local overlay only), cite-both must miss mesh. Do
+**not** stamp mesh on the local overlay to force cite-both. Catalog / grant /
+`source=external` never satisfy cite-both.
 
 ```text
 /memory ingest
@@ -83,30 +80,14 @@ Catalog / grant / `source=external` never satisfy cite-both.
 require-sources: miss · required=mesh,private · cited=private · missing=mesh · receipt window newest-first · n=3 · mesh not in this receipt set · local palace on disk
 ```
 
-That miss is **success** for the flag (no mesh-class receipt in an air-gap).
-A green unit test and this page still do **not** prove a live laptop PULSE run.
+That miss is **success** for the flag (no mesh-class receipt in a local-only
+palace). This page is documentation of the commands, not a live mesh session.
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
-
-This optional host path is the walking skeleton on the TUI, not a live
-PULSE + three RCA + cite-both-or-miss laptop clock. Writing the commands here
-does not prove a laptop ran them against live PULSE.
-
-## What this page is not
-
-A **real laptop** run is **PULSE + 3 RCA + cite-both-or-miss**.
-
-This page does **not** substitute for that. A unit test does **not**.
-`go run ./examples/ttfh_rca` does **not**. Optional TUI/MCP
-pins and slash-command names do **not**. The air-gap /
-no-PULSE worked miss transcript above is **docs**, not a laptop PULSE run.
-
-Do not treat a docs PR, a README table row, or CI green as that laptop clock.
 
 ## Notes
 
 - inspectable filesystem palace remains the source of truth
 - one process per palace root (multi-process writers unsupported)
-- LongMemEval is a different clock — see [`LONGMEMEVAL.md`](LONGMEMEVAL.md);
-  a methodology card does not move TTFH / cite-both
+- LongMemEval is a different eval — see [`LONGMEMEVAL.md`](LONGMEMEVAL.md)
