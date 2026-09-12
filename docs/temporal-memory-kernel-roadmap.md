@@ -119,6 +119,9 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - Session-diverse ranking before Limit (round-robin distinct `SessionID`s)
 - LongMemEval ingest passes per-turn `session_id` and stamps `conv:<conv_id>`
 - Count questions (`how many` / `how much`) are not treated as calendar windows
+- Count queries promote `turn_fact` / `fact_augmented` children before Limit
+
+**Measure (2026-09-12, kernel `ef6a3e9`):** locked n=12 MiniLM/BGE still **10/12**, `multi-session` **0/2**. Retrieve now includes all inner haystack sessions (3 and 4 ids). Judge still fails: reader does not assemble the count from chatter. Headline rates unchanged vs pre-T1.
 
 **In scope (measure)**
 

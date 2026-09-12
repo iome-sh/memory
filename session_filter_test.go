@@ -144,3 +144,45 @@ func TestListFactsAsOf_ConvTag(t *testing.T) {
 		t.Fatalf("facts-as-of conv tag: %+v", idsOf(got))
 	}
 }
+
+func TestSearchMemoryWithOptions_CountQueryPromotesFacts(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	conv := "proj-conv"
+	for i := 0; i < 10; i++ {
+		e := MemoryEntry{
+			ID:        "chatter-" + string(rune('a'+i)),
+			Tier:      TierContextual,
+			SessionID: "s1",
+			Type:      "conversation_turn",
+			Content: MemoryContent{
+				Summary: "how many clustering methods elbow silhouette analysis",
+				Full:    "how many clustering methods elbow silhouette analysis for the project",
+				Tags:    []string{ConvTag(conv)},
+			},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fact := MemoryEntry{
+		ID:        "fact-led-two",
+		Tier:      TierSemantic,
+		SessionID: "s2",
+		Type:      "turn_fact",
+		Content: MemoryContent{
+			Summary: "Currently leading two data analysis projects",
+			Full:    "Currently leading two data analysis projects at work.",
+			Tags:    []string{ConvTag(conv), "fact_augmented", "from_turn"},
+		},
+	}
+	if err := store.Write(fact); err != nil {
+		t.Fatal(err)
+	}
+	hits := store.SearchMemoryWithOptions("How many projects have I led?", SearchMemoryOptions{
+		SessionID: conv,
+		Limit:     5,
+	})
+	if len(hits) == 0 || hits[0].ID != "fact-led-two" {
+		t.Fatalf("count query should lead with turn_fact, ids=%v", idsOf(hits))
+	}
+}

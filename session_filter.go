@@ -88,6 +88,39 @@ func sessionFilterIDs(sessionID string, sessionIDs []string) []string {
 // diversifyBySession round-robins distinct SessionID groups before Limit so
 // filler from one haystack session cannot occupy every slot (T1).
 // Single-session result sets are unchanged (prefix Limit).
+func isCountQuery(query string) bool {
+	q := strings.ToLower(query)
+	return strings.Contains(q, "how many") || strings.Contains(q, "how much")
+}
+
+func isFactEntry(e MemoryEntry) bool {
+	if e.Type == "turn_fact" || e.Type == "atomic_fact" {
+		return true
+	}
+	return EntryHasTag(e, "fact_augmented")
+}
+
+// promoteFactEntries puts turn_fact / fact_augmented children first so count
+// questions see extracted facts before haystack chatter (T1 assembly).
+func promoteFactEntries(results []MemoryEntry) []MemoryEntry {
+	if len(results) < 2 {
+		return results
+	}
+	facts := make([]MemoryEntry, 0, len(results))
+	rest := make([]MemoryEntry, 0, len(results))
+	for _, e := range results {
+		if isFactEntry(e) {
+			facts = append(facts, e)
+		} else {
+			rest = append(rest, e)
+		}
+	}
+	if len(facts) == 0 {
+		return results
+	}
+	return append(facts, rest...)
+}
+
 func diversifyBySession(entries []MemoryEntry, limit int) []MemoryEntry {
 	if limit <= 0 || len(entries) <= limit {
 		return entries

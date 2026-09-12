@@ -804,6 +804,9 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = keepKeywordHitsFirst(results, keywordHits)
 	}
 
+	if isCountQuery(query) {
+		results = promoteFactEntries(results)
+	}
 	// Limit. Diversify distinct SessionIDs so one haystack session cannot
 	// fill every slot (T1). Single-session sets prefix Limit as before.
 	if len(results) > limit {
