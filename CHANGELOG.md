@@ -7,18 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Kernel-only · not Memory GA · dual_write OFF. No module tag.
+## [1.5.11] — 2026-09-12
+
+Kernel-only · not Memory GA · dual_write OFF.
 
 ### Added
 - **Optional ONNX vector persist (default off):** `PalaceConfig.PersistEmbeddings` (default **false**) plus `EmbeddingModel` / `EmbeddingDim`. `MemoryContent` may store `embedding` / `embedding_model` / `embedding_dim` only when the flag is on and `EmbeddingModel` is a non-hash id (e.g. `bge-small-en-v1.5`). Hash / empty / `"hash"` models never persist `GenerateSimpleEmbedding` vectors as stored vectors / `QueryVec` (kernel #45). Write acks JSON first (`CreateTemp`+`chmod 0600`+`Rename`); embed miss, empty output, or panic is not an ingest failure. `SearchMemoryWithOptions` reuses a matching persisted vec instead of re-embedding; keyword hits still rank ahead of `Limit`. Compaction copies a parent embedding only when model+dim match the store config, else drops. Not a hot vector index. Inspectable FS palace remains source of truth. usearch / ORT / Qdrant stay optional. Kernel-only · not Memory GA · dual_write OFF.
-- **TTFH-shaped quickstart:** [`examples/ttfh_rca`](examples/ttfh_rca) ingests three RCA-shaped turns, retrieves in the same process, lists facts-as-of, and prints `provenance.source_hint`. README leads with that path (not a chatbot colour demo). Host companion pins: iomesh-tui **v1.3.3** + iomesh-memory-mcp **v0.3.2**.
-- **LongMemEval methodology card:** [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). Official V1 = upstream `evaluate_qa.py` + judge `gpt-4o-2024-08-06`. Hash overlap stays unpublished. No official number in this change.
+- **TTFH-shaped quickstart (docs):** [`examples/ttfh_rca`](examples/ttfh_rca) ingests three RCA-shaped turns, retrieves in the same process, lists facts-as-of, and prints `provenance.source_hint`. README leads with that path (not a chatbot colour demo). Host companion pins: iomesh-tui **v1.3.3** + iomesh-memory-mcp **v0.3.2**.
+- **LongMemEval methodology card (docs):** [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). Official V1 = upstream `evaluate_qa.py` + judge `gpt-4o-2024-08-06`. Hash overlap stays unpublished. No official number in this change.
 
 ### Changed
 - **Default write path unchanged:** `PersistEmbeddings` defaults false; hash SearchMemory / ingest behavior is unchanged unless a caller opts into a non-hash model. Kernel-only · not Memory GA · dual_write OFF.
-- **Buyer table + naming collision:** README states when to use Palace versus Mem0 / Graphiti / Letta / Cognee / LangMem, and that MemPalace/`mempalace` is an unrelated Python project.
-- **Single-writer contract:** README + SECURITY.md name one process per palace root as the supported topology (multi-process writers unsupported — product contract).
-- **Changelog compare links:** add `[1.5.9]` / `[1.5.10]`; Unreleased compares from `v1.5.10`.
+- **Buyer table + naming collision (docs):** README states when to use Palace versus Mem0 / Graphiti / Letta / Cognee / LangMem, and that MemPalace/`mempalace` is an unrelated Python project.
+- **Single-writer contract (docs):** README + SECURITY.md name one process per palace root as the supported topology (multi-process writers unsupported — product contract).
 
 ## [1.5.10] — 2026-09-10
 
@@ -193,7 +194,8 @@ Kernel-only · not Memory GA · dual_write OFF.
 
 - Stable hierarchical agent memory package (Palace): PalaceStore, compaction, hybrid SearchMemory, pluggable embeddings, optional Qdrant dense + sparse.
 
-[Unreleased]: https://github.com/iome-sh/memory/compare/v1.5.10...HEAD
+[Unreleased]: https://github.com/iome-sh/memory/compare/v1.5.11...HEAD
+[1.5.11]: https://github.com/iome-sh/memory/compare/v1.5.10...v1.5.11
 [1.5.10]: https://github.com/iome-sh/memory/compare/v1.5.9...v1.5.10
 [1.5.9]: https://github.com/iome-sh/memory/compare/v1.5.8...v1.5.9
 [1.5.8]: https://github.com/iome-sh/memory/compare/v1.5.7...v1.5.8
