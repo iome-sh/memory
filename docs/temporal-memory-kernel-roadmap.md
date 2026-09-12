@@ -132,8 +132,9 @@ Order is **T1 → measure → T2 only if list latency hurts → T3/T4 on demand 
 - `a25a883` + fact promotion: hash/BGE **11/12**, `multi-session` **1/2** (clothes pass). MiniLM still **10/12** / **0/2**. Projects (`6d550036`) still miss.
 - `2695e02` (#110) Wave D: MiniLM **11/12** `multi-session` **1/2** (clothes pass); BGE **10/12** **0/2**; hash **9/12** **0/2**. Projects (`6d550036`) still miss. T1 done-when not met.
 - `f99c140` (#111) Wave E: MiniLM **12/12** `multi-session` **2/2**; BGE **11/12** **1/2**; hash **11/12** **1/2**. Projects pass all three. T1 done-when met. Residual n=12 miss: clothes (`0a995998` gold 3) on hash/BGE — this slice. Do not invent a remesure score.
+- `aa64dbc` (#115 on #114) Wave F: MiniLM **12/12** `multi-session` **2/2**; BGE **12/12** **2/2**; hash **11/12** **2/2**. Clothes pass all three. Residual: hash temporal `gpt4_2487a7cb`.
 
-**Still open for T1:** n=12 done-when met; clothes hash/BGE residual is this slice (unremeasured). Next scale: locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`). Not a README number.
+**Still open for T1:** n=12 clothes residual closed (Wave F). Hash still misses temporal `gpt4_2487a7cb`. Next: remesure locked mixed **n=60** on this kernel. Not a README number.
 
 **In scope (measure)**
 
