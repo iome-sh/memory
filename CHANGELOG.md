@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README:** install pin **v1.5.12**, companion hosts TUI **v1.3.7** / MCP **v0.4.2**, table of contents, compiling quickstart, `SessionIDs` on the search table, LongMemEval details moved to `docs/`. Release badge. No published LongMemEval number.
 
 ### Added
+- **Unique-entity restaurant clusters:** `AssembleCountEvidence` clusters distinct restaurant names for how-many-restaurant questions; catalogs are aliases. Clothing N-header unchanged. Does not invent a numeric gold.
 - **Wave I locked mixed n=12 (unpublished):** kernel `e094bec` after #122+#124+#127+#129+#132. hash/MiniLM/BGE **10/12** MS **1/2**. Clothes `0a995998` miss all three (numbered `1. 2. 3.` + N=3 in retrieve; reader summed 2). Projects `6d550036` pass all three (MiniLM recovered vs Wave H). Temporal `gpt4_2487a7cb` pass. KU `6aeb4375` miss all three (3 vs gold 4). `852ce960` not in n=12. #134 T4-perf not this remesure. **Not a README number.** **Not official V1.**
 - **Dated-span text-date delta:** `AssembleTemporalEvidence` appends `text dates N days apart (phrase → phrase)` from parsed text times (not ingest Timestamp) when a how-many-days-between query has ≥2 dated bullets. Does not invent a gold answer.
 - **T2 list-latency bench:** `BenchmarkListMemoryWithOptions_SessionTimeLimit` (meta index vs `DisableMetaIndex` O(n) fallback). Optional `BenchmarkSearchMemoryWithOptions_CountQuery` documents skip-vector (#122). btree / tag secondaries stay gated until this bench shows list rebuild cost.

@@ -233,13 +233,16 @@ func factOverlapsCountQuery(e MemoryEntry, query string) bool {
 	if isClothingCountQuery(query) && isClothingErrandText(hay) {
 		return true
 	}
-	// Kit / plant names often lack the query noun ("plants" vs "peace lily").
-	// Catalog aliases and extracted kit/plant phrases both count as overlap.
+	// Kit / plant / restaurant names often lack the query noun ("plants" vs
+	// "peace lily", "Banchan" vs "restaurants"). Catalog aliases and extracted
+	// phrases both count as overlap.
 	switch countEntityKind(query) {
 	case "kit":
 		return len(uniqueEntityClusters(hay, "kit")) > 0
 	case "plant":
 		return len(uniqueEntityClusters(hay, "plant")) > 0
+	case "restaurant":
+		return len(uniqueEntityClusters(hay, "restaurant")) > 0
 	case "hours":
 		return hasHourQuantity(hay)
 	}
@@ -365,8 +368,8 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // × boot / blazer / generic) so a compound "return … pick them up" is two bullets
 // and dry-clean survives when the query only says pick/return/store. Other
 // quantity queries cluster by distinctive object (kit identity, plant name,
-// hour+destination; catalogs are aliases) so a repeated B-29 is one kit and
-// two plants in one turn are two clusters. Clothing action×object clusters prefix
+// hour+destination, restaurant name; catalogs are aliases) so a repeated B-29
+// is one kit and two plants in one turn are two clusters. Clothing action×object clusters prefix
 // "Count evidence (N distinct items):" and numbered bullets (1. 2. 3. in
 // cluster order) so a reader can enumerate clusters. Unique-entity and
 // exact-text paths prefix "Count evidence:" without N and stay unnumbered
@@ -509,12 +512,20 @@ var destCatalog = []namedIdentity{
 	{key: "tennessee", re: regexp.MustCompile(`(?i)\btennessee\b`)},
 }
 
+// restaurantCatalog is optional aliases. Unseen names still cluster via
+// "… restaurant" phrases, quoted names, and dining-verb proper nouns.
+var restaurantCatalog = []namedIdentity{}
+
 var (
-	reHoursPrep  = regexp.MustCompile(`(?i)\b(?:\d+|` + wordNumberAlt + `)\s+hours?\s+(?:to|in|for|at|toward|towards)\s+`)
-	reKitAnchor  = regexp.MustCompile(`(?i)\b(?:model\s+)?kits?\b`)
-	reNamedPlant = regexp.MustCompile(`(?i)\b([A-Za-z][A-Za-z0-9-]*)\s+plants?\b`)
-	reModelCode  = regexp.MustCompile(`(?i)^[a-z]{1,3}-?\d{1,3}[a-z0-9]*$`)
-	reMarkCode   = regexp.MustCompile(`(?i)^mk\.?[ivxlcdm0-9]+$`)
+	reHoursPrep        = regexp.MustCompile(`(?i)\b(?:\d+|` + wordNumberAlt + `)\s+hours?\s+(?:to|in|for|at|toward|towards)\s+`)
+	reKitAnchor        = regexp.MustCompile(`(?i)\b(?:model\s+)?kits?\b`)
+	reNamedPlant       = regexp.MustCompile(`(?i)\b([A-Za-z][A-Za-z0-9-]*)\s+plants?\b`)
+	reModelCode        = regexp.MustCompile(`(?i)^[a-z]{1,3}-?\d{1,3}[a-z0-9]*$`)
+	reMarkCode         = regexp.MustCompile(`(?i)^mk\.?[ivxlcdm0-9]+$`)
+	reRestaurantAnchor = regexp.MustCompile(`(?i)\brestaurants?\b`)
+	reQuotedName       = regexp.MustCompile(`["“”]([^"“”\n]{2,48})["“”]`)
+	reDiningVerb       = regexp.MustCompile(`(?i)\b(?:(?:went|go(?:ing)?)\s+back\s+to|(?:went|go(?:ing)?)\s+to|tried|try(?:ing)?|ate\s+at|eat(?:ing)?\s+at|dined\s+at|dine\s+at|had\s+(?:dinner|lunch|brunch|breakfast)\s+at|visited|visit(?:ing)?|ordered\s+(?:from|at)|stopped\s+(?:by|at))\s+`)
+	reRestaurantSuffix = regexp.MustCompile(`\b((?:[A-Z][A-Za-z0-9'’.-]*\s+){0,3}[A-Z][A-Za-z0-9'’.-]*)\s+(Kitchens?|Houses?|Grills?|Bistros?|Caf[eé]s?|BBQs?|Eaterys?|Eateries|Diners?|Taverns?)\b`)
 )
 
 var kitPhraseStop = map[string]struct{}{
@@ -549,6 +560,44 @@ var plantNameStop = map[string]struct{}{
 	"her": {}, "their": {},
 }
 
+var restaurantPhraseStop = map[string]struct{}{
+	"a": {}, "an": {}, "the": {}, "this": {}, "that": {}, "these": {}, "those": {},
+	"my": {}, "our": {}, "his": {}, "her": {}, "their": {}, "some": {}, "any": {},
+	"i": {}, "we": {}, "and": {}, "or": {}, "of": {}, "on": {}, "for": {}, "at": {},
+	"in": {}, "to": {}, "from": {}, "with": {}, "about": {}, "around": {},
+	"new": {}, "local": {}, "nearby": {}, "favorite": {}, "another": {},
+	"good": {}, "great": {}, "best": {}, "different": {}, "other": {},
+	"one": {}, "ones": {}, "place": {}, "places": {}, "spot": {}, "spots": {},
+	"how": {}, "many": {}, "much": {}, "number": {},
+	"tried": {}, "try": {}, "trying": {}, "ate": {}, "eat": {}, "eating": {},
+	"went": {}, "go": {}, "going": {}, "back": {}, "visited": {}, "visit": {},
+	"visiting": {}, "dined": {}, "dine": {}, "ordered": {}, "stopped": {},
+	"had": {}, "have": {}, "has": {}, "been": {}, "just": {}, "recently": {},
+	"also": {}, "last": {}, "week": {}, "month": {}, "year": {}, "today": {},
+	"so": {}, "far": {}, "there": {}, "here": {}, "it": {}, "them": {},
+	"city": {}, "town": {}, "area": {}, "neighborhood": {},
+	"making": {}, "make": {}, "home": {},
+}
+
+var restaurantCuisineStop = map[string]struct{}{
+	"korean": {}, "chinese": {}, "japanese": {}, "italian": {}, "mexican": {},
+	"thai": {}, "indian": {}, "vietnamese": {}, "french": {}, "american": {},
+	"mediterranean": {}, "ethiopian": {}, "greek": {}, "spanish": {},
+	"turkish": {}, "lebanese": {}, "persian": {}, "moroccan": {},
+	"brazilian": {}, "peruvian": {}, "filipino": {}, "malaysian": {},
+	"indonesian": {}, "caribbean": {}, "asian": {}, "european": {},
+	"fusion": {}, "soul": {},
+}
+
+var restaurantGenericName = map[string]struct{}{
+	"kitchen": {}, "kitchens": {}, "house": {}, "houses": {},
+	"grill": {}, "grills": {}, "bistro": {}, "bistros": {},
+	"cafe": {}, "cafes": {}, "café": {}, "cafés": {},
+	"bbq": {}, "eatery": {}, "eateries": {}, "diner": {}, "diners": {},
+	"tavern": {}, "taverns": {}, "restaurant": {}, "restaurants": {},
+	"bar": {}, "bars": {}, "place": {}, "places": {}, "spot": {}, "spots": {},
+}
+
 type entityCluster struct {
 	kind    string
 	key     string
@@ -568,6 +617,9 @@ func countEntityKind(query string) string {
 	}
 	if strings.Contains(q, "hour") {
 		return "hours"
+	}
+	if strings.Contains(q, "restaurant") {
+		return "restaurant"
 	}
 	if strings.Contains(q, "dollar") || strings.Contains(q, "buck") {
 		return "dollars"
@@ -604,16 +656,19 @@ func parseWordOrDigit(s string) int {
 	return n
 }
 
-// uniqueEntityClusters returns distinctive-object clusters for kit, plant, and
-// hours count queries. Catalogs are aliases; kits also parse "… kit" / "model
-// kit" noun phrases, plants also parse "<name> plant(s)", and hours also parse
-// dest after N hours to/in/for/at/toward.
+// uniqueEntityClusters returns distinctive-object clusters for kit, plant,
+// restaurant, and hours count queries. Catalogs are aliases; kits also parse
+// "… kit" / "model kit" noun phrases, plants also parse "<name> plant(s)",
+// restaurants also parse "… restaurant" / quoted names / dining-verb proper
+// nouns, and hours also parse dest after N hours to/in/for/at/toward.
 func uniqueEntityClusters(text, kind string) []entityCluster {
 	switch kind {
 	case "kit":
 		return mergeIdentityClusters(text, "kit", kitCatalog, extractKitPhrases(text))
 	case "plant":
 		return mergeIdentityClusters(text, "plant", plantCatalog, extractPlantPhrases(text))
+	case "restaurant":
+		return mergeIdentityClusters(text, "restaurant", restaurantCatalog, extractRestaurantPhrases(text))
 	case "hours":
 		return hoursClusters(text)
 	default:
@@ -881,6 +936,177 @@ func extractPlantPhrases(text string) []string {
 	return out
 }
 
+func extractRestaurantPhrases(text string) []string {
+	var out []string
+	seen := make(map[string]struct{}, 8)
+	add := func(s string) {
+		s = normalizeRestaurantName(s)
+		if s == "" {
+			return
+		}
+		key := strings.ToLower(s)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		out = append(out, s)
+	}
+	locs := reRestaurantAnchor.FindAllStringIndex(text, -1)
+	for _, loc := range locs {
+		toks := strings.Fields(text[:loc[0]])
+		var collected []string
+		looked := 0
+		for i := len(toks) - 1; i >= 0 && looked < 8; i-- {
+			looked++
+			tok := strings.Trim(toks[i], ".,;:!?\"'`()[]")
+			if tok == "" {
+				continue
+			}
+			low := strings.ToLower(tok)
+			if _, stop := restaurantPhraseStop[low]; stop {
+				if len(collected) > 0 {
+					break
+				}
+				continue
+			}
+			if _, ok := wordNumberValue[low]; ok {
+				if len(collected) > 0 {
+					break
+				}
+				continue
+			}
+			if isRestaurantNameToken(tok) {
+				collected = append([]string{tok}, collected...)
+				if len(collected) >= 4 {
+					break
+				}
+				continue
+			}
+			if len(collected) > 0 {
+				break
+			}
+		}
+		if len(collected) > 0 {
+			add(strings.Join(collected, " "))
+		}
+	}
+	for _, m := range reQuotedName.FindAllStringSubmatch(text, -1) {
+		if len(m) < 2 {
+			continue
+		}
+		add(m[1])
+	}
+	for _, loc := range reDiningVerb.FindAllStringIndex(text, -1) {
+		add(takeRestaurantName(strings.TrimSpace(text[loc[1]:])))
+	}
+	for _, m := range reRestaurantSuffix.FindAllStringSubmatch(text, -1) {
+		if len(m) < 3 {
+			continue
+		}
+		add(strings.TrimSpace(m[1] + " " + m[2]))
+	}
+	return out
+}
+
+func takeRestaurantName(rest string) string {
+	fields := strings.Fields(rest)
+	var parts []string
+	for i, f := range fields {
+		tok := strings.Trim(f, ".,;:!?\"'`()[]")
+		if tok == "" {
+			break
+		}
+		low := strings.ToLower(tok)
+		if i == 0 && (low == "the" || low == "a" || low == "an") && len(parts) == 0 {
+			continue
+		}
+		if low == "restaurant" || low == "restaurants" {
+			break
+		}
+		if _, stop := restaurantPhraseStop[low]; stop {
+			break
+		}
+		if _, ok := wordNumberValue[low]; ok {
+			break
+		}
+		if !isRestaurantNameToken(tok) {
+			break
+		}
+		parts = append(parts, tok)
+		if len(parts) >= 4 {
+			break
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+func isRestaurantNameToken(tok string) bool {
+	if tok == "" {
+		return false
+	}
+	low := strings.ToLower(tok)
+	if _, ok := restaurantCuisineStop[low]; ok {
+		return true
+	}
+	if _, ok := restaurantGenericName[low]; ok {
+		return true
+	}
+	r := []rune(tok)
+	return r[0] >= 'A' && r[0] <= 'Z'
+}
+
+func normalizeRestaurantName(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, `"'“”`)
+	fields := strings.Fields(s)
+	for len(fields) > 0 {
+		low := strings.ToLower(strings.Trim(fields[len(fields)-1], ".,;:!?\"'`()[]"))
+		if low == "restaurant" || low == "restaurants" {
+			fields = fields[:len(fields)-1]
+			continue
+		}
+		if _, ok := restaurantCuisineStop[low]; ok {
+			fields = fields[:len(fields)-1]
+			continue
+		}
+		break
+	}
+	for len(fields) > 0 {
+		low := strings.ToLower(strings.Trim(fields[0], ".,;:!?\"'`()[]"))
+		if _, stop := restaurantPhraseStop[low]; stop {
+			fields = fields[1:]
+			continue
+		}
+		if _, ok := restaurantCuisineStop[low]; ok && len(fields) > 1 {
+			fields = fields[1:]
+			continue
+		}
+		break
+	}
+	if len(fields) == 0 {
+		return ""
+	}
+	cleaned := make([]string, 0, len(fields))
+	for _, f := range fields {
+		tok := strings.Trim(f, ".,;:!?\"'`()[]")
+		if tok != "" {
+			cleaned = append(cleaned, tok)
+		}
+	}
+	if len(cleaned) == 0 {
+		return ""
+	}
+	if len(cleaned) == 1 {
+		if _, gen := restaurantGenericName[strings.ToLower(cleaned[0])]; gen {
+			return ""
+		}
+		if _, stop := restaurantPhraseStop[strings.ToLower(cleaned[0])]; stop {
+			return ""
+		}
+	}
+	return strings.Join(cleaned, " ")
+}
+
 func identitySlug(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	var b strings.Builder
@@ -901,9 +1127,9 @@ func identitySlug(s string) string {
 }
 
 // assembleUniqueEntityCountEvidence lists one dash bullet per distinctive kit /
-// plant / hour-destination identity. Catalogs are aliases; unseen kit phrases
-// and hour destinations still cluster. No (N distinct items) header; cluster
-// count is not gold.
+// plant / restaurant / hour-destination identity. Catalogs are aliases; unseen
+// kit phrases, restaurant names, and hour destinations still cluster. No
+// (N distinct items) header; cluster count is not gold.
 func assembleUniqueEntityCountEvidence(query string, matched []MemoryEntry) []string {
 	kind := countEntityKind(query)
 	if kind == "" || kind == "clothing" {
