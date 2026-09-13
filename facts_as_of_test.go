@@ -2,6 +2,7 @@ package memory
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -303,6 +304,116 @@ func TestListFactsAsOf_SemanticFirstOrdering(t *testing.T) {
 	}
 	if results[0].ID != "sem-old" {
 		t.Fatalf("Semantic should sort first, got %v", idsOf(results))
+	}
+}
+
+func TestListFactsAsOf_DoesNotStarveOnListLimit(t *testing.T) {
+	// Newer-invalid + older-valid in one session: ListMemoryWithOptions
+	// Limit=50 (newest first) would keep 40 invalid + 10 valid and starve
+	// as-of. collect must not pass Limit into listMemoryViaIndex.
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	asOf := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	fromOK := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	fromFuture := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 40; i++ {
+		e := MemoryEntry{
+			ID:        fmt.Sprintf("invalid-%02d", i),
+			Tier:      TierContextual,
+			SessionID: "sess-A",
+			Timestamp: asOf.Add(-time.Duration(i) * time.Minute),
+			TemporalTags: []string{
+				"valid_from:" + fromFuture.Format(time.RFC3339),
+			},
+			Content: MemoryContent{Summary: "not yet valid"},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 40; i++ {
+		e := MemoryEntry{
+			ID:        fmt.Sprintf("valid-%02d", i),
+			Tier:      TierContextual,
+			SessionID: "sess-A",
+			Timestamp: asOf.Add(-time.Duration(60+i) * time.Minute),
+			TemporalTags: []string{
+				"valid_from:" + fromOK.Format(time.RFC3339),
+			},
+			Content: MemoryContent{Summary: "valid now"},
+		}
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	results := store.ListFactsAsOf(FactsAsOfOptions{SessionID: "sess-A", AsOf: asOf, Limit: 50})
+	if len(results) != 40 {
+		t.Fatalf("starved as-of: len=%d want 40; got %v", len(results), idsOf(results))
+	}
+	for _, e := range results {
+		if !strings.HasPrefix(e.ID, "valid-") {
+			t.Fatalf("unexpected id %q in %v", e.ID, idsOf(results))
+		}
+	}
+}
+
+func TestListFactsAsOf_MetaIndexMatchesScan(t *testing.T) {
+	baseDir := t.TempDir()
+	idx := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	asOf := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	fromOK := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	vf := "valid_from:" + fromOK.Format(time.RFC3339)
+	conv := "qa-conv"
+	sem := TierSemantic
+	entries := []MemoryEntry{
+		{
+			ID: "a1", Tier: TierContextual, SessionID: "sess-A", Timestamp: asOf.Add(-time.Hour),
+			TemporalTags: []string{vf, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "Alice alpha notes", Tags: []string{ConvTag(conv)}},
+		},
+		{
+			ID: "b1", Tier: TierContextual, SessionID: "sess-B", Timestamp: asOf.Add(-2 * time.Hour),
+			TemporalTags: []string{vf, "entity:person:bob"},
+			Content:      MemoryContent{Summary: "Bob alpha notes"},
+		},
+		{
+			ID: "a-sem", Type: "turn_fact", Tier: TierSemantic, SessionID: "sess-A", Timestamp: asOf.Add(-3 * time.Hour),
+			TemporalTags: []string{vf, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "Alice semantic fact"},
+		},
+		{
+			ID: "arch", Tier: TierArchival, SessionID: "sess-A", Timestamp: asOf.Add(-4 * time.Hour),
+			TemporalTags: []string{vf},
+			Content:      MemoryContent{Summary: "archived alpha"},
+		},
+	}
+	for _, e := range entries {
+		if err := idx.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scan := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir, DisableMetaIndex: true})
+	cases := []struct {
+		name string
+		opts FactsAsOfOptions
+	}{
+		{"session", FactsAsOfOptions{SessionID: "sess-A", AsOf: asOf, Limit: 10}},
+		{"conv_tag", FactsAsOfOptions{SessionID: conv, AsOf: asOf, Limit: 10}},
+		{"query", FactsAsOfOptions{SessionID: "sess-A", Query: "alpha", AsOf: asOf, Limit: 10}},
+		{"entity", FactsAsOfOptions{Entity: "alice", AsOf: asOf, Limit: 10}},
+		{"tier", FactsAsOfOptions{Tier: &sem, AsOf: asOf, Limit: 10}},
+		{"include_archival", FactsAsOfOptions{SessionID: "sess-A", AsOf: asOf, IncludeArchival: true, Limit: 10}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotIdx := idx.ListFactsAsOf(tc.opts)
+			gotScan := scan.ListFactsAsOf(tc.opts)
+			if !sameIDsInOrder(gotIdx, gotScan) {
+				t.Fatalf("index vs scan: index=%v scan=%v", idsOf(gotIdx), idsOf(gotScan))
+			}
+			if len(gotIdx) == 0 {
+				t.Fatal("empty facts as-of")
+			}
+		})
 	}
 }
 

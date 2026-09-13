@@ -132,10 +132,10 @@ type PalaceConfig struct {
 	// EmbeddingDim is the expected vector width. 0 infers from EmbeddingFunc
 	// output or DefaultHashEmbeddingDim.
 	EmbeddingDim int
-	// DisableMetaIndex forces ListMemoryWithOptions and search candidate
-	// collection to use the full FS scan path instead of the best-effort
-	// in-memory metadata index (K2 residual / s1066). Default false (index
-	// enabled). Useful for parity tests.
+	// DisableMetaIndex forces ListMemoryWithOptions, search candidate
+	// collection, and ListFactsAsOf to use the full FS scan path instead of
+	// the best-effort in-memory metadata index (K2 residual / s1066).
+	// Default false (index enabled). Useful for parity tests.
 	DisableMetaIndex bool
 	// DisableDurableIndex skips load/save of indexes/event-time.json.
 	// The in-memory meta index still runs unless DisableMetaIndex is set.
