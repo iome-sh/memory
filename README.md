@@ -39,6 +39,9 @@ Requires the Go version in [`go.mod`](go.mod) (currently **1.27**). CI uses `GOT
 Optional hosts that already pin this module:
 
 ```bash
+# Requires Go 1.27+ (this module and both hosts; see go.mod).
+# go install writes to $(go env GOPATH)/bin.
+export PATH="$(go env GOPATH)/bin:${PATH}"
 go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@v0.4.2
 go install github.com/iome-sh/iomesh-tui/cmd/iomesh@v1.3.7
 ```
