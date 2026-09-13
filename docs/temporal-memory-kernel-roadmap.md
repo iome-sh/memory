@@ -2,7 +2,7 @@
 
 **Repository:** [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory)  
 **Scope:** Temporal features **inside this package** (`PalaceStore`), not MCP/TUI hosts.  
-**As of:** 2026-09-12 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
+**As of:** 2026-09-12 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index · T4-perf `ListFactsAsOf` via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
 
 This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.7**, [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.2**) are optional.
 
@@ -20,7 +20,7 @@ The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/
 | **K1** | Session/time search + temporal re-rank | **Shipped** (v1.5.2) + T1 `SessionIDs` / skip-vector on count/temporal ([#122](https://github.com/iome-sh/memory/pull/122)) | — |
 | **K2** | Event-time timeline list + FS index | **Mostly shipped** — list API v1.5.3; durable `indexes/event-time.json`; in-memory patch on Write/unlink (v1.5.8). First list / stamp mismatch still rebuilds. T2 **bench** shipped ([#128](https://github.com/iome-sh/memory/pull/128) `376dd69`). | btree / tag secondaries **parked** — [#131](https://github.com/iome-sh/memory/pull/131) `ea94317` measure: rebuild is not the limiter |
 | **K3** | Optional Qwen3-0.6B **1024-d** | **Not started** (not blocking). Default ONNX **BGE-small 384-d**; MiniLM in-tree fallback; `PersistEmbeddings` default off. | Consumer-driven (**T5**) |
-| **K4** | Facts-as-of / validity windows | **Shipped lite** (v1.5.4) — `ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`. Compaction SUMMARIZE/MERGE stamp `valid_from`. **T4 tests shipped** ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): after MERGE/SUMMARIZE the product is still `ListFactsAsOf`-visible; ARCHIVE tier-move stays valid at now; no invented `valid_until`. | Temporal **edges** (**T3**); dual-clock **store** (**T8**, parked). `ListFactsAsOf` still scans facts (T4-perf parked). |
+| **K4** | Facts-as-of / validity windows | **Shipped lite** (v1.5.4) — `ListFactsAsOf`, `EntryValidAt`, `SearchMemoryOptions.AsOf`. Compaction SUMMARIZE/MERGE stamp `valid_from`. **T4 tests shipped** ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): after MERGE/SUMMARIZE the product is still `ListFactsAsOf`-visible; ARCHIVE tier-move stays valid at now; no invented `valid_until`. **T4-perf:** session/tier/query collect through the list meta index (no Limit); `EntryValidAt` / entity still after load. | Temporal **edges** (**T3**); dual-clock **store** (**T8**, parked). btree still gated. |
 | **A2** | Multi-hop retrieve | **Shipped lite** (v1.5.5–1.5.7) | Typed / bidirectional edges (**T3**) |
 | **A3** | Fact supersession | **Shipped lite** (v1.5.6) + latest-value **retrieve** evidence ([#122](https://github.com/iome-sh/memory/pull/122)) | Auto entity extract; NLP contradiction |
 
@@ -119,7 +119,7 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry
 
 Tags: `valid_from:<RFC3339>` inclusive start; `valid_until:<RFC3339>` **exclusive** end. No tags → valid if event time is zero or `!eventTime.After(asOf)`. Compaction SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE stamp `valid_from` from the parent.
 
-T4 tests ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): `ListFactsAsOf` after MERGE/SUMMARIZE still returns the product; sources move to archival without invented `valid_until`; ARCHIVE that only moves tiers stays valid at now. Dual-clock store is **not** shipped.
+T4 tests ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): `ListFactsAsOf` after MERGE/SUMMARIZE still returns the product; sources move to archival without invented `valid_until`; ARCHIVE that only moves tiers stays valid at now. Dual-clock store is **not** shipped. T4-perf: session/tier/query collect through the list meta index (no Limit); `EntryValidAt` / entity still after load.
 
 ### A3 lite — Supersession + latest-value retrieve
 
@@ -164,7 +164,7 @@ Count queries are **not** calendar windows. They union matching `turn_fact` chil
 | T2 list-latency bench | **Shipped** ([#128](https://github.com/iome-sh/memory/pull/128) `376dd69`) | `BenchmarkListMemoryWithOptions_SessionTimeLimit` MetaIndex vs `DisableMetaIndex`; `BenchmarkSearchMemoryWithOptions_CountQuery` skip-vector vs `QueryVec`. Measured ([#131](https://github.com/iome-sh/memory/pull/131) `ea94317`, Apple M4, N=200, `-benchtime=500ms -count=1`): warmed MetaIndex **792540 ns/op**; DisableMetaIndex **5125908 ns/op**; CountQuery_SkipVector **5510644 ns/op**; NonCount_WithQueryVec **6502154 ns/op**. Rebuild is **not** the limiter at N=200 (filter/load of survivors dominates). btree stays **parked**. |
 | Count-union on search candidates | **Shipped** ([#131](https://github.com/iome-sh/memory/pull/131) `ea94317`) | `collectSearchCandidates` applies session/time/tier through the list meta index and loads JSON only for survivors; `unionCountQueryFacts` unions that slice (no second palace walk). `DisableMetaIndex` keeps the O(n) path. Do **not** claim a hot vector index. |
 | btree / tag secondaries | **T2**, parked | #131 measure: DisableMetaIndex gap is full JSON scan vs index filter, not a btree range. Warmed MetaIndex ~1ms at N=200 and N=2000. |
-| `ListFactsAsOf` scan | **T4-perf parked** | Still walks facts in tier JSON. Tests in #126 lock compaction visibility, not scan cost. |
+| `ListFactsAsOf` via meta index | **T4-perf shipped** | Session/tier/query collect through `listMemoryViaIndex` (no Limit). `EntryValidAt` / entity still after load. `DisableMetaIndex` keeps the JSON walk. T4 compaction contract unchanged. btree still gated. |
 | Persist ONNX vectors | Opt-in | Default **off**. Hash never stored. |
 | usearch / ORT / Qdrant | Optional, off default path | Must not become required. Hash SearchMemory stays the zero-dep path. |
 
@@ -231,7 +231,7 @@ walk: skip edges where !validAt(asOf)
 - no invented `valid_until`
 - ARCHIVE tier-move stays valid at now (`IncludeArchival` to see it)
 
-Dual-clock store is **not** this slice (see **T8**). T4-perf (`ListFactsAsOf` still scans facts) stays parked until a measured as-of list is the limiter.
+Dual-clock store is **not** this slice (see **T8**). T4-perf: `ListFactsAsOf` collects session/tier/query through the list meta index (no Limit); `EntryValidAt` / entity still after load. `DisableMetaIndex` keeps the JSON walk. btree still gated.
 
 ### T5 — Embedding profiles (original K3)
 
@@ -302,7 +302,7 @@ A dual-clock store would record **when the row was written** separately from eve
 - Prefer new options fields and methods over breaking `SearchMemory` signatures
 - Embedding dimension changes require Qdrant collection recreation; note in the release
 - v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card · v1.5.12 T1 SessionIDs / conv tags / count assembly
-- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
+- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · T4-perf `ListFactsAsOf` via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
 
 ---
 

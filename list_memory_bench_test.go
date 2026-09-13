@@ -210,3 +210,60 @@ func BenchmarkListMemoryWithOptions_RebuildAndN2000(b *testing.B) {
 		}
 	})
 }
+
+func seedFactsAsOfBenchStore(b *testing.B, disableMetaIndex bool) *PalaceStore {
+	b.Helper()
+	store := seedListBenchStore(b, disableMetaIndex)
+	base := listBenchBaseTime()
+	for i := 0; i < 6; i++ {
+		sid := listBenchSessions[i%len(listBenchSessions)]
+		e := MemoryEntry{
+			ID:        fmt.Sprintf("turn-fact-%02d", i),
+			Type:      "turn_fact",
+			Tier:      TierSemantic,
+			SessionID: sid,
+			Timestamp: base.Add(time.Duration(i) * time.Hour),
+			Content: MemoryContent{
+				Summary: fmt.Sprintf("as-of fact %d %s", i, sid),
+				Full:    "facts-as-of bench body",
+			},
+		}
+		if err := store.Write(e); err != nil {
+			b.Fatal(err)
+		}
+	}
+	return store
+}
+
+func BenchmarkListFactsAsOf_SessionAsOf(b *testing.B) {
+	opts := FactsAsOfOptions{
+		SessionID: "sess-A",
+		AsOf:      time.Now().UTC(),
+		Limit:     50,
+	}
+	b.Run("MetaIndex", func(b *testing.B) {
+		store := seedFactsAsOfBenchStore(b, false)
+		// Warm so b.Loop measures the indexed collect path, not the first O(n) rebuild.
+		_ = store.ListFactsAsOf(opts)
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			n = len(store.ListFactsAsOf(opts))
+		}
+		if n == 0 {
+			b.Fatal("empty facts as-of")
+		}
+	})
+	b.Run("DisableMetaIndex", func(b *testing.B) {
+		store := seedFactsAsOfBenchStore(b, true)
+		_ = store.ListFactsAsOf(opts)
+		b.ReportAllocs()
+		var n int
+		for b.Loop() {
+			n = len(store.ListFactsAsOf(opts))
+		}
+		if n == 0 {
+			b.Fatal("empty facts as-of")
+		}
+	})
+}

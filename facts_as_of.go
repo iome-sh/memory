@@ -151,27 +151,23 @@ func tierSemanticRank(t MemoryTier) int {
 	return 1
 }
 
-// ListFactsAsOf lists entries valid at AsOf with optional filters.
-// Filters apply before Limit (underfill class, same as K1/K2).
-//
-// Order of operations: collect candidates → session → entity → query →
-// EntryValidAt(asOf) → sort (Semantic first, then event time desc) → limit.
-//
-// Default tiers when Tier == nil: Working + Contextual + Semantic
-// (+ Archival if IncludeArchival).
-//
-// Bi-temporal lite (validity window tags). Not full Graphiti dual
-// clocks + graph. FS Palace remains O(n) over tier files.
-func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
-	limit := opts.Limit
-	if limit <= 0 {
-		limit = 50
+// collectFactsAsOfCandidates returns as-of list candidates. When the meta
+// index is enabled, session/tier/query run on entryMeta and full JSON is
+// loaded only for survivors (same index as ListMemoryWithOptions). Limit is
+// not passed — ListMemoryWithOptions would default Limit=50 and starve as-of.
+// AsOf/entity are not applied here: entryMeta has no valid_from/until, and
+// entity matching is post-load. DisableMetaIndex keeps the O(n)
+// ListEntriesInTier walk plus session filter.
+func (ps *PalaceStore) collectFactsAsOfCandidates(opts FactsAsOfOptions) []MemoryEntry {
+	if !ps.Config.DisableMetaIndex {
+		return ps.listMemoryViaIndex(ListMemoryOptions{
+			SessionID:       opts.SessionID,
+			SessionIDs:      opts.SessionIDs,
+			Query:           opts.Query,
+			Tier:            opts.Tier,
+			IncludeArchival: opts.IncludeArchival,
+		})
 	}
-	asOf := opts.AsOf
-	if asOf.IsZero() {
-		asOf = time.Now().UTC()
-	}
-
 	var results []MemoryEntry
 	if opts.Tier != nil {
 		results = ps.ListEntriesInTier(*opts.Tier)
@@ -184,7 +180,6 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 			results = append(results, ps.ListEntriesInTier(t)...)
 		}
 	}
-
 	if opts.SessionID != "" || len(opts.SessionIDs) > 0 {
 		var filtered []MemoryEntry
 		for _, e := range results {
@@ -194,6 +189,34 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 		}
 		results = filtered
 	}
+	return results
+}
+
+// ListFactsAsOf lists entries valid at AsOf with optional filters.
+// Filters apply before Limit (underfill class, same as K1/K2).
+//
+// Order of operations: collect candidates → session → entity → query →
+// EntryValidAt(asOf) → sort (Semantic first, then event time desc) → limit.
+//
+// Default tiers when Tier == nil: Working + Contextual + Semantic
+// (+ Archival if IncludeArchival).
+//
+// When the meta index is enabled, session/tier/query collect through
+// listMemoryViaIndex (no Limit). Entity and EntryValidAt still run after
+// load. DisableMetaIndex keeps the O(n) ListEntriesInTier walk.
+// Bi-temporal lite (validity window tags). Not full Graphiti dual
+// clocks + graph.
+func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	asOf := opts.AsOf
+	if asOf.IsZero() {
+		asOf = time.Now().UTC()
+	}
+
+	results := ps.collectFactsAsOfCandidates(opts)
 
 	if opts.Entity != "" {
 		var filtered []MemoryEntry
@@ -205,7 +228,9 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 		results = filtered
 	}
 
-	if opts.Query != "" {
+	// Query is already applied on the meta-index collect path (queryHay).
+	// DisableMetaIndex still filters here (same Summary/Full/OriginalText hay).
+	if ps.Config.DisableMetaIndex && opts.Query != "" {
 		q := strings.ToLower(opts.Query)
 		var filtered []MemoryEntry
 		for _, e := range results {
