@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`longmemeval-v1-card` scored run LIMIT:** with `LONGMEMEVAL_QA_LIMIT` unset/0, generate the full mixed oracle (**n=500**) and do not pass `--limit` (no longer coerced to n=12). `LONGMEMEVAL_QA_LIMIT=12` remains an explicit mixed sample, **not** official V1. Prefix-n is not V1. No README number. dual_write OFF. not Memory GA. Hash is not V1.
+
 ### Changed
 - **ListFactsAsOf via meta index:** session/tier/query collect through the list meta index (no Limit); `EntryValidAt` / entity still after load. `DisableMetaIndex` keeps the JSON walk. T4 compaction contract unchanged. btree still gated.
 - **README companion install:** optional TUI/MCP `go install` names Go **1.27+** (this module and both hosts) and prepends `$(go env GOPATH)/bin` to `PATH` so `iomesh` is discoverable after install.

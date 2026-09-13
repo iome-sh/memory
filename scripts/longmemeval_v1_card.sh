@@ -3,8 +3,10 @@
 #
 # Optional; not part of make ci. Missing oracle is SKIP (exit 0), not a CI failure.
 #
-# Official V1 = upstream evaluate_qa.py + judge gpt-4o-2024-08-06 + mixed sample
-# + ONNX + session_id on retrieve + data/longmemeval_oracle.json.
+# Official V1 = upstream evaluate_qa.py + judge gpt-4o-2024-08-06 + mixed full
+# file (n=500) + ONNX + session_id on retrieve + data/longmemeval_oracle.json.
+# Prefix-n and mixed n=12 are not official V1.
+# LONGMEMEVAL_QA_LIMIT=12 is a mixed sample, not V1.
 #
 # testdata/longmemeval_oracle_subset.json is 3 single-session-user items —
 # that is not mixed official V1.
@@ -15,14 +17,19 @@
 # Usage:
 #   make longmemeval-v1-card
 #   scripts/longmemeval_v1_card.sh
+#   LONGMEMEVAL_V1_RUN=1 scripts/longmemeval_v1_card.sh
+#     official V1 scored run: mixed n=500 (full oracle); n=12 is not V1
 #   LONGMEMEVAL_V1_RUN=1 LONGMEMEVAL_QA_LIMIT=12 scripts/longmemeval_v1_card.sh
+#     mixed sample, not official V1
 #
 # Env:
 #   LONGMEMEVAL_DATASET      default data/longmemeval_oracle.json
 #   LONGMEMEVAL_QA_SAMPLE    default mixed (prefix is not official V1)
-#   LONGMEMEVAL_QA_LIMIT     mixed n (0 or unset = full file for histogram)
+#   LONGMEMEVAL_QA_LIMIT     mixed n; 0 or unset = full file (official V1 n=500).
+#                            Positive N (e.g. 12) is a mixed sample, not official V1.
 #   LONGMEMEVAL_V1_CARD_OUT  optional write path (stdout always; default no file)
-#   LONGMEMEVAL_V1_RUN       1 = generate+judge mixed sample (needs key + ONNX + server)
+#   LONGMEMEVAL_V1_RUN       1 = generate+judge mixed (needs key + ONNX + server).
+#                            Unset/0 LIMIT = full mixed n=500; do not coerce to 12.
 #   MEMORY_ONNX_MODEL_PATH   required for a scored official run (hash is not V1)
 #                            BGE-small-en-v1.5 if present; else in-tree MiniLM-L6-v2
 #                            (local path when BGE unavailable — not official V1 embed pin)
@@ -228,32 +235,41 @@ if [[ "${RUN}" == "1" || "${RUN}" == "true" ]]; then
       log "scored run SKIP — server embed_mode=hash (official V1 is ONNX)"
       SCORE_NOTE="scored run skipped: server embed_mode=hash"
     else
-      RUN_LIMIT="${LIMIT}"
-      if [[ "${RUN_LIMIT}" == "0" ]]; then
-        RUN_LIMIT=12
-        log "LONGMEMEVAL_QA_LIMIT unset/0; using mixed n=12 for scored sample (not full 500)"
-      fi
       export MEMORY_ONNX_MODEL_PATH="${ONNX_PATH}"
       export LONGMEMEVAL_QA_SAMPLE="mixed"
-      python3 scripts/longmemeval_qa_generate.py \
-        --dataset "${DATASET}" \
-        --output "${HYPOTHESES}" \
-        --sample mixed \
-        --limit "${RUN_LIMIT}" \
-        --workers "${LONGMEMEVAL_QA_WORKERS:-2}"
+      # Official V1 is mixed full file (n=500). Do not pass --limit when
+      # LONGMEMEVAL_QA_LIMIT is unset/0. Do not coerce to n=12.
+      # Positive LIMIT is a mixed sample, not official V1.
+      if [[ "${LIMIT}" =~ ^[1-9][0-9]*$ ]]; then
+        log "LONGMEMEVAL_QA_LIMIT=${LIMIT}: mixed sample n=${LIMIT} (not official V1; official V1 is mixed n=500)"
+        python3 scripts/longmemeval_qa_generate.py \
+          --dataset "${DATASET}" \
+          --output "${HYPOTHESES}" \
+          --sample mixed \
+          --limit "${LIMIT}" \
+          --workers "${LONGMEMEVAL_QA_WORKERS:-2}"
+      else
+        log "official V1 scored run: mixed n=500 (full oracle); n=12 is not V1"
+        python3 scripts/longmemeval_qa_generate.py \
+          --dataset "${DATASET}" \
+          --output "${HYPOTHESES}" \
+          --sample mixed \
+          --workers "${LONGMEMEVAL_QA_WORKERS:-2}"
+      fi
       bash scripts/longmemeval_judge.sh "${OFFICIAL_JUDGE}" "${HYPOTHESES}" "${DATASET}"
       SCORED="yes"
-      N_SLICE="${RUN_LIMIT}"
-      HIST_SLICE="$(python3 - "${DATASET}" "${RUN_LIMIT}" <<'PY'
-import json, os, sys
+      HIST_SLICE="$(python3 - "${DATASET}" "${LIMIT}" <<'PY'
+import json, sys
 sys.path.insert(0, "scripts")
 from longmemeval_sample import apply_limit, type_histogram
 with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
-slice_ = apply_limit(data, int(sys.argv[2]), "mixed")
-print(json.dumps(type_histogram(slice_), sort_keys=True))
+slice_ = apply_limit(data, int(sys.argv[2] or "0"), "mixed")
+print(json.dumps({"n": len(slice_), "hist": type_histogram(slice_)}, sort_keys=True))
 PY
 )"
+      N_SLICE="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["n"])' "${HIST_SLICE}")"
+      HIST_SLICE="$(python3 -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["hist"], sort_keys=True))' "${HIST_SLICE}")"
       SCORE_NOTE="mixed official-judge sample completed (unpublished · not hash-overlap · not a README number)"
       log "${SCORE_NOTE}"
     fi

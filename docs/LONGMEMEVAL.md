@@ -22,7 +22,7 @@ hugot layout (`make longmemeval-baseline`).
 | Label | What it is | What it is not |
 |-------|------------|----------------|
 | **In-repo overlap smoke** | `make longmemeval-smoke` / `longmemeval-recall-gate` / `longmemeval-bench`. Printed `aggregate recall` is **judge-free top-k gold-answer string overlap**. Default embedder is **hash**. | Official V1 QA accuracy. A leaderboard number. |
-| **Official V1** | Upstream `evaluate_qa.py` with judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (then S). Reader is the kernel retrieve path plus the generate script. `session_id` on retrieve. Embed mode **ONNX**, not hash. Mixed-type sample (`--sample mixed`). | Prefix-n on the official file (that slice is temporal-first). Hash overlap. A leaderboard number. |
+| **Official V1** | Upstream `evaluate_qa.py` with judge **`gpt-4o-2024-08-06`** against `longmemeval_oracle.json` (then S). Reader is the kernel retrieve path plus the generate script. `session_id` on retrieve. Embed mode **ONNX**, not hash. Mixed-type **full oracle (n=500)** (`--sample mixed`; do not pass `--limit`). | Prefix-n on the official file (temporal-first). Mixed n=12 (a sample, not V1). Hash overlap. A leaderboard number. |
 | **Official V2** | Later, separate harness (LAFS). This kernel can load V2 file layout (`make longmemeval-v2-bench`) without vendoring the ~7 GB snapshot. | A substitute for V1. A published Gain figure from this repo. |
 
 Makefile default `LONGMEMEVAL_JUDGE_MODEL` is **`gpt-4o-mini`** — a cheap local
@@ -94,14 +94,18 @@ make longmemeval-qa-generate LONGMEMEVAL_QA_SAMPLE=mixed
 LONGMEMEVAL_JUDGE_MODEL=gpt-4o-2024-08-06 make longmemeval-judge
 # scripts/longmemeval_judge.sh maps gpt-4o-2024-08-06 → upstream evaluate_qa.py zoo key gpt-4o.
 
-# Optional scored mixed sample (same official pin + ONNX + session_id). Writes the card.
+# Official V1 scored run: mixed full oracle n=500 (do not set LONGMEMEVAL_QA_LIMIT).
+LONGMEMEVAL_V1_RUN=1 make longmemeval-v1-card
+# Mixed sample n=12 is not official V1:
 LONGMEMEVAL_V1_RUN=1 LONGMEMEVAL_QA_LIMIT=12 make longmemeval-v1-card
 ```
 
 `--limit N` on `scripts/longmemeval_qa_generate.py` is **dataset prefix order**.
 Official V1 starts with `temporal-reasoning`, so a small n is not a mixed V1
 score. Use `--sample mixed` (or `LONGMEMEVAL_QA_SAMPLE=mixed`) and print the
-type histogram.
+type histogram. `LONGMEMEVAL_V1_RUN=1` without `LONGMEMEVAL_QA_LIMIT` is the
+full mixed oracle (**n=500**). `LONGMEMEVAL_QA_LIMIT=12` is a mixed sample,
+**not** official V1.
 
 `/retrieve` accepts `session_id`. Shared-palace QA without it is other-session
 dominated.
