@@ -18,6 +18,38 @@ Kernel `e094bec` (`origin/main` at remesure start): [#122](https://github.com/io
 
 Temporal `gpt4_2487a7cb` (webinar first) pass all three. Clothes (`0a995998`, gold 3) miss all three: retrieve prepends numbered `Count evidence (3 distinct items)` with `1. [dry-clean]` / `2. [return]` / `3. [pick-up]`; reader still summed 2. Projects (`6d550036`, gold 2) pass all three (`Count evidence:` without N; MiniLM recovered vs Wave H `8 distinct items`). Knowledge-update `6aeb4375` (Korean restaurants, gold 4) miss all three (reader 3; retrieve leads with stale “three”). Other types 2/2. Not official V1.
 
+## n=60 remesure — after #119+#122+#124+#129+#132 (kernel `5154a76`, 2026-09-13T00:54Z–01:19Z)
+
+Internal locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`, 10 of each of 6 types). First 12 IDs = n=12 lock. Reader `gpt-4o-mini`. Judge `gpt-4o-2024-08-06`. Isolated palace. Health `embed_mode` verified (MiniLM/BGE did **not** hash-fall-back). PersistEmbeddings default OFF. Qdrant off. Retrieve timeout 600; BGE workers 1. **Complete 60/60** (no timeouts). **Not a README number** · **not official V1**.
+
+This kernel is **after** [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132) (unlike v1.5.12 `e90a82d`, which was **before** #119). Worktree HEAD `5154a76395fcf25312ba82dfab4c7494fdcd24b4` (`v1.5.12-17-g5154a76`) includes [#134](https://github.com/iome-sh/memory/pull/134) T4-perf and Wave I docs [#135](https://github.com/iome-sh/memory/pull/135). [#136](https://github.com/iome-sh/memory/pull/136) restaurant clusters landed **after** this remesure and is not this card.
+
+| Embed | Judge-true | Rate | health `embed_mode` | knowledge-update | multi-session | ss-assistant | ss-preference | ss-user | temporal |
+|-------|------------|------|---------------------|------------------|---------------|--------------|---------------|---------|----------|
+| hash | **49/60** | 0.817 | `hash` | **8/10** | **9/10** | **10/10** | **6/10** | **9/10** | **7/10** |
+| MiniLM ONNX | **51/60** | 0.850 | `onnx-minilm-l6-v2` | **8/10** | **9/10** | **10/10** | **6/10** | **10/10** | **8/10** |
+| BAAI BGE ONNX | **47/60** | 0.783 | `onnx-bge-small-en-v1.5` | **8/10** | **8/10** | **10/10** | **5/10** | **9/10** | **7/10** |
+
+n=12 prefix vs Wave I (`e094bec` 10/12 all three): hash **10/12** (miss `0a995998` `6aeb4375`); MiniLM **11/12** (miss `6aeb4375` only; clothes pass this run); BGE **10/12** (miss `0a995998` `6aeb4375`). MiniLM clothes pass is reader/judge variance vs Wave I; do not treat Wave I MiniLM clothes miss as closed.
+
+| ID | Role | hash | MiniLM | BGE |
+|----|------|------|--------|-----|
+| `0a995998` | clothes gold 3 | FAIL (summed 2) | PASS | FAIL (summed 2) |
+| `gpt4_59c863d7` | kits gold 5 | PASS | PASS | PASS |
+| `aae3761f` | hours gold 15 | PASS | PASS | PASS |
+| `3a704032` | plants | PASS | PASS | PASS |
+| `852ce960` | KU mortgage gold $400k | FAIL ($350k) | FAIL ($350k) | FAIL ($350k) |
+| `6aeb4375` | KU restaurants gold 4 | FAIL (3) | FAIL (3) | FAIL (3) |
+| `08f4fc43` | days mass→Ash | FAIL | FAIL | FAIL |
+| `2a1811e2` | days Holi→mass | PASS | PASS | PASS |
+| `2c63a862` | days until house | PASS | PASS | PASS |
+
+Shared misses: `08f4fc43` `35a27287` `6aeb4375` `852ce960` `afdc33df` `caf03d32` `gpt4_2312f94c`. Hash-only: `0edc2aef`. MiniLM-only: none. BGE-only: `54026fce`.
+
+v1.5.12 `e90a82d` (before #119): hash 47/60 MS 8/10; MiniLM 48/60 MS 7/10; BGE **46/58 incomplete**. This remesure is complete /60.
+
+Artifacts (gitignored palaces): worktree `data/baseline-n60-wave-i/` (health, hypotheses JSONL, eval-results-gpt-4o, server logs). Log `/tmp/lme-n60-wave-i-run.log`. Summary `/tmp/lme-n60-wave-i-summary.md`.
+
 ## Wave H — T1 distinct-item count header (kernel `895f255` / #120, 2026-09-12T22:41Z–23:01Z)
 
 Kernel `#120` (`Count evidence (N distinct items):` / temporal `N distinct events`) on `#119`. Health `embed_mode` verified. **Not a README number.** `#122` (latest-value recency) is **not** this kernel.
@@ -140,4 +172,5 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave I is kernel `e094bec` (#122+#124+#127+#129+#132). Hash/MiniLM/BGE **10/12** MS **1/2**. Clothes `0a995998` miss all three (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` pass all three (MiniLM recovered). KU `6aeb4375` miss all three (3 vs gold 4). `852ce960` not in n=12. #134 not this remesure. n=60 after #119 still TBD. Not a README number.
+- Wave I is kernel `e094bec` (#122+#124+#127+#129+#132). Hash/MiniLM/BGE **10/12** MS **1/2**. Clothes `0a995998` miss all three (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` pass all three (MiniLM recovered). KU `6aeb4375` miss all three (3 vs gold 4). `852ce960` not in n=12. #134 not this remesure. Not a README number.
+- n=60 remesure after #119+#122+#124+#129+#132 is kernel `5154a76` (includes #134+#135; **before** #136). hash **49/60** MS **9/10**; MiniLM **51/60** MS **9/10**; BGE **47/60** MS **8/10**. Complete 60/60. Unlike v1.5.12 `e90a82d` (before #119). Not a README number.

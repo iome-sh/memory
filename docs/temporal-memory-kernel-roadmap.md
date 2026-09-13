@@ -35,8 +35,9 @@ The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/
 | H N-header | `895f255` [#120](https://github.com/iome-sh/memory/pull/120) | 11/12 1/2 | 10/12 0/2 | 11/12 1/2 | Clothes still 2; MiniLM projects overcount (`8 distinct`) |
 | I #122+#124+#127+#129+#132 | `e094bec` | 10/12 1/2 | 10/12 1/2 | 10/12 1/2 | Numbered clothes still reader 2; MiniLM projects recovered (no N); KU `6aeb4375` 3 vs 4 all three. [#134](https://github.com/iome-sh/memory/pull/134) **not** this remesure. |
 | n=60 v1.5.12 | `e90a82d` | 47/60 MS 8/10 | 48/60 MS 7/10 | **46/58** MS 6/8 | **Before [#119](https://github.com/iome-sh/memory/pull/119).** Clothes pass; kits/hours miss. BGE **incomplete** (timeouts `gpt4_59c863d7`, `e831120c`; 58/60 IDs). Do not treat 0.793 as comparable /60. |
+| n=60 after #119+#122+#124+#129+#132 | `5154a76` | 49/60 MS 9/10 | 51/60 MS 9/10 | 47/60 MS 8/10 | **After [#119](https://github.com/iome-sh/memory/pull/119).** Complete 60/60. Kits/hours/plants pass all 3. Days `2a1811e2`/`2c63a862` pass; `08f4fc43` miss. KU `852ce960` $350k all 3; restaurants `6aeb4375` 3 vs 4 all 3. [#136](https://github.com/iome-sh/memory/pull/136) **not** this remesure. |
 
-Clothes remesure after numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)): Wave I **miss all three** (retrieve `1. 2. 3.` + N=3; reader summed 2). n=12 after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132): Wave I hash/MiniLM/BGE **10/12** MS **1/2** (kernel `e094bec`). Projects pass all three. n=60 after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124) is **TBD**. Do not invent remesure scores.
+Clothes remesure after numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)): Wave I **miss all three** (retrieve `1. 2. 3.` + N=3; reader summed 2). n=12 after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132): Wave I hash/MiniLM/BGE **10/12** MS **1/2** (kernel `e094bec`). Projects pass all three. n=60 after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132): kernel `5154a76` hash **49/60** MS **9/10** / MiniLM **51/60** MS **9/10** / BGE **47/60** MS **8/10** (complete 60/60). Do not invent further remesure scores.
 
 **Walking skeleton:** `go run ./examples/ttfh_rca` — K0 + K1 session retrieve + K4 as-of. It does not exercise multi-session counts.
 
@@ -183,12 +184,12 @@ Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader
 
 | Residual | Evidence | Next slice |
 |----------|----------|------------|
-| Clothes gold 3, reader sums 2 | Waves G–I: 3 numbered clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Wave I remesure: **miss all three** (reader still summed 2). Does not invent “the answer is 3”. |
+| Clothes gold 3, reader sums 2 | Waves G–I: 3 numbered clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Wave I: **miss all three**. n=60 `5154a76`: MiniLM **PASS**; hash/BGE still summed 2. Does not invent “the answer is 3”. |
 | Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)). Wave I: projects **pass all three** (`Count evidence:` without N). MiniLM recovered. |
-| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | **T7 shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`): hours dest after `N hours to/in/for/at`; kits `… kit` noun phrases; catalogs as aliases. Remesure n=60 on #119+#122+#124+#132 **TBD**. |
-| Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`): `text dates N days apart (phrase → phrase)` from parsed text times. Remesure **TBD**. Does not invent gold. |
-| KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)) — **not in n=12**. Remesure n=60 **TBD**. |
-| KU restaurants 3 vs 4 | Wave I `6aeb4375` miss all three (gold **four**, hyp **three**) | **T7+ restaurant clusters shipped** ([#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a`). Unique-entity path now clusters restaurants. Remesure **TBD**. Clothing N-header unchanged. Does not invent gold 4. |
+| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | **T7 shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`). n=60 `5154a76`: kits `gpt4_59c863d7` / hours `aae3761f` / plants `3a704032` **pass all three**. |
+| Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`). n=60 `5154a76`: `2a1811e2` / `2c63a862` **pass all three**; `08f4fc43` **miss all three**. Does not invent gold. |
+| KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)). n=60 `5154a76`: **miss all three** (reader $350k). |
+| KU restaurants 3 vs 4 | Wave I `6aeb4375` miss all three (gold **four**, hyp **three**) | **T7+ restaurant clusters shipped** ([#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a`). n=60 `5154a76` is **before** #136: still 3 vs 4 all three. Remesure after #136 **TBD**. Clothing N-header unchanged. Does not invent gold 4. |
 | Skip-vector + #124 + #127 n=12 | Wave I `e094bec` | hash/MiniLM/BGE **10/12** MS **1/2**. Clothes still reader-side. KU `6aeb4375` 3 vs 4. [#134](https://github.com/iome-sh/memory/pull/134) not this remesure. |
 
 **Out of scope:** publishing a LongMemEval leaderboard number; default embedder Qwen3; flock.
@@ -253,7 +254,7 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 - Does **not** invent gold (“the answer is N”)
 - Does **not** treat how-many-days-between as a calendar-window filter
 
-Remesure of n=60 TR days-between is **TBD**.
+n=60 `5154a76` remesure: `2a1811e2` / `2c63a862` pass all three; `08f4fc43` miss all three.
 
 ### T7 — Generalized unique-entity clusters (**shipped**)
 
@@ -274,7 +275,7 @@ Remesure of n=60 TR days-between is **TBD**.
 
 **Out of scope (still):** clothing path changes; `(N distinct items)` on unique-entity; inventing “the answer is N”.
 
-Remesure of n=60 kits/hours is **TBD**. Restaurant remesure (Wave I KU `6aeb4375`) is **TBD**.
+n=60 `5154a76` remesure: kits/hours/plants **pass all three**. Restaurant remesure after [#136](https://github.com/iome-sh/memory/pull/136) is **TBD** (this n=60 is **before** #136; `6aeb4375` still 3 vs 4 all three).
 
 ### T8 — Dual-clock store (parked)
 
@@ -295,7 +296,7 @@ A dual-clock store would record **when the row was written** separately from eve
 ## Suggested implementation order
 
 1. **Remesure n=12** after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132) — **done (Wave I)** [#135](https://github.com/iome-sh/memory/pull/135) kernel `e094bec` hash/MiniLM/BGE **10/12** MS **1/2** KU **1/2** TR **2/2** (do not invent further). Clothes residual still reader.
-2. **Remesure n=60** after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129) — still **TBD** (do not invent; the v1.5.12 n=60 row above is **before** #119)
+2. **Remesure n=60** after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132) — **done** kernel `5154a76` hash **49/60** MS **9/10** / MiniLM **51/60** MS **9/10** / BGE **47/60** MS **8/10** (complete 60/60; unlike v1.5.12 `e90a82d` **before** #119). [#136](https://github.com/iome-sh/memory/pull/136) restaurant clusters **not** this remesure.
 3. **T6** dated-span text-date delta — **shipped** [#129](https://github.com/iome-sh/memory/pull/129)
 4. **T7** generalized unique-entity — **shipped** [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`; **T7+ restaurants shipped** [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a` — restaurant remesure **TBD**
 5. **T4-perf** `ListFactsAsOf` via meta index — **shipped** [#134](https://github.com/iome-sh/memory/pull/134) `2a3257c`. **T2 btree** only if rebuild is the limiter — still **parked**
