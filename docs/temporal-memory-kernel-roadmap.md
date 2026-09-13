@@ -33,9 +33,10 @@ The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/
 | F clothing clusters | `aa64dbc` [#115](https://github.com/iome-sh/memory/pull/115) | 11/12 **2/2** | **12/12 2/2** | **12/12 2/2** | Clothes pass; hash temporal miss |
 | G dated events | `b02abaf` [#119](https://github.com/iome-sh/memory/pull/119) | 11/12 1/2 | 11/12 1/2 | 11/12 1/2 | Temporal first **pass all 3**; clothes reader summed 2 |
 | H N-header | `895f255` [#120](https://github.com/iome-sh/memory/pull/120) | 11/12 1/2 | 10/12 0/2 | 11/12 1/2 | Clothes still 2; MiniLM projects overcount (`8 distinct`) |
+| I #122+#124+#127+#129+#132 | `e094bec` | 10/12 1/2 | 10/12 1/2 | 10/12 1/2 | Numbered clothes still reader 2; MiniLM projects recovered (no N); KU `6aeb4375` 3 vs 4 all three. [#134](https://github.com/iome-sh/memory/pull/134) **not** this remesure. |
 | n=60 v1.5.12 | `e90a82d` | 47/60 MS 8/10 | 48/60 MS 7/10 | **46/58** MS 6/8 | **Before [#119](https://github.com/iome-sh/memory/pull/119).** Clothes pass; kits/hours miss. BGE **incomplete** (timeouts `gpt4_59c863d7`, `e831120c`; 58/60 IDs). Do not treat 0.793 as comparable /60. |
 
-Clothes remesure after numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)) is **TBD**. n=12 after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) is **TBD**. n=60 after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124) is **TBD**. Do not invent remesure scores.
+Clothes remesure after numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)): Wave I **miss all three** (retrieve `1. 2. 3.` + N=3; reader summed 2). n=12 after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127)+[#129](https://github.com/iome-sh/memory/pull/129)+[#132](https://github.com/iome-sh/memory/pull/132): Wave I hash/MiniLM/BGE **10/12** MS **1/2** (kernel `e094bec`). Projects pass all three. n=60 after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124) is **TBD**. Do not invent remesure scores.
 
 **Walking skeleton:** `go run ./examples/ttfh_rca` — K0 + K1 session retrieve + K4 as-of. It does not exercise multi-session counts.
 
@@ -182,12 +183,13 @@ Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader
 
 | Residual | Evidence | Next slice |
 |----------|----------|------------|
-| Clothes gold 3, reader sums 2 | Waves G–H: 3 clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Remesure **TBD** — do not invent. Does not invent “the answer is 3”. |
-| Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)) — remesure after #122+#124+#127 |
+| Clothes gold 3, reader sums 2 | Waves G–I: 3 numbered clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Wave I remesure: **miss all three** (reader still summed 2). Does not invent “the answer is 3”. |
+| Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)). Wave I: projects **pass all three** (`Count evidence:` without N). MiniLM recovered. |
 | Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | **T7 shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`): hours dest after `N hours to/in/for/at`; kits `… kit` noun phrases; catalogs as aliases. Remesure n=60 on #119+#122+#124+#132 **TBD**. |
 | Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`): `text dates N days apart (phrase → phrase)` from parsed text times. Remesure **TBD**. Does not invent gold. |
-| KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)) — remesure |
-| Skip-vector + #124 + #127 n=12 | not remesured | Wave after #122+#124+#127 |
+| KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)) — **not in n=12**. Remesure n=60 **TBD**. |
+| KU restaurants 3 vs 4 | Wave I `6aeb4375` miss all three | Retrieve leads with stale “three”; later session has “four”. Not latest-value (dollar/scalar). |
+| Skip-vector + #124 + #127 n=12 | Wave I `e094bec` | hash/MiniLM/BGE **10/12** MS **1/2**. Clothes still reader-side. KU `6aeb4375` 3 vs 4. [#134](https://github.com/iome-sh/memory/pull/134) not this remesure. |
 
 **Out of scope:** publishing a LongMemEval leaderboard number; default embedder Qwen3; flock.
 
@@ -286,7 +288,7 @@ A dual-clock store would record **when the row was written** separately from eve
 
 ## Suggested implementation order
 
-1. **Remesure n=12** after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) (do not invent)
+1. **Remesure n=12** after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) — **Wave I** kernel `e094bec` hash/MiniLM/BGE **10/12** MS **1/2** (do not invent further)
 2. **Remesure n=60** after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129) (do not invent; the v1.5.12 n=60 row above is **before** #119)
 3. **T6** dated-span text-date delta — **shipped** [#129](https://github.com/iome-sh/memory/pull/129)
 4. **T7** generalized unique-entity — **shipped** [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`
