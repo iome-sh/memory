@@ -129,7 +129,9 @@ longmemeval-judge:
 # Missing data/longmemeval_oracle.json → SKIP exit 0 (not a CI failure).
 # testdata/longmemeval_oracle_subset.json is 3 single-session-user items — not mixed official V1.
 # Official judge pin is gpt-4o-2024-08-06. Default LONGMEMEVAL_JUDGE_MODEL=gpt-4o-mini is a cheap local path — not official V1.
-# LONGMEMEVAL_V1_RUN=1 also generates+judges a mixed sample (needs OPENAI_API_KEY + ONNX + running server).
+# LONGMEMEVAL_V1_RUN=1 generates+judges official V1 mixed n=500 (full oracle) unless
+# LONGMEMEVAL_QA_LIMIT is a positive integer (mixed sample, not official V1).
+# Needs OPENAI_API_KEY + ONNX + running server. n=12 is not V1.
 # Local ONNX: BGE-small-en-v1.5 if present; else in-tree testdata/models/KnightsAnalytics_all-MiniLM-L6-v2
 # (384-d). MiniLM is the local path when BGE is unavailable (HF download may 401) — not the official V1 embed pin.
 longmemeval-v1-card:
