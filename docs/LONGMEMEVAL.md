@@ -1,20 +1,24 @@
 # LongMemEval methodology card
 
+Kernel-only · **not Memory GA** · dual_write **OFF**.
+
 This page is the methodology card for any LongMemEval work on
 `github.com/iome-sh/memory`. It exists so a number cannot ship without a
-harness description. **No official score is published here.** A hash-overlap
-figure is an internal gate only — it is not official V1 and must not appear on
-the README, the site, or a deck.
+harness description. **No official score is published here** / README / site /
+deck. A hash-overlap figure is an internal gate only — it is not official V1
+and must not appear on the README, the site, or a deck.
 
 Companion walking skeleton (consume-clock / TTFH / cite-both) is
 [`examples/ttfh_rca`](../examples/ttfh_rca). A LongMemEval number does not move
-those clocks.
+those clocks. **Not Memory GA.**
 
-Locked mixed **n=12** hash vs MiniLM vs BAAI BGE comparison (same IDs, same
-judge): [`docs/LONGMEMEVAL_BASELINE.md`](LONGMEMEVAL_BASELINE.md). That table is
-an **improvement baseline**, not official V1 and not a README number.
-`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face repo
-(auth 404). Comparable BGE ONNX is `BAAI/bge-small-en-v1.5` reshaped into
+Locked mixed **n=12** / **n=60** hash vs MiniLM vs BAAI BGE comparison (same
+IDs, same judge): [`docs/LONGMEMEVAL_BASELINE.md`](LONGMEMEVAL_BASELINE.md).
+Those tables are an **improvement baseline**, not official V1 and not a README
+number. The first official V1 BGE mixed n=500 scored run is in **Internal run
+log** below (**INTERNAL unpublished**). Reproduce twice before any public
+figure. `KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face
+repo (auth 404). Comparable BGE ONNX is `BAAI/bge-small-en-v1.5` reshaped into
 hugot layout (`make longmemeval-baseline`).
 
 ## What official means
@@ -45,27 +49,32 @@ accuracy. Do not claim we beat Mem0, Graphiti, or Letta on a vendor harness.
 
 ## Card fields (fill when a scored run exists)
 
-Record these on every official-judge run. Leave values blank until the run is
-real.
+Record these on every official-judge run. First official V1 BGE mixed-500 is
+filled below. **INTERNAL unpublished.** Not a README number.
 
 | Field | Value |
 |-------|--------|
-| Date (UTC) | — |
-| Kernel commit SHA | — |
-| Kernel tag | v1.5.12 (or the tag under test) |
-| Dataset variant | LongMemEval-S / oracle JSON (`longmemeval_oracle.json`) |
-| Sample | `mixed` (stratified by `question_type`) — **not** prefix-n |
-| n (questions) | — |
-| Type histogram | — (print from `--sample mixed`) |
+| Date (UTC) | generate 2026-09-13T03:55:05Z → 2026-09-13T07:22:29Z; judge done 2026-09-13T07:27:03Z |
+| Kernel commit SHA | `9bee5428a6ff6d221ae57dca15da4a279ebca0f6` (`v1.5.12-20-g9bee542`) |
+| Kernel tag | v1.5.12-20-g9bee542. `#139` (`e075fdd`) is docs/script only and does not change this score. |
+| Dataset variant | gitignored `data/longmemeval_oracle.json` n=500 |
+| Sample | `--sample mixed` **no `--limit`** (full file) |
+| n (questions) | 500 complete (0 missing) |
+| Type histogram | `temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-preference` 30, `single-session-assistant` 56, `single-session-user` 70 |
 | Session scope | `session_id` = official `conv_id` on `/retrieve` |
-| Embed mode | ONNX (BGE-small-en-v1.5, 384-d). **Not hash.** |
-| Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions` |
-| Judge model pin | `gpt-4o-2024-08-06` |
+| Embed mode | health `onnx-bge-small-en-v1.5`; all 500 hyp rows `embed_mode=onnx-bge-small-en-v1.5`; `BAAI/bge-small-en-v1.5` hugot layout (not KnightsAnalytics 404). PersistEmbeddings **OFF**. **Not hash.** |
+| Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions`; `OPENAI_MODEL=gpt-4o-mini` |
+| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` (zoo key `gpt-4o`) |
 | Judge script | upstream `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
-| Qdrant | off unless `LONGMEMEVAL_QDRANT_URL` is set (not required) |
+| Qdrant | off |
+| dual_write | OFF |
+| Palace | isolated; port `:8781`; log `/tmp/lme-v1-official-run.log` |
+| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · reproduce twice before public** |
 
-First scored official V1 mixed run is **internal**. Public number optional and
-labelled. Hash overlap stays unpublished.
+This is the **first** official V1 BGE mixed-500 scored run. **INTERNAL
+unpublished.** Not a README number. Not Memory GA. Reproduce twice before any
+public figure. Hash overlap unpublished. n=12 / n=60 cards stay improvement
+baseline ≠ this V1 run. TTFH / cite-both is a different clock.
 
 ## How to run (operators)
 
@@ -115,7 +124,61 @@ RFC3339.
 
 ## Internal run log
 
-Label: **unpublished · not hash-overlap**. This section is not a README number. The official BGE-small-en-v1.5 card above stays unfilled — a MiniLM sample is **not** the official V1 embed pin.
+Label: **unpublished · not hash-overlap**. This section is not a README number.
+The first official V1 BGE mixed-500 card is recorded below (**INTERNAL
+unpublished**). MiniLM n=12 is **not** official V1. n=12 / n=60 stay
+improvement baseline ≠ this V1 run. **Not Memory GA.** TTFH / cite-both is a
+different clock. Reproduce twice before any public figure.
+
+### 2026-09-13 — official V1 BGE mixed n=500 (INTERNAL unpublished)
+
+First official V1 scored run. Isolated palace; port `:8781`. Log
+`/tmp/lme-v1-official-run.log`. Hypotheses gitignored:
+`data/v1-official/hypotheses-bge.jsonl` (+ `.eval-results-gpt-4o`) — **do not
+commit**. Hash overlap unpublished. n=12 / n=60 cards stay improvement
+baseline ≠ this V1 run. **Not Memory GA.** TTFH / cite-both is a different
+clock. **Not a README number.** Reproduce twice before any public figure.
+
+| Field | Value |
+|-------|--------|
+| Date (UTC) | generate 2026-09-13T03:55:05Z → 2026-09-13T07:22:29Z; judge done 2026-09-13T07:27:03Z |
+| Kernel commit SHA | `9bee5428a6ff6d221ae57dca15da4a279ebca0f6` (`v1.5.12-20-g9bee542`) |
+| Kernel tag | v1.5.12-20-g9bee542. `#139` (`e075fdd`) is docs/script only and does not change this score. |
+| Dataset variant | gitignored `data/longmemeval_oracle.json` n=500 |
+| Sample | `--sample mixed` **no `--limit`** (full file) |
+| n (questions) | 500 complete (0 missing) |
+| Type histogram | `temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-preference` 30, `single-session-assistant` 56, `single-session-user` 70 |
+| Session scope | `session_id` = official `conv_id` |
+| Embed mode | health `onnx-bge-small-en-v1.5`; all 500 hyp rows `embed_mode=onnx-bge-small-en-v1.5`; `BAAI/bge-small-en-v1.5` hugot layout (not KnightsAnalytics 404) |
+| PersistEmbeddings | OFF |
+| Qdrant | off |
+| dual_write | OFF |
+| Reader | `scripts/longmemeval_qa_generate.py` + `SearchMemoryWithOptions`; `OPENAI_MODEL=gpt-4o-mini` |
+| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` (zoo key `gpt-4o`) |
+| Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
+| Palace | isolated; port `:8781` |
+| Log | `/tmp/lme-v1-official-run.log` |
+| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · reproduce twice before public** |
+
+| Metric | Value |
+|--------|--------|
+| Overall Accuracy | **0.776** = **388/500** |
+| Task-averaged Accuracy | **0.802** |
+| Abstention Accuracy | **0.6333 (30)** |
+
+By type (judge-true):
+
+| Type | Judge-true | Rate |
+|------|------------|------|
+| single-session-user | **68/70** | 0.9714 |
+| single-session-assistant | **54/56** | 0.9643 |
+| knowledge-update | **63/78** | 0.8077 |
+| multi-session | **99/133** | 0.7444 |
+| single-session-preference | **21/30** | 0.700 |
+| temporal-reasoning | **83/133** | 0.6241 |
+
+n=500 complete (0 missing). Overall **388/500**. **Not a README number.** **Not
+Memory GA.**
 
 ### 2026-09-12 — official BGE-small-en-v1.5 ONNX retry (SKIP)
 
@@ -161,3 +224,6 @@ In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-us
 - Host walking skeleton (TUI `/memory digest --require-sources mesh,private`)
   is cite-both of mesh pull + private palace — a different clock from this eval.
 - `make longmemeval-v1-card` is optional and is **not** part of `make ci`.
+- First official V1 BGE mixed n=500 is **INTERNAL unpublished** (388/500).
+  Not a README number. Not Memory GA. Reproduce twice before public.
+  n=12 / n=60 remain improvement baseline ≠ this V1 run.
