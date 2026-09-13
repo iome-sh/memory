@@ -692,11 +692,12 @@ func TestAssembleCountEvidence_ClothingQueryNotUniqueEntity(t *testing.T) {
 		factEntry("c1", "s1", "I need to return some boots to Zara."),
 		factEntry("c2", "s2", "I still need to pick up my dry cleaning for the navy blue blazer."),
 		factEntry("k1", "s3", "I bought a P-51 Mustang kit at the hobby shop."),
+		factEntry("r1", "s4", "I tried Banchan Korean restaurant."),
 	}
 	q := "How many items of clothing do I need to pick up or return from a store?"
 	got := AssembleCountEvidence(q, facts)
 	lower := strings.ToLower(got)
-	if strings.Contains(lower, "[kit:") || strings.Contains(lower, "[plant:") || strings.Contains(lower, "[hours:") {
+	if strings.Contains(lower, "[kit:") || strings.Contains(lower, "[plant:") || strings.Contains(lower, "[hours:") || strings.Contains(lower, "[restaurant:") {
 		t.Fatalf("clothing query must not take unique-entity path: %q", got)
 	}
 	if !strings.Contains(lower, "distinct items") {
@@ -704,6 +705,63 @@ func TestAssembleCountEvidence_ClothingQueryNotUniqueEntity(t *testing.T) {
 	}
 	if !strings.Contains(got, "1. ") {
 		t.Fatalf("clothing path should number bullets: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_RestaurantsThreeNamesDedupeBanchan(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("r1", "s1", "I tried Banchan Korean restaurant"),
+		factEntry("r2", "s2", "I tried Noodle House Korean restaurant"),
+		factEntry("r3", "s3", "I tried Seoul Kitchen"),
+		factEntry("r4", "s4", "I went back to Banchan"),
+	}
+	q := "How many Korean restaurants have I tried in my city?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[restaurant:") != 3 {
+		t.Fatalf("want 3 restaurant clusters (Banchan once), got %q", got)
+	}
+	if strings.Count(lower, "[restaurant:banchan]") != 1 {
+		t.Fatalf("repeated Banchan must be one cluster, got %q", got)
+	}
+	for _, key := range []string{"[restaurant:banchan]", "[restaurant:noodle-house]", "[restaurant:seoul-kitchen]"} {
+		if !strings.Contains(lower, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("restaurant unique-entity path must not label N distinct items: %q", got)
+	}
+	if !strings.Contains(got, "\n- ") {
+		t.Fatalf("restaurant unique-entity path must stay unnumbered dashes: %q", got)
+	}
+	if strings.Contains(got, "\n1. ") || strings.Contains(got, "\n2. ") || strings.Contains(got, "\n3. ") {
+		t.Fatalf("restaurant unique-entity path must not number bullets: %q", got)
+	}
+	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a numeric gold: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_RestaurantsQuotedNameAndTwoInOneTurn(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("r1", "s1", `I tried Banchan Korean restaurant and "Harbor Bibimbap"`),
+		factEntry("r2", "s2", `I went back to Banchan`),
+	}
+	q := "How many restaurants have I tried?"
+	got := AssembleCountEvidence(q, facts)
+	lower := strings.ToLower(got)
+	if strings.Count(lower, "[restaurant:") != 2 {
+		t.Fatalf("want 2 restaurant clusters (Banchan + Harbor Bibimbap), got %q", got)
+	}
+	if !strings.Contains(lower, "[restaurant:banchan]") || !strings.Contains(lower, "[restaurant:harbor-bibimbap]") {
+		t.Fatalf("want banchan + harbor-bibimbap, got %q", got)
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("restaurant unique-entity path must not label N distinct items: %q", got)
+	}
+	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a numeric gold: %q", got)
 	}
 }
 
