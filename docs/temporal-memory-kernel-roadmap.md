@@ -253,19 +253,20 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 
 Remesure of n=60 TR days-between is **TBD**.
 
-### T7 — Generalized unique-entity clusters
+### T7 — Generalized unique-entity clusters (**shipped**)
 
-**Why:** n=60 kits / hours miss. Current unique-entity path uses small catalogs (B-29, Spitfire, Outer Banks, …). That overfits the locked slice.
+**Why:** n=60 kits / hours miss. The unique-entity path used small catalogs (B-29, Spitfire, Outer Banks, …). That overfit the locked slice.
 
-**In scope:**
+**Shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`):
 
-- Hours: destination after `N hours to/in/for/at` (not only the dest catalog)
-- Kits: `… kit` noun phrases (repeated identity still one cluster)
+- Hours: destination after `N hours to/in/for/at/toward` (catalog dests remain aliases)
+- Kits: `… kit` / `model kit` noun phrases (repeated identity still one cluster)
+- Plants: `<name> plant(s)` plus catalog aliases (cheap exclude for `power plant` / verb `plant a`)
 - Existing catalogs stay as **aliases**, not the only matcher
 
-**Out of scope:** clothing path changes; `(N distinct items)` on unique-entity; inventing “the answer is N”.
+**Out of scope (still):** clothing path changes; `(N distinct items)` on unique-entity; inventing “the answer is N”.
 
-**Shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`): catalogs remain aliases; hours extract dest after `N hours to/in/for/at/toward`; kits extract `… kit` / `model kit` noun phrases; plants extract `<name> plant(s)` with cheap excludes (`power plant`, verb `plant a`). Clothing path unchanged. Remesure of n=60 kits/hours is **TBD**.
+Remesure of n=60 kits/hours is **TBD**.
 
 ### T8 — Dual-clock store (parked)
 
@@ -301,7 +302,7 @@ A dual-clock store would record **when the row was written** separately from eve
 - Prefer new options fields and methods over breaking `SearchMemory` signatures
 - Embedding dimension changes require Qdrant collection recreation; note in the release
 - v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card · v1.5.12 T1 SessionIDs / conv tags / count assembly
-- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
+- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
 
 ---
 
