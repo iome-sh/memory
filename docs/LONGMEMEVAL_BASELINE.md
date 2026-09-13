@@ -2,9 +2,9 @@
 
 **Not a README number** · **not official V1**.
 
-Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retrieve `session_id` = official `conv_id`. Isolated palace per embed mode.
+Official V1 first scored run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500** BGE mixed n=500, INTERNAL unpublished). Reproduce twice before any public figure. n=12 / n=60 remain unpublished **improvement baseline**, not V1.
 
-Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
+Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retrieve `session_id` = official `conv_id`. Isolated palace per embed mode.
 
 ## Wave I — skip-vector / clothing-only N / numbered clothes / T6 / T7 (kernel `e094bec` / #122+#124+#127+#129+#132, 2026-09-13T00:39Z–00:44Z)
 
@@ -171,6 +171,7 @@ make longmemeval-baseline
 ## Notes
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
+- Official V1 first run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500** BGE mixed n=500, INTERNAL unpublished). n=12 / n=60 remain unpublished improvement baseline, not V1. Reproduce twice before public.
 - TTFH / cite-both walking skeleton is a different clock
 - Wave I is kernel `e094bec` (#122+#124+#127+#129+#132). Hash/MiniLM/BGE **10/12** MS **1/2**. Clothes `0a995998` miss all three (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` pass all three (MiniLM recovered). KU `6aeb4375` miss all three (3 vs gold 4). `852ce960` not in n=12. #134 not this remesure. Not a README number.
 - n=60 remesure after #119+#122+#124+#129+#132 is kernel `5154a76` (includes #134+#135; **before** #136). hash **49/60** MS **9/10**; MiniLM **51/60** MS **9/10**; BGE **47/60** MS **8/10**. Complete 60/60. Unlike v1.5.12 `e90a82d` (before #119). Not a README number.
