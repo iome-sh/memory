@@ -2,7 +2,7 @@
 
 **Repository:** [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory)  
 **Scope:** Temporal features **inside this package** (`PalaceStore`), not MCP/TUI hosts.  
-**As of:** 2026-09-12 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index
+**As of:** 2026-09-12 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
 
 This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.7**, [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.2**) are optional.
 
@@ -33,7 +33,7 @@ The original document (last updated 2026-08-05) sequenced **K0–K4** plus **A2/
 | F clothing clusters | `aa64dbc` [#115](https://github.com/iome-sh/memory/pull/115) | 11/12 **2/2** | **12/12 2/2** | **12/12 2/2** | Clothes pass; hash temporal miss |
 | G dated events | `b02abaf` [#119](https://github.com/iome-sh/memory/pull/119) | 11/12 1/2 | 11/12 1/2 | 11/12 1/2 | Temporal first **pass all 3**; clothes reader summed 2 |
 | H N-header | `895f255` [#120](https://github.com/iome-sh/memory/pull/120) | 11/12 1/2 | 10/12 0/2 | 11/12 1/2 | Clothes still 2; MiniLM projects overcount (`8 distinct`) |
-| n=60 v1.5.12 | `e90a82d` | 47/60 MS 8/10 | 48/60 MS 7/10 | TBD | **Before [#119](https://github.com/iome-sh/memory/pull/119).** Clothes pass; kits/hours miss. BGE column not finished — do not invent. |
+| n=60 v1.5.12 | `e90a82d` | 47/60 MS 8/10 | 48/60 MS 7/10 | **46/58** MS 6/8 | **Before [#119](https://github.com/iome-sh/memory/pull/119).** Clothes pass; kits/hours miss. BGE **incomplete** (timeouts `gpt4_59c863d7`, `e831120c`; 58/60 IDs). Do not treat 0.793 as comparable /60. |
 
 Clothes remesure after numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)) is **TBD**. n=12 after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) is **TBD**. n=60 after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124) is **TBD**. Do not invent remesure scores.
 
@@ -148,7 +148,7 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string
 func AssembleTemporalEvidence(query string, facts []MemoryEntry) string
 ```
 
-Count queries are **not** calendar windows. They union matching `turn_fact` children across `conv:` sessions (`unionCountQueryFacts` over `collectSearchCandidates`), rank named-pattern facts, diversify by session, then Limit. Clothing clusters are action×object (dry-clean / return / pick-up); N-header is clothing-only ([#124](https://github.com/iome-sh/memory/pull/124)); bullets are `1. 2. 3.` in cluster order ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). That does **not** invent “the answer is 3”. Unique-entity clusters cover kits, plants, hour+destination (catalogs today). Temporal evidence lists **text date phrases** separately from ingest `Timestamp`; which-first sorts by parsed text time. Dated-span how-many with ≥2 parsed text times appends `text dates N days apart (phrase → phrase)` ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`) — not ingest `Timestamp`, not a gold answer.
+Count queries are **not** calendar windows. They union matching `turn_fact` children across `conv:` sessions (`unionCountQueryFacts` over `collectSearchCandidates`), rank named-pattern facts, diversify by session, then Limit. Clothing clusters are action×object (dry-clean / return / pick-up); N-header is clothing-only ([#124](https://github.com/iome-sh/memory/pull/124)); bullets are `1. 2. 3.` in cluster order ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). That does **not** invent “the answer is 3”. Unique-entity clusters cover kits, plants, hour+destination (catalogs as aliases; noun-phrase / dest extract in [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`). Temporal evidence lists **text date phrases** separately from ingest `Timestamp`; which-first sorts by parsed text time. Dated-span how-many with ≥2 parsed text times appends `text dates N days apart (phrase → phrase)` ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`) — not ingest `Timestamp`, not a gold answer.
 
 ---
 
@@ -184,7 +184,7 @@ Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader
 |----------|----------|------------|
 | Clothes gold 3, reader sums 2 | Waves G–H: 3 clusters in retrieve | **Numbered `1. 2. 3.` bullets shipped** ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). Remesure **TBD** — do not invent. Does not invent “the answer is 3”. |
 | Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)) — remesure after #122+#124+#127 |
-| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | Remesure n=60 on #119+#122+#124; generalize catalogs (**T7**, in-flight [#132](https://github.com/iome-sh/memory/pull/132)) |
+| Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | **T7 shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`): hours dest after `N hours to/in/for/at`; kits `… kit` noun phrases; catalogs as aliases. Remesure n=60 on #119+#122+#124+#132 **TBD**. |
 | Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`): `text dates N days apart (phrase → phrase)` from parsed text times. Remesure **TBD**. Does not invent gold. |
 | KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)) — remesure |
 | Skip-vector + #124 + #127 n=12 | not remesured | Wave after #122+#124+#127 |
@@ -265,7 +265,7 @@ Remesure of n=60 TR days-between is **TBD**.
 
 **Out of scope:** clothing path changes; `(N distinct items)` on unique-entity; inventing “the answer is N”.
 
-**Status:** in-flight [#132](https://github.com/iome-sh/memory/pull/132) (`feat/t1-unique-entity-generalize`) — not on `main` as of this doc. Cite, do not wait; this docs PR does not implement it.
+**Shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`): catalogs remain aliases; hours extract dest after `N hours to/in/for/at/toward`; kits extract `… kit` / `model kit` noun phrases; plants extract `<name> plant(s)` with cheap excludes (`power plant`, verb `plant a`). Clothing path unchanged. Remesure of n=60 kits/hours is **TBD**.
 
 ### T8 — Dual-clock store (parked)
 
@@ -288,7 +288,7 @@ A dual-clock store would record **when the row was written** separately from eve
 1. **Remesure n=12** after [#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127) (do not invent)
 2. **Remesure n=60** after [#119](https://github.com/iome-sh/memory/pull/119)+[#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#129](https://github.com/iome-sh/memory/pull/129) (do not invent; the v1.5.12 n=60 row above is **before** #119)
 3. **T6** dated-span text-date delta — **shipped** [#129](https://github.com/iome-sh/memory/pull/129)
-4. **T7** generalized unique-entity (in-flight [#132](https://github.com/iome-sh/memory/pull/132))
+4. **T7** generalized unique-entity — **shipped** [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`
 5. **T2 btree** only if the [#128](https://github.com/iome-sh/memory/pull/128) bench says rebuild is the limiter — [#131](https://github.com/iome-sh/memory/pull/131) measure **parks** it
 6. **T3** typed edges only if gold is an expired relation
 7. **T8** dual-clock only if an expired-window miss shows up
@@ -301,7 +301,7 @@ A dual-clock store would record **when the row was written** separately from eve
 - Prefer new options fields and methods over breaking `SearchMemory` signatures
 - Embedding dimension changes require Qdrant collection recreation; note in the release
 - v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card · v1.5.12 T1 SessionIDs / conv tags / count assembly
-- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked)
+- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity
 
 ---
 

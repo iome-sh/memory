@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **Temporal roadmap:** [`docs/temporal-memory-kernel-roadmap.md`](docs/temporal-memory-kernel-roadmap.md) matches shipped T1 (`SessionIDs`, skip-vector, latest-value, clothing-only N), records #126 T4 `ListFactsAsOf` tests / #127 numbered clothes / #128 T2 list-latency bench / #129 T6 text-date delta / #131 search/count via meta index (btree parked), and expands T7–T8 (generalized unique-entity, dual-clock parked) plus a competitive landscape. btree / typed edges / Qwen3 default still gated.
+- **Temporal roadmap:** [`docs/temporal-memory-kernel-roadmap.md`](docs/temporal-memory-kernel-roadmap.md) matches shipped T1 (`SessionIDs`, skip-vector, latest-value, clothing-only N), records #126 T4 `ListFactsAsOf` tests / #127 numbered clothes / #128 T2 list-latency bench / #129 T6 text-date delta / #131 search/count via meta index (btree parked) / #132 T7 generalized unique-entity, and expands T8 (dual-clock parked) plus a competitive landscape. btree / typed edges / Qwen3 default still gated.
 - **README:** install pin **v1.5.12**, companion hosts TUI **v1.3.7** / MCP **v0.4.2**, table of contents, compiling quickstart, `SessionIDs` on the search table, LongMemEval details moved to `docs/`. Release badge. No published LongMemEval number.
 
 ### Added
