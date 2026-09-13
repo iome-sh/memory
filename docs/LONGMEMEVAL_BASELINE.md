@@ -6,6 +6,18 @@ Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retri
 
 Official V1 remains: BGE-small-en-v1.5 ONNX + mixed n=500 + this judge, reproduced twice.
 
+## Wave I — skip-vector / clothing-only N / numbered clothes / T6 / T7 (kernel `e094bec` / #122+#124+#127+#129+#132, 2026-09-13T00:39Z–00:44Z)
+
+Kernel `e094bec` (`origin/main` at remesure start): [#122](https://github.com/iome-sh/memory/pull/122) skip-vector + latest-value, [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N, [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes, [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta, [#132](https://github.com/iome-sh/memory/pull/132) T7 unique-entity generalize. Health `embed_mode` verified (MiniLM/BGE did **not** hash-fall-back). Isolated palace per embed. **Not a README number.** [#134](https://github.com/iome-sh/memory/pull/134) T4-perf landed **after** this remesure and is not this card. `852ce960` is **not** in the n=12 lock.
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **10/12** | 0.833 | `hash` | **1/2** (clothes miss, projects pass) |
+| MiniLM ONNX | **10/12** | 0.833 | `onnx-minilm-l6-v2` | **1/2** (clothes miss, projects pass) |
+| BAAI BGE ONNX | **10/12** | 0.833 | `onnx-bge-small-en-v1.5` | **1/2** (clothes miss, projects pass) |
+
+Temporal `gpt4_2487a7cb` (webinar first) pass all three. Clothes (`0a995998`, gold 3) miss all three: retrieve prepends numbered `Count evidence (3 distinct items)` with `1. [dry-clean]` / `2. [return]` / `3. [pick-up]`; reader still summed 2. Projects (`6d550036`, gold 2) pass all three (`Count evidence:` without N; MiniLM recovered vs Wave H `8 distinct items`). Knowledge-update `6aeb4375` (Korean restaurants, gold 4) miss all three (reader 3; retrieve leads with stale “three”). Other types 2/2. Not official V1.
+
 ## Wave H — T1 distinct-item count header (kernel `895f255` / #120, 2026-09-12T22:41Z–23:01Z)
 
 Kernel `#120` (`Count evidence (N distinct items):` / temporal `N distinct events`) on `#119`. Health `embed_mode` verified. **Not a README number.** `#122` (latest-value recency) is **not** this kernel.
@@ -128,4 +140,4 @@ make longmemeval-baseline
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - TTFH / cite-both walking skeleton is a different clock
-- Wave H is kernel `895f255` (#120). Hash/BGE 11/12 MS 1/2; MiniLM 10/12 MS 0/2. Clothes `0a995998` miss all three (N=3 header present; reader summed 2). MiniLM projects regress vs Wave G. `#122` unremeasured. n=60 scout remains on kernel `f99c140`. Not a README number.
+- Wave I is kernel `e094bec` (#122+#124+#127+#129+#132). Hash/MiniLM/BGE **10/12** MS **1/2**. Clothes `0a995998` miss all three (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` pass all three (MiniLM recovered). KU `6aeb4375` miss all three (3 vs gold 4). `852ce960` not in n=12. #134 not this remesure. n=60 after #119 still TBD. Not a README number.
