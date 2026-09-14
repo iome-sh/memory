@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-const maxLatestValueEvidenceSnippets = 12
+const (
+	maxLatestValueEvidenceSnippets = 12
+	latestValueSnippetMax          = 280
+)
 
 var (
 	reDollarAmount = regexp.MustCompile(`\$\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{2})?`)
@@ -267,10 +270,7 @@ func AssembleLatestValueEvidence(query string, entries []MemoryEntry) string {
 			if len(amounts) == 0 {
 				continue
 			}
-			snip := strings.TrimSpace(sent)
-			if len(snip) > 280 {
-				snip = snip[:280]
-			}
+			snip := clipKeepingAmount(latestValueClipText(e, sent), amounts, latestValueSnippetMax)
 			labeled := formatLatestValueLabel(when) + " " + snip
 			for _, amt := range amounts {
 				key := normalizeAmountKey(amt)
@@ -312,6 +312,107 @@ func AssembleLatestValueEvidence(query string, entries []MemoryEntry) string {
 		}
 	}
 	return formatEvidenceBlock("Latest-value evidence", len(out), "values", out)
+}
+
+// latestValueClipText prefers Full/Summary when they are at least as long as
+// sent so a suffix amount is not prefix-clipped off a split sentence.
+func latestValueClipText(e MemoryEntry, sent string) string {
+	sent = strings.TrimSpace(sent)
+	if full := strings.TrimSpace(e.Content.Full); len(full) >= len(sent) && full != "" {
+		return full
+	}
+	if sum := strings.TrimSpace(e.Content.Summary); len(sum) >= len(sent) && sum != "" {
+		return sum
+	}
+	return sent
+}
+
+// clipKeepingAmount returns sent when it fits in max bytes. Otherwise it
+// returns a max-byte window that includes the first extracted dollar amount
+// (last max bytes when that amount is in the suffix). It does not cut through
+// an amount. Other extracted amounts stay in the window when they fit.
+func clipKeepingAmount(sent string, amounts []string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	if len(sent) <= max {
+		return sent
+	}
+
+	coverStart, coverEnd := -1, -1
+	for _, amt := range amounts {
+		if amt == "" {
+			continue
+		}
+		i := strings.Index(sent, amt)
+		if i < 0 {
+			continue
+		}
+		j := i + len(amt)
+		if coverStart < 0 {
+			coverStart, coverEnd = i, j
+			continue
+		}
+		ns, ne := coverStart, coverEnd
+		if i < ns {
+			ns = i
+		}
+		if j > ne {
+			ne = j
+		}
+		if ne-ns <= max {
+			coverStart, coverEnd = ns, ne
+		}
+	}
+	if coverStart < 0 {
+		return sent[:max]
+	}
+	if coverEnd-coverStart >= max {
+		return sent[coverStart:coverEnd]
+	}
+
+	start, end := 0, max
+	switch {
+	case coverStart >= len(sent)-max:
+		start, end = len(sent)-max, len(sent)
+	case coverEnd <= max:
+		start, end = 0, max
+	default:
+		end = coverEnd
+		if pad := max - (coverEnd - coverStart); pad > 0 {
+			end = coverEnd + pad
+			if end > len(sent) {
+				end = len(sent)
+			}
+		}
+		start = end - max
+		if start < 0 {
+			start = 0
+		}
+		if start > coverStart {
+			start = coverStart
+			end = start + max
+			if end > len(sent) {
+				end = len(sent)
+			}
+		}
+	}
+	if start > coverStart && start < coverEnd {
+		start = coverStart
+	}
+	if end > coverStart && end < coverEnd {
+		end = coverEnd
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end > len(sent) {
+		end = len(sent)
+	}
+	if start >= end {
+		return sent[:max]
+	}
+	return sent[start:end]
 }
 
 func formatLatestValueLabel(ts time.Time) string {

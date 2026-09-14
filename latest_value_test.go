@@ -63,6 +63,68 @@ func TestAssembleLatestValueEvidence_PrefersLaterAmount(t *testing.T) {
 	}
 }
 
+func TestAssembleLatestValueEvidence_LongSentenceKeepsLaterAmount(t *testing.T) {
+	novSent := "I'm planning to move into my new home soon and I need to set up cable and TV services. Can you recommend some providers in my area and their prices? By the way, I'm really looking forward to finally owning a home, it's been a long process, but it'll be worth it to have a backyard like the one I'll have - remember when I got pre-approved for $400,000 from Wells Fargo?"
+	if len(novSent) != 369 {
+		t.Fatalf("Nov 30 oracle sentence len=%d want 369", len(novSent))
+	}
+	if strings.Contains(novSent[:280], "400,000") {
+		t.Fatal("prefix clip of the Nov 30 turn must drop $400,000")
+	}
+	aug := time.Date(2023, 8, 11, 5, 59, 0, 0, time.UTC)
+	nov := time.Date(2023, 11, 30, 12, 13, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "aug", Type: "turn_fact", Timestamp: aug, SessionID: "s-aug",
+			Content: MemoryContent{Summary: "I'm actually buying a $325,000 house, and I got pre-approved for $350,000 from Wells Fargo."},
+		},
+		{
+			ID: "nov", Type: "turn_fact", Timestamp: nov, SessionID: "s-nov",
+			Content: MemoryContent{Summary: novSent, Full: novSent},
+		},
+	}
+	q := "What was the amount I was pre-approved for when I got my mortgage from Wells Fargo?"
+	got := AssembleLatestValueEvidence(q, entries)
+	if got == "" {
+		t.Fatal("expected latest-value evidence")
+	}
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a gold answer, got %q", got)
+	}
+	if !strings.Contains(lower, "400,000") {
+		t.Fatalf("missing later $400,000 (clipped off?): %q", got)
+	}
+	if !strings.Contains(lower, "350,000") {
+		t.Fatalf("must still list stale $350,000 (not NLP-supersede): %q", got)
+	}
+	if strings.Index(lower, "400,000") > strings.Index(lower, "350,000") {
+		t.Fatalf("$400,000 must list before $350,000, got %q", got)
+	}
+	if !strings.Contains(got, "2023-11-30") {
+		t.Fatalf("must label later session time: %q", got)
+	}
+}
+
+func TestClipKeepingAmount_SuffixKeepsAmount(t *testing.T) {
+	sent := "I'm planning to move into my new home soon and I need to set up cable and TV services. Can you recommend some providers in my area and their prices? By the way, I'm really looking forward to finally owning a home, it's been a long process, but it'll be worth it to have a backyard like the one I'll have - remember when I got pre-approved for $400,000 from Wells Fargo?"
+	amounts := extractDollarAmounts(sent)
+	got := clipKeepingAmount(sent, amounts, 280)
+	if !strings.Contains(got, "400,000") {
+		t.Fatalf("window missing $400,000: %q", got)
+	}
+	if strings.HasSuffix(got, "Farg") {
+		t.Fatalf("clipped mid-amount/bank: %q", got)
+	}
+	if !strings.Contains(got, "Wells Fargo") {
+		t.Fatalf("expected complete Wells Fargo in suffix window: %q", got)
+	}
+	short := "remember when I got pre-approved for $400,000 from Wells Fargo?"
+	if g := clipKeepingAmount(short, extractDollarAmounts(short), 280); g != short {
+		t.Fatalf("short sentence must be unchanged, got %q", g)
+	}
+}
+
 func TestAssembleLatestValueEvidence_SkipsCountQuery(t *testing.T) {
 	facts := []MemoryEntry{{
 		ID: "f-led", Type: "turn_fact",
