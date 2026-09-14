@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Restaurant tried-count:** unique-entity restaurant evidence lists latest-first “tried N” mentions; cuisine+BBQ dishes are not venues; stop-token `if`. Does not invent a numeric gold.
 - **Latest-value clip:** long snippets keep the dollar amount in the visible window so a later `$400,000` is not truncated off ([#143](https://github.com/iome-sh/memory/pull/143) `5d3aca5`). Does not NLP-supersede; stale amounts still listed. Remesure of KU `852ce960` **TBD** (n=60, not n=12).
 - **`longmemeval-v1-card` scored run LIMIT:** with `LONGMEMEVAL_QA_LIMIT` unset/0, generate the full mixed oracle (**n=500**) and do not pass `--limit` (no longer coerced to n=12). `LONGMEMEVAL_QA_LIMIT=12` remains an explicit mixed sample, **not** official V1. Prefix-n is not V1. No README number. dual_write OFF. not Memory GA. Hash is not V1.
 
