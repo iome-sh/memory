@@ -670,6 +670,11 @@ type SearchMemoryOptions struct {
 	// IncludeArchival, when true and Tier==nil, also includes Archival.
 	// Default retrieve is Working+Contextual+Semantic (same as ListMemoryWithOptions).
 	IncludeArchival bool
+	// QuestionDate, when non-zero, is the LongMemEval question instant used only
+	// by AssembleTemporalEvidence for dated-span "ago" arithmetic (text date vs
+	// that calendar day). Zero means unset. It is not a TimeTo or AsOf filter
+	// and does not change retrieve ranking.
+	QuestionDate time.Time
 }
 
 // entryEventTime returns the preferred event clock for temporal filters:

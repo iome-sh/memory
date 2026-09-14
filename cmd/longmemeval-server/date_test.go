@@ -66,3 +66,22 @@ func TestHandleIngest_OfficialHaystackDate(t *testing.T) {
 		t.Fatalf("content = %q", hits[0].Content.Full)
 	}
 }
+
+func TestParseQuestionDate_RFC3339AndDateOnly(t *testing.T) {
+	day := parseQuestionDate("2023-05-15")
+	wantDay := time.Date(2023, 5, 15, 0, 0, 0, 0, time.UTC)
+	if !day.Equal(wantDay) {
+		t.Fatalf("YYYY-MM-DD = %s, want %s", day, wantDay)
+	}
+	rfc := parseQuestionDate("2023-05-15T12:30:00Z")
+	wantRFC := time.Date(2023, 5, 15, 12, 30, 0, 0, time.UTC)
+	if !rfc.Equal(wantRFC) {
+		t.Fatalf("RFC3339 = %s, want %s", rfc, wantRFC)
+	}
+	if !parseQuestionDate("").IsZero() {
+		t.Fatal("empty question_date must be unset")
+	}
+	if !parseQuestionDate("not-a-date").IsZero() {
+		t.Fatal("garbage question_date must be unset")
+	}
+}

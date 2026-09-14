@@ -276,6 +276,60 @@ func TestLongMemEval_RetrieveTemporalEvidencePrependsDatedEvents(t *testing.T) {
 	}
 }
 
+func TestLongMemEval_RetrieveForwardsQuestionDateAgoEvidence(t *testing.T) {
+	setupHashHarness(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ingest", handleIngest)
+	mux.HandleFunc("/retrieve", handleRetrieve)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	conv := "ago-question-date"
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	if err := postIngest(srv.URL, conv, []ingestTurn{{
+		Role:      "user",
+		Content:   "I attended the concert on May 3.",
+		Timestamp: ts,
+		Cycle:     1,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := json.Marshal(RetrieveRequest{
+		Query:        "How many days ago was the concert?",
+		Limit:        8,
+		SessionID:    conv,
+		QuestionDate: "2023-05-15",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Post(srv.URL+"/retrieve", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("retrieve status = %d", resp.StatusCode)
+	}
+	var out RetrieveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Memories) == 0 {
+		t.Fatal("expected retrieved memories")
+	}
+	if out.Memories[0].ID != "temporal-evidence" {
+		t.Fatalf("ago query should lead with synthetic assembly, got id=%q summary=%q", out.Memories[0].ID, out.Memories[0].Summary)
+	}
+	blob := out.Memories[0].Summary + " " + out.Memories[0].Full
+	want := "12 days before question_date 2023-05-15"
+	if !strings.Contains(blob, want) {
+		t.Fatalf("missing forwarded question_date evidence %q in %#v", want, out.Memories[0])
+	}
+}
+
 func TestLongMemEval_RetrieveLatestValueEvidencePrefersLaterAmount(t *testing.T) {
 	setupHashHarness(t)
 
