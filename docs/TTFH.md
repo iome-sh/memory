@@ -56,16 +56,18 @@ newer tag.
 | [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | **v1.3.7** | Agent TUI/CLI |
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | **v0.4.2** | MCP host over this kernel |
 
-In the TUI, with the memory host attached:
+In the TUI, with the memory host attached. The bullets **are** the
+rollout; R1 (`--live`) is not R3 (`/dashboard` overlay PULSE).
 
-- `/memory ingest` — three RCA-shaped turns (local overlay stays **private**)
-- `/memory digest --require-sources mesh,private` — **cite-both or explicit miss**
-- `iomesh ttfh --unit` — offline smoke (no broker)
-- `iomesh ttfh --live` — fail-open consume probe (**EMPTY** unless decoded messages; never invent **PULSE**)
+- **R0** `iomesh ttfh --unit` — offline smoke (no broker)
+- **R1** `iomesh ttfh --live` — fail-open consume probe (**EMPTY** unless decoded messages; never invent **PULSE**; not overlay PULSE)
 - [`scripts/ttfh-demo.sh`](https://github.com/iome-sh/iomesh-tui/blob/main/scripts/ttfh-demo.sh) in the TUI repo — unit then optional live
-- Short-term: `/memory patterns` — ops **Beta** · empty ≠ invent · never APPLY
-- Long-term: `/memory facts-as-of --as-of <RFC3339>` — palace · **not Memory GA**
-- After PULSE: `iomesh memory pull` — dual_write **OFF** · pull ≠ Connected
+- **R2** `/memory ingest` — three RCA-shaped turns (local overlay stays **private**)
+- **R2** `/memory digest --require-sources mesh,private` — **cite-both or explicit miss**
+- **R2** Short-term: `/memory patterns` — ops **Beta** · empty ≠ invent · never APPLY
+- **R2** Long-term: `/memory facts-as-of --as-of <RFC3339>` — palace · **not Memory GA**
+- **R3** `/dashboard` consume — parked · required for E-G1 · `--live` decoded-N is not this
+- **R4** After PULSE: `iomesh memory pull` — dual_write **OFF** · pull ≠ Connected
 
 Cite-both needs a mesh-class receipt **and** a private-class receipt in the
 digest window. Catalog list is not consume. Grant-only is not cite-both. An
