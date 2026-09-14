@@ -2,7 +2,7 @@
 
 **Not a README number** · **not official V1**.
 
-Official V1 first scored run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500** BGE mixed n=500, INTERNAL unpublished). Reproduce twice before any public figure. n=12 / n=60 remain unpublished **improvement baseline**, not V1.
+Official V1 BGE mixed n=500 runs on pin `9bee542` are in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (run 1 **388/500**, run 2 **384/500**, INTERNAL unpublished). Two runs are **not identical**; do not publish a single %. n=12 / n=60 remain unpublished **improvement baseline**, not V1.
 
 Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retrieve `session_id` = official `conv_id`. Isolated palace per embed mode.
 
@@ -219,7 +219,7 @@ make longmemeval-baseline
 ## Notes
 
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
-- Official V1 first run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500** BGE mixed n=500, INTERNAL unpublished). n=12 / n=60 remain unpublished improvement baseline, not V1. Reproduce twice before public.
+- Official V1 BGE mixed n=500 runs on pin `9bee542` are in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (run 1 **388/500**, run 2 **384/500**, INTERNAL unpublished). Two runs are **not identical**; do not publish a single %. n=12 / n=60 remain unpublished improvement baseline, not V1.
 - TTFH / cite-both walking skeleton is a different clock
 - Wave M is kernel `7a9b956` (#150 dated-span ago vs `question_date` on #147 / Wave L). Hash-only **11/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` **PASS** (hyp four; latest-first tried-N; no korean-style-bbq/if). Temporal `gpt4_2487a7cb` PASS (`text dates earliest: two months ago · latest: last Saturday`; which-first, not ago). MiniLM/BGE not this remesure. Not a README number.
 - Wave L is kernel `d5bec89` (#147 T6++ order extrema on #146). Hash-only **11/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` **PASS** (hyp four; latest-first tried-N; no korean-style-bbq/if). Temporal `gpt4_2487a7cb` PASS (`text dates earliest: two months ago · latest: last Saturday`). MiniLM/BGE not this remesure. Not a README number.
