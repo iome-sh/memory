@@ -6,6 +6,18 @@ Official V1 first scored run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500
 
 Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retrieve `session_id` = official `conv_id`. Isolated palace per embed mode.
 
+## Wave M — question_date-ago remesure hash-only after #150 (kernel `7a9b956`, 2026-09-14T17:04Z)
+
+Kernel `7a9b956ebbd79b98019622f7ccf38624f0501d1c` (`origin/main` at remesure start): [#150](https://github.com/iome-sh/memory/pull/150) `76175a0` dated-span ago vs `question_date` (on [#147](https://github.com/iome-sh/memory/pull/147) T6++ / Wave L `d5bec89`; includes Wave L card [#151](https://github.com/iome-sh/memory/pull/151)). **Hash-only** (MiniLM/BGE **not run**; official V1 run 2 on `:8782` expected done — this remesure does not start BGE). Health `embed_mode=hash` verified. Isolated palace. PersistEmbeddings OFF. Qdrant off. **Not a README number.** **Not official V1.**
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **11/12** | 0.917 | `hash` | **1/2** (clothes miss, projects pass) |
+| MiniLM ONNX | SKIP | — | not run | — |
+| BAAI BGE ONNX | SKIP | — | not run | — |
+
+Temporal `gpt4_2487a7cb` (webinar first) PASS: retrieve prepends `Temporal evidence (2 distinct events)` (`two months ago` webinar then `last Saturday` workshop) and full evidence appends T6++ `text dates earliest: two months ago · latest: last Saturday` (hypotheses JSONL retrieve text is 400-char truncated). n=12 temporal is **which-first**, not ago — no `question_date` evidence line (not a TimeTo filter). Clothes (`0a995998`, gold 3) FAIL: retrieve prepends numbered `Count evidence (3 distinct items)` with `1. [dry-clean]` / `2. [return]` / `3. [pick-up]`; reader still summed 2. Projects (`6d550036`, gold 2) PASS (`Count evidence:` without N). Knowledge-update `6aeb4375` (Korean restaurants, gold 4) **PASS** (hyp **four**): latest-first tried-N `[time: 2023-09-30T18:01:00Z] I've tried four different ones so far` then stale “three”; no `[restaurant:korean-style-bbq]` / `[restaurant:if]`. Leftover `[restaurant:as]` from an Indian-cuisine turn is still clustered (kernel `7a9b956` is **before** [#152](https://github.com/iome-sh/memory/pull/152) `85d44c8` drop-`as`). Other types 2/2. MiniLM/BGE not this remesure — do not invent those columns.
+
 ## Wave L — T6++ order-extrema remesure hash-only after #147 (kernel `d5bec89`, 2026-09-14T09:01Z)
 
 Kernel `d5bec8948ae8ec8ec4afb225edf2f93df4fda3c9` (`origin/main`): [#147](https://github.com/iome-sh/memory/pull/147) `298584c` T6++ temporal-order extrema (on [#146](https://github.com/iome-sh/memory/pull/146) restaurant tried-count). **Hash-only** (MiniLM/BGE **not run**; official V1 run 2 occupies BGE RAM). Health `embed_mode=hash` verified. Isolated palace. PersistEmbeddings OFF. Qdrant off. **Not a README number.** **Not official V1.**
@@ -209,6 +221,7 @@ make longmemeval-baseline
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - Official V1 first run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500** BGE mixed n=500, INTERNAL unpublished). n=12 / n=60 remain unpublished improvement baseline, not V1. Reproduce twice before public.
 - TTFH / cite-both walking skeleton is a different clock
+- Wave M is kernel `7a9b956` (#150 dated-span ago vs `question_date` on #147 / Wave L). Hash-only **11/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` **PASS** (hyp four; latest-first tried-N; no korean-style-bbq/if). Temporal `gpt4_2487a7cb` PASS (`text dates earliest: two months ago · latest: last Saturday`; which-first, not ago). MiniLM/BGE not this remesure. Not a README number.
 - Wave L is kernel `d5bec89` (#147 T6++ order extrema on #146). Hash-only **11/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` **PASS** (hyp four; latest-first tried-N; no korean-style-bbq/if). Temporal `gpt4_2487a7cb` PASS (`text dates earliest: two months ago · latest: last Saturday`). MiniLM/BGE not this remesure. Not a README number.
 - Wave K is kernel `89c1dc0` (#146 tried-count + cuisine-BBQ not venue). Hash-only **11/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` **PASS** (hyp four; latest-first tried-N; no korean-style-bbq/if). Temporal `gpt4_2487a7cb` PASS. MiniLM/BGE not this remesure. Not a README number.
 - Wave J is kernel `5d3aca5` (#136 restaurant clusters + #143 latest-value clip). Hash-only **10/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` FAIL (3 vs gold 4). Temporal `gpt4_2487a7cb` PASS. MiniLM/BGE not this remesure. Not a README number.
