@@ -94,9 +94,10 @@ type IngestResponse struct {
 }
 
 type RetrieveRequest struct {
-	Query     string `json:"query"`
-	Limit     int    `json:"limit"`
-	SessionID string `json:"session_id,omitempty"`
+	Query        string `json:"query"`
+	Limit        int    `json:"limit"`
+	SessionID    string `json:"session_id,omitempty"`
+	QuestionDate string `json:"question_date,omitempty"`
 }
 
 type RetrieveResponse struct {
@@ -386,10 +387,14 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	if !skipVec && len(queryVec) == 0 {
 		queryVec = globalStore.Config.EmbeddingFunc(req.Query, embeddingDim)
 	}
+	// question_date is evidence-only (dated-span ago vs text date). Do not
+	// treat it as TimeTo/AsOf — that would change retrieve ranking.
+	questionDate := parseQuestionDate(req.QuestionDate)
 	keywordResults := globalStore.SearchMemoryWithOptions(req.Query, memory.SearchMemoryOptions{
-		SessionID: sessionID,
-		Limit:     req.Limit,
-		QueryVec:  queryVec,
+		SessionID:    sessionID,
+		Limit:        req.Limit,
+		QueryVec:     queryVec,
+		QuestionDate: questionDate,
 	})
 	for _, e := range keywordResults {
 		if !seen[e.ID] {
@@ -421,7 +426,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 			Content:   memory.MemoryContent{Summary: evidence, Full: evidence},
 		})
 	}
-	if evidence := memory.AssembleTemporalEvidence(req.Query, keywordResults); evidence != "" {
+	if evidence := memory.AssembleTemporalEvidenceAt(req.Query, keywordResults, questionDate); evidence != "" {
 		synths = append(synths, memory.MemoryEntry{
 			ID:        "temporal-evidence",
 			Type:      "temporal_evidence",
@@ -549,6 +554,12 @@ func parseTime(s string) time.Time {
 		return t
 	}
 	return time.Time{}
+}
+
+// parseQuestionDate accepts RFC3339, YYYY-MM-DD, and official LongMemEval
+// cleaned dates. Empty or unknown strings leave QuestionDate unset.
+func parseQuestionDate(s string) time.Time {
+	return parseTime(s)
 }
 
 func truncate(s string, max int) string {

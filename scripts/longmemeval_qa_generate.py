@@ -119,10 +119,13 @@ def retrieve_memories(
     query: str,
     k: int,
     session_id: str = "",
+    question_date: str = "",
 ) -> List[Dict[str, Any]]:
     payload: Dict[str, Any] = {"query": query, "limit": k}
     if session_id:
         payload["session_id"] = session_id
+    if question_date:
+        payload["question_date"] = question_date
     r = session.post(f"{SERVER_URL}/retrieve", json=payload, timeout=int(os.environ.get("LONGMEMEVAL_RETRIEVE_TIMEOUT", "120")))
     r.raise_for_status()
     return r.json().get("memories", [])
@@ -212,7 +215,7 @@ def process_example(example: Dict[str, Any], retrieve_k: int) -> Optional[Dict[s
 
     session = requests.Session()
     ingest_history(session, conv_id, history)
-    memories = retrieve_memories(session, question, retrieve_k, session_id=conv_id)
+    memories = retrieve_memories(session, question, retrieve_k, session_id=conv_id, question_date=question_date)
     answer = generate_answer(question, memories, question_date=question_date)
     return {
         "question_id": str(qid),

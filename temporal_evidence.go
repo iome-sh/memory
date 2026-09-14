@@ -119,13 +119,27 @@ func isTemporalEvidenceQuery(query string) bool {
 // dated-span queries with two or more parsed text times, extra lines report
 // the UTC calendar-day difference (`text dates N days apart (phrase → phrase)`)
 // and, when the query asks how-many-weeks or how-many-months, a floor week
-// delta and a calendar-month delta. Temporal-order queries with two or more
-// parsed text times append `text dates earliest: PHRASE · latest: PHRASE`.
-// Span delta is emitted first; extrema only when isTemporalOrderQuery is
-// still true. Arithmetic only; not a gold answer; never ingest Timestamp.
-// Empty when the query is not temporal or no dated snippets match. Not
-// persisted.
+// delta and a calendar-month delta. When the query contains "ago" and
+// questionDate is non-zero, a further line reports the latest parsed text
+// time versus that instant (`text date PHRASE is N days before question_date
+// YYYY-MM-DD`), plus floor weeks / calendar months when asked. Temporal-order
+// queries with two or more parsed text times append `text dates earliest:
+// PHRASE · latest: PHRASE`. Span delta is emitted first; question_date next;
+// extrema only when isTemporalOrderQuery is still true. Arithmetic only; not
+// a gold answer; never ingest Timestamp. questionDate is evidence-only (not a
+// retrieve TimeTo/AsOf filter). Empty when the query is not temporal or no
+// dated snippets match. Not persisted.
 func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
+	return assembleTemporalEvidence(query, entries, time.Time{})
+}
+
+// AssembleTemporalEvidenceAt is AssembleTemporalEvidence with a LongMemEval
+// question_date. Zero questionDate is the same as AssembleTemporalEvidence.
+func AssembleTemporalEvidenceAt(query string, entries []MemoryEntry, questionDate time.Time) string {
+	return assembleTemporalEvidence(query, entries, questionDate)
+}
+
+func assembleTemporalEvidence(query string, entries []MemoryEntry, questionDate time.Time) string {
 	if !isTemporalEvidenceQuery(query) {
 		return ""
 	}
@@ -196,6 +210,9 @@ func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 	var extras []string
 	if delta := datedSpanTextDelta(query, list); delta != "" {
 		extras = append(extras, delta)
+	}
+	if ago := datedSpanQuestionDateDelta(query, list, questionDate); ago != "" {
+		extras = append(extras, ago)
 	}
 	if extrema := temporalOrderTextExtrema(query, list); extrema != "" {
 		extras = append(extras, extrema)
@@ -268,6 +285,56 @@ func datedSpanTextDelta(query string, bullets []temporalBullet) string {
 	if strings.Contains(q, "months") {
 		m := utcCalendarMonthDelta(earliest.textTime, latest.textTime)
 		lines = append(lines, "text dates "+strconv.Itoa(m)+" calendar months apart ("+from+" → "+to+")")
+	}
+	return strings.Join(lines, "\n")
+}
+
+// datedSpanQuestionDateDelta reports the latest parsed text time versus
+// questionDate for dated-span "ago" queries. Uses text times only; never
+// ingest Timestamp; not a gold answer. Empty when questionDate is zero,
+// the query lacks "ago", or no dated bullet exists.
+func datedSpanQuestionDateDelta(query string, bullets []temporalBullet, questionDate time.Time) string {
+	if questionDate.IsZero() || !isDatedSpanQuery(query) {
+		return ""
+	}
+	q := strings.ToLower(query)
+	if !strings.Contains(q, "ago") {
+		return ""
+	}
+	var latest temporalBullet
+	found := false
+	for _, b := range bullets {
+		if !b.hasTextTime {
+			continue
+		}
+		if !found || b.textTime.After(latest.textTime) {
+			latest = b
+			found = true
+		}
+	}
+	if !found {
+		return ""
+	}
+	phrase := textDatePhrase(latest.textPhrase, latest.textTime)
+	days := utcCalendarDayDelta(latest.textTime, questionDate)
+	rel := "before"
+	if calendarDayUTC(latest.textTime).After(calendarDayUTC(questionDate)) {
+		rel = "after"
+	}
+	qd := calendarDayUTC(questionDate).Format("2006-01-02")
+	lines := []string{"text date " + phrase + " is " + strconv.Itoa(days) + " days " + rel + " question_date " + qd}
+	if strings.Contains(q, "weeks") {
+		n, r := days/7, days%7
+		week := "text date " + phrase + " is " + strconv.Itoa(n) + " weeks " + rel + " question_date " + qd + " (floor days/7"
+		if r != 0 {
+			week += "; remainder " + strconv.Itoa(r) + " days"
+		}
+		week += ")"
+		lines = append(lines, week)
+	}
+	if strings.Contains(q, "months") {
+		m := utcCalendarMonthDelta(latest.textTime, questionDate)
+		lines = append(lines, "text date "+phrase+" is "+strconv.Itoa(m)+" calendar months "+rel+" question_date "+qd)
 	}
 	return strings.Join(lines, "\n")
 }

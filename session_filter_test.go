@@ -1039,6 +1039,9 @@ func TestAssembleTemporalEvidence_DatedSpanTwelveDaysApart(t *testing.T) {
 	if strings.Contains(got, "text dates earliest:") {
 		t.Fatalf("dated-span must not append extrema unless also an order query: %q", got)
 	}
+	if strings.Contains(got, "question_date") {
+		t.Fatalf("between query must not append a question_date line: %q", got)
+	}
 }
 
 func TestAssembleTemporalEvidence_DatedSpanUsesTextDatesNotIngest(t *testing.T) {
@@ -1118,6 +1121,161 @@ func TestAssembleTemporalEvidence_DaysAgoSingleBulletNoDelta(t *testing.T) {
 	}
 	if strings.Contains(got, "text dates earliest:") {
 		t.Fatalf("days-ago is not an order query; no extrema: %q", got)
+	}
+	if strings.Contains(got, "question_date") {
+		t.Fatalf("zero QuestionDate must not append a question_date line: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_DaysAgoVsQuestionDate(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "concert", Type: "turn_fact", Timestamp: ts, SessionID: "s-concert",
+			Content: MemoryContent{Summary: "I attended the concert on May 3."},
+		},
+	}
+	q := "How many days ago was the concert?"
+	qd := time.Date(2023, 5, 15, 0, 0, 0, 0, time.UTC)
+	got := AssembleTemporalEvidenceAt(q, entries, qd)
+	if !strings.Contains(got, "May 3") {
+		t.Fatalf("missing dated bullet: %q", got)
+	}
+	want := "text date May 3 is 12 days before question_date 2023-05-15"
+	if !strings.Contains(got, want) {
+		t.Fatalf("missing question_date line %q in %q", want, got)
+	}
+	if strings.Contains(strings.ToLower(got), "days apart") {
+		t.Fatalf("one dated bullet must not append an apart delta: %q", got)
+	}
+	if strings.Contains(strings.ToLower(got), "the answer is") {
+		t.Fatalf("must not invent a gold answer: %q", got)
+	}
+	if strings.Contains(got, "5 days") || strings.Contains(got, "17 days") {
+		t.Fatalf("must not use ingest Timestamp for ago arithmetic: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_ZeroQuestionDateOmitsAgoLine(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "concert", Type: "turn_fact", Timestamp: ts, SessionID: "s-concert",
+			Content: MemoryContent{Summary: "I attended the concert on May 3."},
+		},
+	}
+	q := "How many days ago was the concert?"
+	got := AssembleTemporalEvidenceAt(q, entries, time.Time{})
+	if strings.Contains(got, "question_date") {
+		t.Fatalf("zero QuestionDate must omit question_date line: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_DatedSpanBetweenOmitsQuestionDateLine(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "start", Type: "turn_fact", Timestamp: ts, SessionID: "s-start",
+			Content: MemoryContent{Summary: "I started training on May 3."},
+		},
+		{
+			ID: "end", Type: "turn_fact", Timestamp: ts, SessionID: "s-end",
+			Content: MemoryContent{Summary: "I finished training on May 15."},
+		},
+	}
+	q := "How many days passed between starting training and finishing training?"
+	qd := time.Date(2023, 5, 28, 0, 0, 0, 0, time.UTC)
+	got := AssembleTemporalEvidenceAt(q, entries, qd)
+	if !strings.Contains(got, "text dates 12 days apart (May 3 → May 15)") {
+		t.Fatalf("between query must keep the days line, got %q", got)
+	}
+	if strings.Contains(got, "question_date") {
+		t.Fatalf("between query must not append a question_date line unless ago: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_DaysAgoAfterQuestionDate(t *testing.T) {
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "concert", Type: "turn_fact", Timestamp: ts, SessionID: "s-concert",
+			Content: MemoryContent{Summary: "I attended the concert on May 20."},
+		},
+	}
+	q := "How many days ago was the concert?"
+	qd := time.Date(2023, 5, 15, 0, 0, 0, 0, time.UTC)
+	got := AssembleTemporalEvidenceAt(q, entries, qd)
+	want := "text date May 20 is 5 days after question_date 2023-05-15"
+	if !strings.Contains(got, want) {
+		t.Fatalf("missing honest after line %q in %q", want, got)
+	}
+	if strings.Contains(got, "days before question_date") {
+		t.Fatalf("event after question_date must not say before: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_WeeksAgoVsQuestionDate(t *testing.T) {
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "concert", Type: "turn_fact", Timestamp: ts, SessionID: "s-concert",
+			Content: MemoryContent{Summary: "I attended the concert on May 3."},
+		},
+	}
+	q := "How many weeks ago was the concert?"
+	qd := time.Date(2023, 5, 24, 0, 0, 0, 0, time.UTC)
+	got := AssembleTemporalEvidenceAt(q, entries, qd)
+	if !strings.Contains(got, "text date May 3 is 21 days before question_date 2023-05-24") {
+		t.Fatalf("missing days line in %q", got)
+	}
+	wantWeeks := "text date May 3 is 3 weeks before question_date 2023-05-24 (floor days/7)"
+	if !strings.Contains(got, wantWeeks) {
+		t.Fatalf("missing weeks line %q in %q", wantWeeks, got)
+	}
+	if strings.Contains(got, "remainder") {
+		t.Fatalf("exact weeks must omit remainder: %q", got)
+	}
+	if strings.Contains(got, "calendar months") {
+		t.Fatalf("weeks-ago must not append calendar-month delta: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_MonthsAgoVsQuestionDate(t *testing.T) {
+	ts := time.Date(2023, 5, 15, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "course", Type: "turn_fact", Timestamp: ts, SessionID: "s-course",
+			Content: MemoryContent{Summary: "I started the course on January 2nd."},
+		},
+	}
+	q := "How many months ago was the course?"
+	qd := time.Date(2023, 4, 2, 0, 0, 0, 0, time.UTC)
+	got := AssembleTemporalEvidenceAt(q, entries, qd)
+	if !strings.Contains(got, "text date January 2nd is 90 days before question_date 2023-04-02") {
+		t.Fatalf("missing days line in %q", got)
+	}
+	wantMonths := "text date January 2nd is 3 calendar months before question_date 2023-04-02"
+	if !strings.Contains(got, wantMonths) {
+		t.Fatalf("missing calendar-month line %q in %q", wantMonths, got)
+	}
+}
+
+func TestSearchMemoryWithOptions_QuestionDateIsNotTimeTo(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	later := time.Date(2023, 6, 1, 12, 0, 0, 0, time.UTC)
+	if err := store.IngestTurn(MemoryEntry{
+		ID: "turn-concert", SessionID: "hay-concert", Timestamp: later,
+		Content: MemoryContent{Full: "I attended the concert on May 3."},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	qd := time.Date(2023, 5, 15, 0, 0, 0, 0, time.UTC)
+	hits := store.SearchMemoryWithOptions("concert", SearchMemoryOptions{
+		Limit:        5,
+		QuestionDate: qd,
+	})
+	if !searchHayContains(hits, "concert") {
+		t.Fatalf("QuestionDate must not TimeTo-filter later ingest; ids=%v summaries=%v", idsOf(hits), summariesOf(hits))
 	}
 }
 
