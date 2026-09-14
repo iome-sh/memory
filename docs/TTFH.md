@@ -101,6 +101,19 @@ palace). This page is documentation of the commands, not a live mesh session.
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
 
+### Phased rollout
+
+V1.5 host-path phases map onto commands already on this page. **not** Memory
+GA. dual_write **OFF**. **not** E-G1.
+
+| Phase | Command | Honesty |
+|-------|---------|---------|
+| R0 unit | `iomesh ttfh --unit` | offline · no mesh · not E-G1 |
+| R1 live | `iomesh ttfh --live` | fail-open · EMPTY unless decoded · not overlay PULSE |
+| R2 palace | ingest ×3 + digest cite-both-or-miss + patterns Beta + facts-as-of | mesh not required · miss is success |
+| R3 overlay PULSE | `/dashboard` consume | parked · required for E-G1 · `--live` decoded-N is not this |
+| R4 pull | `iomesh memory pull` | after PULSE · dual_write OFF · pull ≠ Connected |
+
 ## E-G1 is not this page
 
 **E-G1** is a **real laptop** run: **PULSE + 3 RCA + cite-both-or-miss**.
