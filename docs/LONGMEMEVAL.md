@@ -15,9 +15,10 @@ those clocks. **Not Memory GA.**
 Locked mixed **n=12** / **n=60** hash vs MiniLM vs BAAI BGE comparison (same
 IDs, same judge): [`docs/LONGMEMEVAL_BASELINE.md`](LONGMEMEVAL_BASELINE.md).
 Those tables are an **improvement baseline**, not official V1 and not a README
-number. The first official V1 BGE mixed n=500 scored run is in **Internal run
-log** below (**INTERNAL unpublished**). Reproduce twice before any public
-figure. `KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face
+number. Two official V1 BGE mixed n=500 scored runs on pin `9bee542` are in
+**Internal run log** below (run 1 **388/500**, run 2 **384/500**; **INTERNAL
+unpublished**). They are **not identical**. Do not publish a single %.
+`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face
 repo (auth 404). Comparable BGE ONNX is `BAAI/bge-small-en-v1.5` reshaped into
 hugot layout (`make longmemeval-baseline`).
 
@@ -41,16 +42,20 @@ make longmemeval-qa-generate
 make longmemeval-judge
 ```
 
-Reproduce twice before any public number. A published V1 figure, if it ever
-ships, is labelled **“kernel retrieve + reader.”**
+Two unpublished runs on pin `9bee542` are **not identical**; do not publish a
+single %. A published V1 figure, if it ever ships, is labelled **“kernel
+retrieve + reader.”**
 
 Do not vendor the 7 GB V2 tree. Do not publish judge-free hash-overlap as
 accuracy. Do not claim we beat Mem0, Graphiti, or Letta on a vendor harness.
 
 ## Card fields (fill when a scored run exists)
 
-Record these on every official-judge run. First official V1 BGE mixed-500 is
-filled below. **INTERNAL unpublished.** Not a README number.
+Record these on every official-judge run. Two unpublished official V1 BGE
+mixed-500 runs on pin `9bee542` are in **Internal run log** (388/500 and
+384/500). They are **not identical**. The table below is **run 1** (first).
+**INTERNAL unpublished.** Not a README number. Not Memory GA. Do not publish a
+single %.
 
 | Field | Value |
 |-------|--------|
@@ -69,12 +74,13 @@ filled below. **INTERNAL unpublished.** Not a README number.
 | Qdrant | off |
 | dual_write | OFF |
 | Palace | isolated; port `:8781`; log `/tmp/lme-v1-official-run.log` |
-| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · reproduce twice before public** |
+| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · two runs on this pin are not identical · do not publish a single %** |
 
-This is the **first** official V1 BGE mixed-500 scored run. **INTERNAL
-unpublished.** Not a README number. Not Memory GA. Reproduce twice before any
-public figure. Hash overlap unpublished. n=12 / n=60 cards stay improvement
-baseline ≠ this V1 run. TTFH / cite-both is a different clock.
+This is the **first** official V1 BGE mixed-500 scored run. Run 2 on the same
+pin is in **Internal run log** (**384/500**; not identical). **INTERNAL
+unpublished.** Not a README number. Not Memory GA. Do not publish a single %.
+Hash overlap unpublished. n=12 / n=60 cards stay improvement baseline ≠ this
+V1 run. TTFH / cite-both is a different clock.
 
 ## How to run (operators)
 
@@ -125,10 +131,87 @@ RFC3339.
 ## Internal run log
 
 Label: **unpublished · not hash-overlap**. This section is not a README number.
-The first official V1 BGE mixed-500 card is recorded below (**INTERNAL
-unpublished**). MiniLM n=12 is **not** official V1. n=12 / n=60 stay
-improvement baseline ≠ this V1 run. **Not Memory GA.** TTFH / cite-both is a
-different clock. Reproduce twice before any public figure.
+Two official V1 BGE mixed-500 cards on pin `9bee542` are recorded below
+(**INTERNAL unpublished**; **not identical**; do not publish a single %). MiniLM
+n=12 is **not** official V1. n=12 / n=60 stay improvement baseline ≠ these V1
+runs. **Not Memory GA.** TTFH / cite-both is a different clock.
+
+### 2026-09-14 — official V1 BGE mixed n=500 run 2 (INTERNAL unpublished)
+
+Second official V1 scored run on the **same kernel pin** as run 1 (`9bee542`).
+Isolated palace; port `:8782`. Log `/tmp/lme-v1-run2-official.log`. Hypotheses
+gitignored: `data/v1-run2/hypotheses-bge.jsonl` (+ `.eval-results-gpt-4o`) —
+**do not commit**. This pin is **before** [#143](https://github.com/iome-sh/memory/pull/143)
+/ [#146](https://github.com/iome-sh/memory/pull/146) / [#147](https://github.com/iome-sh/memory/pull/147)
+/ [#150](https://github.com/iome-sh/memory/pull/150). Hash overlap unpublished.
+n=12 / n=60 cards stay improvement baseline ≠ this V1 run. **Not Memory GA.**
+TTFH / cite-both is a different clock. **Not a README number.** Two runs on this
+pin are **not identical**. Do not publish a single %. Do not claim “reproduced
+twice.”
+
+| Field | Value |
+|-------|--------|
+| Date (UTC) | generate 2026-09-14T07:57:01Z → 2026-09-14T11:14:46Z; judge DONE 2026-09-14T11:19:49Z |
+| Kernel commit SHA | `9bee5428a6ff6d221ae57dca15da4a279ebca0f6` (`v1.5.12-20-g9bee542`) |
+| Kernel tag | v1.5.12-20-g9bee542. Same pin as run 1. Later `#143` / `#146` / `#147` / `#150` are **not** this score. |
+| Dataset variant | gitignored `data/longmemeval_oracle.json` n=500 |
+| Sample | `--sample mixed` **no `--limit`** (full file) |
+| n (questions) | 500 complete (0 missing) |
+| Type histogram | `temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-preference` 30, `single-session-assistant` 56, `single-session-user` 70 |
+| Session scope | `session_id` = official `conv_id` |
+| Embed mode | health `onnx-bge-small-en-v1.5`; all 500 hyp rows `embed_mode=onnx-bge-small-en-v1.5`; `BAAI/bge-small-en-v1.5` hugot layout (not KnightsAnalytics 404) |
+| PersistEmbeddings | OFF |
+| Qdrant | off |
+| dual_write | OFF |
+| Reader | `scripts/longmemeval_qa_generate.py` + `SearchMemoryWithOptions`; `OPENAI_MODEL=gpt-4o-mini` |
+| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` (zoo key `gpt-4o`) |
+| Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
+| Palace | isolated; port `:8782` |
+| Log | `/tmp/lme-v1-run2-official.log` |
+| Status | **two runs on pin 9bee542; not identical; still unpublished; not README; not Memory GA; do not publish a single %** |
+
+| Metric | Value |
+|--------|--------|
+| Overall Accuracy | **0.768** = **384/500** |
+| Task-averaged Accuracy | **0.7915** |
+| Abstention Accuracy | **0.6333 (30)** |
+
+By type (judge-true):
+
+| Type | Judge-true | Rate |
+|------|------------|------|
+| single-session-user | **67/70** | 0.9571 |
+| single-session-assistant | **54/56** | 0.9643 |
+| knowledge-update | **63/78** | 0.8077 |
+| multi-session | **96/133** | 0.7218 |
+| single-session-preference | **20/30** | 0.6667 |
+| temporal-reasoning | **84/133** | 0.6316 |
+
+Tracked on this old pin (before #143 / #146 / #147 / #150): `852ce960` FAIL $350k; `6aeb4375` FAIL three; `0a995998` FAIL reader 2; `08f4fc43` FAIL despite hyp 30 days (judge).
+
+n=500 complete (0 missing). Overall **384/500**. **Not a README number.** **Not
+Memory GA.**
+
+### Two runs on pin `9bee542` (INTERNAL unpublished)
+
+Same kernel, same embed, same reader, same judge. Delta vs run 1 is **−4**
+overall (−0.8pp): TR +1, MS −3, pref −1, ss-user −1. Honest: **reader/judge
+variance**, not a kernel change. Do not treat these as a reproduced single
+public figure.
+
+| Metric | Run 1 (2026-09-13) | Run 2 (2026-09-14) | Δ |
+|--------|--------------------|--------------------|---|
+| Overall | **388/500** (0.776) | **384/500** (0.768) | −4 (−0.8pp) |
+| Task-averaged | 0.802 | 0.7915 | — |
+| Abstention | 0.6333 (30) | 0.6333 (30) | 0 |
+| single-session-user | 68/70 | 67/70 | −1 |
+| single-session-assistant | 54/56 | 54/56 | 0 |
+| knowledge-update | 63/78 | 63/78 | 0 |
+| multi-session | 99/133 | 96/133 | −3 |
+| single-session-preference | 21/30 | 20/30 | −1 |
+| temporal-reasoning | 83/133 | 84/133 | +1 |
+
+Status: **two runs on pin 9bee542; not identical; still unpublished; not README; not Memory GA; do not publish a single %**.
 
 ### 2026-09-13 — official V1 BGE mixed n=500 (INTERNAL unpublished)
 
@@ -137,7 +220,8 @@ First official V1 scored run. Isolated palace; port `:8781`. Log
 `data/v1-official/hypotheses-bge.jsonl` (+ `.eval-results-gpt-4o`) — **do not
 commit**. Hash overlap unpublished. n=12 / n=60 cards stay improvement
 baseline ≠ this V1 run. **Not Memory GA.** TTFH / cite-both is a different
-clock. **Not a README number.** Reproduce twice before any public figure.
+clock. **Not a README number.** Two runs on this pin are **not identical**. Do
+not publish a single %.
 
 | Field | Value |
 |-------|--------|
@@ -158,7 +242,7 @@ clock. **Not a README number.** Reproduce twice before any public figure.
 | Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
 | Palace | isolated; port `:8781` |
 | Log | `/tmp/lme-v1-official-run.log` |
-| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · reproduce twice before public** |
+| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · two runs on this pin are not identical · do not publish a single %** |
 
 | Metric | Value |
 |--------|--------|
@@ -224,6 +308,7 @@ In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-us
 - Host walking skeleton (TUI `/memory digest --require-sources mesh,private`)
   is cite-both of mesh pull + private palace — a different clock from this eval.
 - `make longmemeval-v1-card` is optional and is **not** part of `make ci`.
-- First official V1 BGE mixed n=500 is **INTERNAL unpublished** (388/500).
-  Not a README number. Not Memory GA. Reproduce twice before public.
-  n=12 / n=60 remain improvement baseline ≠ this V1 run.
+- Two official V1 BGE mixed n=500 runs on pin `9bee542` are **INTERNAL
+  unpublished** (run 1 388/500, run 2 384/500). Not identical. Not a README
+  number. Not Memory GA. Do not publish a single %. n=12 / n=60 remain
+  improvement baseline ≠ these V1 runs.
