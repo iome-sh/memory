@@ -373,7 +373,7 @@ func unionCountQueryFacts(hits, candidates []MemoryEntry, query string) []Memory
 // "Count evidence (N distinct items):" and numbered bullets (1. 2. 3. in
 // cluster order) so a reader can enumerate clusters. Unique-entity and
 // exact-text paths prefix "Count evidence:" without N and stay unnumbered
-// (cluster count is not gold). Dated-span “how many days
+// (cluster count is not gold). Dated-span “how many days/weeks/months
 // between” is not assembled here (see AssembleTemporalEvidence). Empty when
 // the query is not a count question or no facts match. Does not invent a
 // numeric gold.

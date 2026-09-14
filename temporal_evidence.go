@@ -47,7 +47,7 @@ var temporalNeedleStop = map[string]struct{}{
 	"events": {}, "attend": {}, "attended": {}, "first": {}, "between": {},
 	"after": {}, "before": {}, "using": {}, "find": {},
 	"finding": {}, "combined": {}, "total": {}, "spend": {}, "spent": {},
-	"hours": {}, "hour": {}, "week": {}, "month": {}, "year": {}, "ago": {},
+	"hours": {}, "hour": {}, "week": {}, "weeks": {}, "month": {}, "months": {}, "year": {}, "ago": {},
 	"last": {}, "past": {}, "since": {}, "until": {}, "apart": {},
 }
 
@@ -74,10 +74,10 @@ func isTemporalOrderQuery(query string) bool {
 	return false
 }
 
-// isDatedSpanQuery is true for “how many days between / did it take” questions.
-// These stay out of calendar-window filters (classifyTemporalIntent already
-// skips how-many). Count-evidence clustering is skipped so day-quantities do
-// not hide dated event bullets.
+// isDatedSpanQuery is true for “how many days/weeks/months between / did it
+// take” questions. These stay out of calendar-window filters
+// (classifyTemporalIntent already skips how-many). Count-evidence clustering
+// is skipped so day-quantities do not hide dated event bullets.
 func isDatedSpanQuery(query string) bool {
 	q := strings.ToLower(query)
 	if !strings.Contains(q, "how many") {
@@ -93,7 +93,17 @@ func isDatedSpanQuery(query string) bool {
 		strings.Contains(q, "until") || strings.Contains(q, "since")) {
 		return true
 	}
+	if (strings.Contains(q, "weeks") || strings.Contains(q, "months")) && datedSpanUnitCue(q) {
+		return true
+	}
 	return false
+}
+
+func datedSpanUnitCue(q string) bool {
+	return strings.Contains(q, "between") || strings.Contains(q, "passed") ||
+		strings.Contains(q, "since") || strings.Contains(q, "apart") ||
+		strings.Contains(q, "until") || strings.Contains(q, "have i been") ||
+		strings.Contains(q, "had passed") || strings.Contains(q, "have i been taking")
 }
 
 func isTemporalEvidenceQuery(query string) bool {
@@ -105,11 +115,12 @@ func isTemporalEvidenceQuery(query string) bool {
 // Timestamp (RFC3339) so the reader can see relative/absolute dates vs session
 // time. Sorted by parsed text time when available, else Timestamp. Multiple
 // bullets are prefixed with the cluster count ("N distinct events"). For
-// dated-span queries with two or more parsed text times, one extra line reports
-// the UTC calendar-day difference between the earliest and latest text dates
-// (`text dates N days apart (phrase → phrase)`). That line is text-date
-// arithmetic, not a gold answer, and never uses ingest Timestamp. Empty when
-// the query is not temporal or no dated snippets match. Not persisted.
+// dated-span queries with two or more parsed text times, extra lines report
+// the UTC calendar-day difference (`text dates N days apart (phrase → phrase)`)
+// and, when the query asks how-many-weeks or how-many-months, a floor week
+// delta and a calendar-month delta. Arithmetic only; not a gold answer; never
+// ingest Timestamp. Empty when the query is not temporal or no dated snippets
+// match. Not persisted.
 func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 	if !isTemporalEvidenceQuery(query) {
 		return ""
@@ -207,8 +218,25 @@ func datedSpanTextDelta(query string, bullets []temporalBullet) string {
 		return ""
 	}
 	earliest, latest := dated[0], dated[len(dated)-1]
+	from := textDatePhrase(earliest.textPhrase, earliest.textTime)
+	to := textDatePhrase(latest.textPhrase, latest.textTime)
 	days := utcCalendarDayDelta(earliest.textTime, latest.textTime)
-	return "text dates " + strconv.Itoa(days) + " days apart (" + textDatePhrase(earliest.textPhrase, earliest.textTime) + " → " + textDatePhrase(latest.textPhrase, latest.textTime) + ")"
+	lines := []string{"text dates " + strconv.Itoa(days) + " days apart (" + from + " → " + to + ")"}
+	q := strings.ToLower(query)
+	if strings.Contains(q, "weeks") {
+		n, r := days/7, days%7
+		week := "text dates " + strconv.Itoa(n) + " weeks apart (floor days/7"
+		if r != 0 {
+			week += "; remainder " + strconv.Itoa(r) + " days"
+		}
+		week += ")"
+		lines = append(lines, week)
+	}
+	if strings.Contains(q, "months") {
+		m := utcCalendarMonthDelta(earliest.textTime, latest.textTime)
+		lines = append(lines, "text dates "+strconv.Itoa(m)+" calendar months apart ("+from+" → "+to+")")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func utcCalendarDayDelta(a, b time.Time) int {
@@ -218,6 +246,17 @@ func utcCalendarDayDelta(a, b time.Time) int {
 		ad, bd = bd, ad
 	}
 	return int(bd.Sub(ad) / (24 * time.Hour))
+}
+
+func utcCalendarMonthDelta(a, b time.Time) int {
+	au := a.UTC()
+	bu := b.UTC()
+	am := au.Year()*12 + int(au.Month())
+	bm := bu.Year()*12 + int(bu.Month())
+	if am > bm {
+		am, bm = bm, am
+	}
+	return bm - am
 }
 
 func calendarDayUTC(t time.Time) time.Time {
