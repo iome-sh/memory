@@ -6,6 +6,38 @@ Official V1 BGE mixed n=500 runs on pin `9bee542` are in [`LONGMEMEVAL.md`](LONG
 
 Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retrieve `session_id` = official `conv_id`. Isolated palace per embed mode.
 
+## n=60 remesure — hash-only current kernel after #143+#146+#150+#152 (kernel `77b2839`, 2026-09-14T17:35Z–17:37Z)
+
+Internal locked mixed **n=60** (`testdata/longmemeval_baseline_ids_n60.json`, 10 of each of 6 types). First 12 IDs = n=12 lock. Reader `gpt-4o-mini`. Judge `gpt-4o-2024-08-06`. Isolated palace `:8788`. Health `embed_mode=hash` verified. PersistEmbeddings OFF. Qdrant off. Retrieve timeout 600. **Hash-only** (MiniLM/BGE **not run**; hash ≠ official V1 BGE n=500). **Complete 60/60** (0 generate errors). **Not a README number.** **Not official V1.**
+
+Kernel `77b2839d4a77eedc63b250c346c748a889a61517` (`origin/main` at remesure start, `v1.5.12-36-g77b2839`): [#143](https://github.com/iome-sh/memory/pull/143) `5d3aca5` latest-value clip, [#146](https://github.com/iome-sh/memory/pull/146) `89c1dc0` restaurant tried-count, [#150](https://github.com/iome-sh/memory/pull/150) `76175a0` question_date-ago, [#152](https://github.com/iome-sh/memory/pull/152) `85d44c8` stop-`as` (includes Wave M card [#154](https://github.com/iome-sh/memory/pull/154) and official V1 run 2 card [#153](https://github.com/iome-sh/memory/pull/153)). Compare to n=60 `5154a76` (hash **49/60**; `852ce960` FAIL $350k; restaurants `6aeb4375` FAIL 3) **before** #136/#143/#146/#150/#152.
+
+| Embed | Judge-true | Rate | health `embed_mode` | knowledge-update | multi-session | ss-assistant | ss-preference | ss-user | temporal |
+|-------|------------|------|---------------------|------------------|---------------|--------------|---------------|---------|----------|
+| hash | **52/60** | 0.867 | `hash` | **9/10** | **9/10** | **10/10** | **6/10** | **10/10** | **8/10** |
+| MiniLM ONNX | SKIP | — | not run | — | — | — | — | — | — |
+| BAAI BGE ONNX | SKIP | — | not run | — | — | — | — | — | — |
+
+n=12 prefix vs Wave N (`77b2839` hash 11/12): hash **11/12** (miss `0a995998` only; `6aeb4375` PASS). MiniLM/BGE not this remesure — do not invent those columns.
+
+| ID | Role | hash |
+|----|------|------|
+| `0a995998` | clothes gold 3 | FAIL (summed 2) |
+| `gpt4_59c863d7` | kits gold 5 | PASS |
+| `aae3761f` | hours gold 15 | PASS |
+| `3a704032` | plants | PASS |
+| `852ce960` | KU mortgage gold $400k | FAIL ($350k) |
+| `6aeb4375` | KU restaurants gold 4 | **PASS** (hyp four) |
+| `08f4fc43` | days mass→Ash | FAIL (hyp 30 days; judge) |
+| `2a1811e2` | days Holi→mass | PASS |
+| `2c63a862` | days until house | PASS |
+
+Clothes (`0a995998`) FAIL: retrieve prepends numbered `Count evidence (3 distinct items)` with `1. [dry-clean]` / `2. [return]` / `3. [pick-up]`; reader still summed 2. KU `852ce960` FAIL: latest-value evidence lists `$400,000` (Nov 30) first then stale `$350,000` (clip [#143](https://github.com/iome-sh/memory/pull/143) kept the later amount); reader still `$350,000`. Does not NLP-supersede. KU `6aeb4375` **PASS** (hyp **four**): latest-first tried-N `[time: 2023-09-30T18:01:00Z] I've tried four different ones so far` then stale “three”; no `[restaurant:korean-style-bbq]` / `[restaurant:if]` / `[restaurant:as]` (after [#152](https://github.com/iome-sh/memory/pull/152)). Days `08f4fc43` FAIL: isolated-palace retrieve appends `text dates 30 days apart (January 2nd → February 1st)`; hyp **30 days** (gold accepts 30/31); judge false. JSONL retrieve text is 400-char truncated.
+
+Miss IDs: `08f4fc43` `0a995998` `35a27287` `75832dbd` `852ce960` `afdc33df` `caf03d32` `gpt4_2312f94c`. vs `5154a76` hash: recovered `0edc2aef` `51a45a95` `6aeb4375` `gpt4_76048e76`; new miss `75832dbd` (pref).
+
+Artifacts (gitignored palaces): worktree `data/baseline-n60-hash-now/` (health, hypotheses JSONL, eval-results-gpt-4o, server logs). Log `/tmp/lme-n60-hash-now.log`. Script table `/tmp/lme-n60-hash-now-table.md`.
+
 ## Wave N — restaurant stop-token `as` remesure hash-only after #152 (kernel `77b2839`, 2026-09-14T17:35Z)
 
 Kernel `77b2839d4a77eedc63b250c346c748a889a61517` (`origin/main` at remesure start): [#152](https://github.com/iome-sh/memory/pull/152) `85d44c8` drop leftover `[restaurant:as]` (on [#150](https://github.com/iome-sh/memory/pull/150) / Wave M `7a9b956`; includes Wave M card [#154](https://github.com/iome-sh/memory/pull/154) and official V1 run 2 [#153](https://github.com/iome-sh/memory/pull/153)). **Hash-only** (MiniLM/BGE **not run**). Health `embed_mode=hash` verified. Isolated palace. PersistEmbeddings OFF. Qdrant off. **Not a README number.** **Not official V1.**
