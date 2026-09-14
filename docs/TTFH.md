@@ -56,8 +56,8 @@ newer tag.
 | [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | **v1.3.7** | Agent TUI/CLI |
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | **v0.4.2** | MCP host over this kernel |
 
-In the TUI, with the memory host attached. The bullets **are** the
-rollout; R1 (`--live`) is not R3 (`/dashboard` overlay PULSE).
+In the TUI, with the memory host attached. Same walk as the bullets
+below · R1 ≠ R3 overlay PULSE.
 
 - **R0** `iomesh ttfh --unit` — offline smoke (no broker)
 - **R1** `iomesh ttfh --live` — fail-open consume probe (**EMPTY** unless decoded messages; never invent **PULSE**; not overlay PULSE)
@@ -102,19 +102,6 @@ palace). This page is documentation of the commands, not a live mesh session.
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
-
-### Phased rollout
-
-V1.5 host-path phases map onto commands already on this page. **not** Memory
-GA. dual_write **OFF**. **not** E-G1.
-
-| Phase | Command | Honesty |
-|-------|---------|---------|
-| R0 unit | `iomesh ttfh --unit` | offline · no mesh · not E-G1 |
-| R1 live | `iomesh ttfh --live` | fail-open · EMPTY unless decoded · not overlay PULSE |
-| R2 palace | ingest ×3 + digest cite-both-or-miss + patterns Beta + facts-as-of | mesh not required · miss is success |
-| R3 overlay PULSE | `/dashboard` consume | parked · required for E-G1 · `--live` decoded-N is not this |
-| R4 pull | `iomesh memory pull` | after PULSE · dual_write OFF · pull ≠ Connected |
 
 ## E-G1 is not this page
 
