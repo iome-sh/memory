@@ -947,6 +947,65 @@ func TestAssembleTemporalEvidence_WebinarBeforeWorkshopSameTimestamp(t *testing.
 	}
 }
 
+func TestAssembleTemporalEvidence_WhichFirstTextExtrema(t *testing.T) {
+	ts := time.Date(2023, 5, 28, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "workshop", Type: "turn_fact", Timestamp: ts, SessionID: "s-work",
+			Content: MemoryContent{Summary: "I attended the workshop on May 3."},
+		},
+		{
+			ID: "webinar", Type: "turn_fact", Timestamp: ts, SessionID: "s-web",
+			Content: MemoryContent{Summary: "I participated in a webinar on May 15."},
+		},
+	}
+	q := "Which event did I attend first, the workshop or the webinar?"
+	got := AssembleTemporalEvidence(q, entries)
+	if !strings.Contains(got, "May 3") {
+		t.Fatalf("missing May 3 bullet: %q", got)
+	}
+	if !strings.Contains(got, "May 15") {
+		t.Fatalf("missing May 15 bullet: %q", got)
+	}
+	want := "text dates earliest: May 3 · latest: May 15"
+	if !strings.Contains(got, want) {
+		t.Fatalf("missing extrema %q in %q", want, got)
+	}
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "the answer is") || strings.Contains(lower, "happened first") {
+		t.Fatalf("must not invent a gold answer: %q", got)
+	}
+	if strings.Contains(lower, "days apart") {
+		t.Fatalf("which-first must not append a dated-span delta: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_ExtremaUsesTextDatesNotIngest(t *testing.T) {
+	entries := []MemoryEntry{
+		{
+			ID: "later-ingest", Type: "turn_fact",
+			Timestamp: time.Date(2023, 6, 20, 12, 0, 0, 0, time.UTC),
+			SessionID: "s-early-text",
+			Content:   MemoryContent{Summary: "I attended the workshop on May 3."},
+		},
+		{
+			ID: "earlier-ingest", Type: "turn_fact",
+			Timestamp: time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC),
+			SessionID: "s-late-text",
+			Content:   MemoryContent{Summary: "I participated in a webinar on May 15."},
+		},
+	}
+	q := "Which event did I attend first, the workshop or the webinar?"
+	got := AssembleTemporalEvidence(q, entries)
+	want := "text dates earliest: May 3 · latest: May 15"
+	if !strings.Contains(got, want) {
+		t.Fatalf("extrema must follow text dates, got %q", got)
+	}
+	if strings.Contains(got, "text dates earliest: May 15") {
+		t.Fatalf("extrema must not follow ingest Timestamp: %q", got)
+	}
+}
+
 func TestAssembleTemporalEvidence_DatedSpanTwelveDaysApart(t *testing.T) {
 	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
 	entries := []MemoryEntry{
@@ -976,6 +1035,9 @@ func TestAssembleTemporalEvidence_DatedSpanTwelveDaysApart(t *testing.T) {
 	}
 	if strings.Contains(strings.ToLower(got), "the answer is") {
 		t.Fatalf("must not invent a gold answer: %q", got)
+	}
+	if strings.Contains(got, "text dates earliest:") {
+		t.Fatalf("dated-span must not append extrema unless also an order query: %q", got)
 	}
 }
 
@@ -1027,6 +1089,67 @@ func TestAssembleTemporalEvidence_SingleDatedBulletNoDelta(t *testing.T) {
 	if strings.Contains(strings.ToLower(got), "days apart") || strings.Contains(strings.ToLower(got), "weeks apart") ||
 		strings.Contains(strings.ToLower(got), "months apart") || strings.Contains(strings.ToLower(got), "calendar months") {
 		t.Fatalf("one dated bullet must not append a delta: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_DaysAgoSingleBulletNoDelta(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "concert", Type: "turn_fact", Timestamp: ts, SessionID: "s-concert",
+			Content: MemoryContent{Summary: "I attended the concert on May 3."},
+		},
+	}
+	q := "How many days ago was the concert"
+	if !isDatedSpanQuery(q) {
+		t.Fatal("how many days ago must be a dated-span query")
+	}
+	got := AssembleTemporalEvidence(q, entries)
+	if got == "" {
+		t.Fatal("expected temporal evidence")
+	}
+	if !strings.Contains(got, "May 3") {
+		t.Fatalf("missing dated bullet: %q", got)
+	}
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "days apart") || strings.Contains(lower, "weeks apart") ||
+		strings.Contains(lower, "months apart") || strings.Contains(lower, "calendar months") {
+		t.Fatalf("one dated bullet must not append a delta: %q", got)
+	}
+	if strings.Contains(got, "text dates earliest:") {
+		t.Fatalf("days-ago is not an order query; no extrema: %q", got)
+	}
+}
+
+func TestAssembleTemporalEvidence_SpanAndWhichFirstEmitsDeltaThenExtrema(t *testing.T) {
+	ts := time.Date(2023, 5, 20, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryEntry{
+		{
+			ID: "start", Type: "turn_fact", Timestamp: ts, SessionID: "s-start",
+			Content: MemoryContent{Summary: "I started training on May 3."},
+		},
+		{
+			ID: "end", Type: "turn_fact", Timestamp: ts, SessionID: "s-end",
+			Content: MemoryContent{Summary: "I finished training on May 15."},
+		},
+	}
+	q := "Which event was first, and how many days passed between starting training and finishing training?"
+	got := AssembleTemporalEvidence(q, entries)
+	delta := "text dates 12 days apart (May 3 → May 15)"
+	extrema := "text dates earliest: May 3 · latest: May 15"
+	if !strings.Contains(got, delta) {
+		t.Fatalf("missing delta %q in %q", delta, got)
+	}
+	if !strings.Contains(got, extrema) {
+		t.Fatalf("missing extrema %q in %q", extrema, got)
+	}
+	di := strings.Index(got, delta)
+	ei := strings.Index(got, extrema)
+	if di > ei {
+		t.Fatalf("delta must precede extrema: %q", got)
+	}
+	if strings.Contains(strings.ToLower(got), "the answer is") {
+		t.Fatalf("must not invent a gold answer: %q", got)
 	}
 }
 
@@ -1176,6 +1299,9 @@ func TestIsDatedSpanQuery_WeeksMonthsCues(t *testing.T) {
 		{"How many weeks have I been taking the medication?", true},
 		{"How many months had passed until the follow-up?", true},
 		{"How many days passed between starting and finishing?", true},
+		{"How many days ago was the concert", true},
+		{"How many weeks ago was the concert", true},
+		{"How many months ago was the concert", true},
 		{"How many kits have I been building?", false},
 		{"How many weeks of vacation did I book?", false},
 		{"Which event did I attend first?", false},
@@ -1198,6 +1324,7 @@ func TestAssembleCountEvidence_WeeksMonthsNotCountEvidence(t *testing.T) {
 		"How many weeks between May 3 and May 24",
 		"How many months between January 2nd and April 2nd",
 		"How many months have I been taking the medication?",
+		"How many days ago was the concert",
 	} {
 		if got := AssembleCountEvidence(q, facts); got != "" {
 			t.Fatalf("dated-span %q must not assemble count evidence, got %q", q, got)

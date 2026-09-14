@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **README:** install pin **v1.5.12**, companion hosts TUI **v1.3.7** / MCP **v0.4.2**, table of contents, compiling quickstart, `SessionIDs` on the search table, LongMemEval details moved to `docs/`. Release badge. No published LongMemEval number.
 
 ### Added
+- **Temporal-order extrema:** which-first evidence appends `text dates earliest: … · latest: …` from parsed text times. `how many days/weeks/months ago` is a dated-span query (no gold). Not ingest Timestamp.
 - **Wave J locked mixed n=12 hash-only (unpublished):** kernel `5d3aca5` after [#136](https://github.com/iome-sh/memory/pull/136) restaurant clusters + [#143](https://github.com/iome-sh/memory/pull/143) latest-value clip. Hash **10/12** MS **1/2**. Clothes `0a995998` FAIL (numbered `1. 2. 3.` + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. Temporal `gpt4_2487a7cb` PASS. KU `6aeb4375` FAIL (3 vs gold 4; count-evidence clustered `[restaurant:korean-style-bbq]` / `[restaurant:if]`). MiniLM/BGE **not run**. **Not a README number.** **Not official V1.**
 - **Dated-span weeks/months:** `AssembleTemporalEvidence` adds text-date week (floor days/7) and calendar-month deltas when the query asks how-many-weeks/months. Days line unchanged. Not ingest Timestamp. Does not invent gold.
 - **Docs:** internal unpublished official V1 mixed n=500 BGE card (388/500, judge gpt-4o-2024-08-06, kernel `9bee542`). Not a README number. Reproduce twice before public. dual_write OFF. not Memory GA.

@@ -75,7 +75,7 @@ func isTemporalOrderQuery(query string) bool {
 }
 
 // isDatedSpanQuery is true for “how many days/weeks/months between / did it
-// take” questions. These stay out of calendar-window filters
+// take / ago” questions. These stay out of calendar-window filters
 // (classifyTemporalIntent already skips how-many). Count-evidence clustering
 // is skipped so day-quantities do not hide dated event bullets.
 func isDatedSpanQuery(query string) bool {
@@ -90,7 +90,7 @@ func isDatedSpanQuery(query string) bool {
 		return true
 	}
 	if strings.Contains(q, "days") && (strings.Contains(q, "passed") || strings.Contains(q, "apart") ||
-		strings.Contains(q, "until") || strings.Contains(q, "since")) {
+		strings.Contains(q, "until") || strings.Contains(q, "since") || strings.Contains(q, "ago")) {
 		return true
 	}
 	if (strings.Contains(q, "weeks") || strings.Contains(q, "months")) && datedSpanUnitCue(q) {
@@ -103,7 +103,8 @@ func datedSpanUnitCue(q string) bool {
 	return strings.Contains(q, "between") || strings.Contains(q, "passed") ||
 		strings.Contains(q, "since") || strings.Contains(q, "apart") ||
 		strings.Contains(q, "until") || strings.Contains(q, "have i been") ||
-		strings.Contains(q, "had passed") || strings.Contains(q, "have i been taking")
+		strings.Contains(q, "had passed") || strings.Contains(q, "have i been taking") ||
+		strings.Contains(q, "ago")
 }
 
 func isTemporalEvidenceQuery(query string) bool {
@@ -118,9 +119,12 @@ func isTemporalEvidenceQuery(query string) bool {
 // dated-span queries with two or more parsed text times, extra lines report
 // the UTC calendar-day difference (`text dates N days apart (phrase → phrase)`)
 // and, when the query asks how-many-weeks or how-many-months, a floor week
-// delta and a calendar-month delta. Arithmetic only; not a gold answer; never
-// ingest Timestamp. Empty when the query is not temporal or no dated snippets
-// match. Not persisted.
+// delta and a calendar-month delta. Temporal-order queries with two or more
+// parsed text times append `text dates earliest: PHRASE · latest: PHRASE`.
+// Span delta is emitted first; extrema only when isTemporalOrderQuery is
+// still true. Arithmetic only; not a gold answer; never ingest Timestamp.
+// Empty when the query is not temporal or no dated snippets match. Not
+// persisted.
 func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 	if !isTemporalEvidenceQuery(query) {
 		return ""
@@ -189,8 +193,15 @@ func AssembleTemporalEvidence(query string, entries []MemoryEntry) string {
 	} else {
 		body = "Temporal evidence:\n- " + strings.Join(out, "\n- ")
 	}
+	var extras []string
 	if delta := datedSpanTextDelta(query, list); delta != "" {
-		return body + "\n" + delta
+		extras = append(extras, delta)
+	}
+	if extrema := temporalOrderTextExtrema(query, list); extrema != "" {
+		extras = append(extras, extrema)
+	}
+	if len(extras) > 0 {
+		return body + "\n" + strings.Join(extras, "\n")
 	}
 	return body
 }
@@ -202,6 +213,28 @@ type temporalBullet struct {
 	hasTextTime bool
 	ingest      time.Time
 	order       int
+}
+
+// temporalOrderTextExtrema labels the earliest and latest parsed text dates
+// for which-first / before / after queries. Uses the already-sorted bullet
+// list; never ingest Timestamp; not a gold answer.
+func temporalOrderTextExtrema(query string, bullets []temporalBullet) string {
+	if !isTemporalOrderQuery(query) {
+		return ""
+	}
+	dated := make([]temporalBullet, 0, len(bullets))
+	for _, b := range bullets {
+		if b.hasTextTime {
+			dated = append(dated, b)
+		}
+	}
+	if len(dated) < 2 {
+		return ""
+	}
+	earliest, latest := dated[0], dated[len(dated)-1]
+	from := textDatePhrase(earliest.textPhrase, earliest.textTime)
+	to := textDatePhrase(latest.textPhrase, latest.textTime)
+	return "text dates earliest: " + from + " · latest: " + to
 }
 
 func datedSpanTextDelta(query string, bullets []temporalBullet) string {
