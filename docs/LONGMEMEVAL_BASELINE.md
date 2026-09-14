@@ -6,6 +6,18 @@ Official V1 first scored run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500
 
 Same 12 question IDs. Reader `gpt-4o-mini`. Judge **`gpt-4o-2024-08-06`**. Retrieve `session_id` = official `conv_id`. Isolated palace per embed mode.
 
+## Wave J — restaurant remesure hash-only after #136+#143 (kernel `5d3aca5`, 2026-09-14T07:12Z)
+
+Kernel `5d3aca5c876da487eea7e56a73ea513209e610dc` (`origin/main`): [#136](https://github.com/iome-sh/memory/pull/136) unique-entity restaurant clusters + [#143](https://github.com/iome-sh/memory/pull/143) latest-value clip. **Hash-only** (MiniLM/BGE **not run**; official V1 run 2 occupies BGE RAM). Health `embed_mode=hash` verified. Isolated palace. PersistEmbeddings OFF. Qdrant off. **Not a README number.** **Not official V1.**
+
+| Embed | Judge-true | Rate | health `embed_mode` | multi-session |
+|-------|------------|------|---------------------|---------------|
+| hash | **10/12** | 0.833 | `hash` | **1/2** (clothes miss, projects pass) |
+| MiniLM ONNX | SKIP | — | not run | — |
+| BAAI BGE ONNX | SKIP | — | not run | — |
+
+Temporal `gpt4_2487a7cb` (webinar first) PASS. Clothes (`0a995998`, gold 3) FAIL: retrieve prepends numbered `Count evidence (3 distinct items)` with `1. [dry-clean]` / `2. [return]` / `3. [pick-up]`; reader still summed 2. Projects (`6d550036`, gold 2) PASS (`Count evidence:` without N). Knowledge-update `6aeb4375` (Korean restaurants, gold 4) FAIL (hyp **three**): count-evidence clustered `[restaurant:korean-style-bbq]` / `[restaurant:if]`; haystack still has stale “three” ahead of later “four”. Other types 2/2. MiniLM/BGE not this remesure — do not invent those columns.
+
 ## Wave I — skip-vector / clothing-only N / numbered clothes / T6 / T7 (kernel `e094bec` / #122+#124+#127+#129+#132, 2026-09-13T00:39Z–00:44Z)
 
 Kernel `e094bec` (`origin/main` at remesure start): [#122](https://github.com/iome-sh/memory/pull/122) skip-vector + latest-value, [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N, [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes, [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta, [#132](https://github.com/iome-sh/memory/pull/132) T7 unique-entity generalize. Health `embed_mode` verified (MiniLM/BGE did **not** hash-fall-back). Isolated palace per embed. **Not a README number.** [#134](https://github.com/iome-sh/memory/pull/134) T4-perf landed **after** this remesure and is not this card. `852ce960` is **not** in the n=12 lock.
@@ -173,5 +185,6 @@ make longmemeval-baseline
 - hash-overlap unpublished · n=12 is not overall V1 · not a README number
 - Official V1 first run is in [`LONGMEMEVAL.md`](LONGMEMEVAL.md) (**388/500** BGE mixed n=500, INTERNAL unpublished). n=12 / n=60 remain unpublished improvement baseline, not V1. Reproduce twice before public.
 - TTFH / cite-both walking skeleton is a different clock
+- Wave J is kernel `5d3aca5` (#136 restaurant clusters + #143 latest-value clip). Hash-only **10/12** MS **1/2**. Clothes `0a995998` FAIL (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` PASS. KU `6aeb4375` FAIL (3 vs gold 4). Temporal `gpt4_2487a7cb` PASS. MiniLM/BGE not this remesure. Not a README number.
 - Wave I is kernel `e094bec` (#122+#124+#127+#129+#132). Hash/MiniLM/BGE **10/12** MS **1/2**. Clothes `0a995998` miss all three (numbered 1–3 + N=3 in retrieve; reader summed 2). Projects `6d550036` pass all three (MiniLM recovered). KU `6aeb4375` miss all three (3 vs gold 4). `852ce960` not in n=12. #134 not this remesure. Not a README number.
 - n=60 remesure after #119+#122+#124+#129+#132 is kernel `5154a76` (includes #134+#135; **before** #136). hash **49/60** MS **9/10**; MiniLM **51/60** MS **9/10**; BGE **47/60** MS **8/10**. Complete 60/60. Unlike v1.5.12 `e90a82d` (before #119). Not a README number.
