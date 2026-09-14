@@ -779,6 +779,15 @@ func TestNormalizeRestaurantName_DishNotVenue(t *testing.T) {
 	if got := normalizeRestaurantName("If"); got != "" {
 		t.Fatalf("if is a stop token, got %q", got)
 	}
+	if got := normalizeRestaurantName("As"); got != "" {
+		t.Fatalf("as is a stop token, got %q", got)
+	}
+	if got := normalizeRestaurantName("Is"); got != "" {
+		t.Fatalf("is is a stop token, got %q", got)
+	}
+	if got := normalizeRestaurantName("At"); got != "" {
+		t.Fatalf("at is a stop token, got %q", got)
+	}
 	if got := normalizeRestaurantName("Seoul Kitchen"); got != "Seoul Kitchen" {
 		t.Fatalf("Seoul Kitchen is a venue, got %q", got)
 	}
@@ -787,6 +796,12 @@ func TestNormalizeRestaurantName_DishNotVenue(t *testing.T) {
 	}
 	if got := extractRestaurantPhrases("If restaurants in my city have bibimbap, let me know."); len(got) != 0 {
 		t.Fatalf("If restaurants must not cluster, got %q", got)
+	}
+	if got := extractRestaurantPhrases("As for the new Indian restaurant, I don't have personal experiences."); len(got) != 0 {
+		t.Fatalf("As for … restaurant must not cluster, got %q", got)
+	}
+	if got := extractRestaurantPhrases("Is this restaurant any good?"); len(got) != 0 {
+		t.Fatalf("Is this restaurant must not cluster, got %q", got)
 	}
 }
 
@@ -844,6 +859,42 @@ func TestAssembleCountEvidence_RestaurantsTriedCountLatestFirst(t *testing.T) {
 		t.Fatalf("restaurant unique-entity path must not number bullets: %q", got)
 	}
 	if strings.Contains(lower, "the answer is") || strings.Contains(lower, "the answer is 4") {
+		t.Fatalf("must not invent a numeric gold: %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_RestaurantsStopTokenAs(t *testing.T) {
+	facts := []MemoryEntry{
+		factEntry("as", "s-as", "As for the new Indian restaurant, I don't have personal experiences."),
+		factEntry("is", "s-is", "Is this restaurant any good?"),
+		factEntry("r1", "s1", "I tried Banchan Korean restaurant"),
+		factEntry("nov", "s-nov", "I've tried four different ones so far."),
+	}
+	q := "How many Korean restaurants have I tried in my city?"
+	got := AssembleCountEvidence(q, facts)
+	if got == "" {
+		t.Fatal("expected restaurant count evidence")
+	}
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "[restaurant:as]") {
+		t.Fatalf("must not cluster stop-token as: %q", got)
+	}
+	if strings.Contains(lower, "[restaurant:is]") {
+		t.Fatalf("must not cluster stop-token is: %q", got)
+	}
+	if !strings.Contains(lower, "[restaurant:banchan]") {
+		t.Fatalf("real venue must still cluster: %q", got)
+	}
+	if !strings.Contains(lower, "four") {
+		t.Fatalf("tried-count mention must still surface: %q", got)
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("restaurant unique-entity path must not label N distinct items: %q", got)
+	}
+	if strings.Contains(got, "\n1. ") || strings.Contains(got, "\n2. ") {
+		t.Fatalf("restaurant unique-entity path must not number bullets: %q", got)
+	}
+	if strings.Contains(lower, "the answer is") {
 		t.Fatalf("must not invent a numeric gold: %q", got)
 	}
 }

@@ -566,6 +566,7 @@ var restaurantPhraseStop = map[string]struct{}{
 	"a": {}, "an": {}, "the": {}, "this": {}, "that": {}, "these": {}, "those": {},
 	"my": {}, "our": {}, "his": {}, "her": {}, "their": {}, "some": {}, "any": {},
 	"i": {}, "we": {}, "and": {}, "or": {}, "of": {}, "on": {}, "for": {}, "at": {},
+	"as": {}, "is": {},
 	"in": {}, "to": {}, "from": {}, "with": {}, "about": {}, "around": {},
 	"new": {}, "local": {}, "nearby": {}, "favorite": {}, "another": {},
 	"good": {}, "great": {}, "best": {}, "different": {}, "other": {},
