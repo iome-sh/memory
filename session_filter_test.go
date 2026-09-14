@@ -693,12 +693,16 @@ func TestAssembleCountEvidence_ClothingQueryNotUniqueEntity(t *testing.T) {
 		factEntry("c2", "s2", "I still need to pick up my dry cleaning for the navy blue blazer."),
 		factEntry("k1", "s3", "I bought a P-51 Mustang kit at the hobby shop."),
 		factEntry("r1", "s4", "I tried Banchan Korean restaurant."),
+		factEntry("r2", "s5", "I've tried four different ones so far."),
 	}
 	q := "How many items of clothing do I need to pick up or return from a store?"
 	got := AssembleCountEvidence(q, facts)
 	lower := strings.ToLower(got)
 	if strings.Contains(lower, "[kit:") || strings.Contains(lower, "[plant:") || strings.Contains(lower, "[hours:") || strings.Contains(lower, "[restaurant:") {
 		t.Fatalf("clothing query must not take unique-entity path: %q", got)
+	}
+	if strings.Contains(lower, "[time:") || strings.Contains(lower, "four different") {
+		t.Fatalf("clothing query must not emit restaurant tried-count: %q", got)
 	}
 	if !strings.Contains(lower, "distinct items") {
 		t.Fatalf("clothing path should keep N distinct items: %q", got)
@@ -761,6 +765,85 @@ func TestAssembleCountEvidence_RestaurantsQuotedNameAndTwoInOneTurn(t *testing.T
 		t.Fatalf("restaurant unique-entity path must not label N distinct items: %q", got)
 	}
 	if strings.Contains(lower, "the answer is") {
+		t.Fatalf("must not invent a numeric gold: %q", got)
+	}
+}
+
+func TestNormalizeRestaurantName_DishNotVenue(t *testing.T) {
+	if got := normalizeRestaurantName("Korean-style BBQ"); got != "" {
+		t.Fatalf("Korean-style BBQ is a dish, got %q", got)
+	}
+	if got := normalizeRestaurantName("Korean BBQ"); got != "" {
+		t.Fatalf("Korean BBQ is a dish, got %q", got)
+	}
+	if got := normalizeRestaurantName("If"); got != "" {
+		t.Fatalf("if is a stop token, got %q", got)
+	}
+	if got := normalizeRestaurantName("Seoul Kitchen"); got != "Seoul Kitchen" {
+		t.Fatalf("Seoul Kitchen is a venue, got %q", got)
+	}
+	if got := extractRestaurantPhrases("I'm making Korean-style BBQ at home this week."); len(got) != 0 {
+		t.Fatalf("cooking Korean-style BBQ must not extract a venue, got %q", got)
+	}
+	if got := extractRestaurantPhrases("If restaurants in my city have bibimbap, let me know."); len(got) != 0 {
+		t.Fatalf("If restaurants must not cluster, got %q", got)
+	}
+}
+
+func TestAssembleCountEvidence_RestaurantsTriedCountLatestFirst(t *testing.T) {
+	aug := time.Date(2023, 8, 11, 5, 59, 0, 0, time.UTC)
+	nov := time.Date(2023, 11, 30, 12, 13, 0, 0, time.UTC)
+	facts := []MemoryEntry{
+		{
+			ID: "aug", Type: "turn_fact", Timestamp: aug, SessionID: "s-aug",
+			Content: MemoryContent{Summary: "I've tried three different ones recently, and each has its own unique flavor and style."},
+		},
+		{
+			ID: "nov", Type: "turn_fact", Timestamp: nov, SessionID: "s-nov",
+			Content: MemoryContent{Summary: "I've tried four different ones so far, and I'm always looking for new recommendations."},
+		},
+		{
+			ID: "cook", Type: "turn_fact", Timestamp: aug, SessionID: "s-cook",
+			Content: MemoryContent{Summary: "I'm making Korean-style BBQ at home this week."},
+		},
+		{
+			ID: "if", Type: "turn_fact", Timestamp: nov, SessionID: "s-if",
+			Content: MemoryContent{Summary: "If restaurants in my city have bibimbap, let me know."},
+		},
+	}
+	q := "How many Korean restaurants have I tried in my city?"
+	got := AssembleCountEvidence(q, facts)
+	if got == "" {
+		t.Fatal("expected restaurant count evidence")
+	}
+	lower := strings.ToLower(got)
+	fourAt := strings.Index(lower, "four")
+	threeAt := strings.Index(lower, "three")
+	if fourAt < 0 || threeAt < 0 {
+		t.Fatalf("must list both four and three tried-count mentions: %q", got)
+	}
+	if fourAt > threeAt {
+		t.Fatalf("four must list before three (latest first): %q", got)
+	}
+	if !strings.Contains(got, "2023-11-30") {
+		t.Fatalf("must label Nov time on latest tried-count: %q", got)
+	}
+	if !strings.Contains(got, "[time: "+nov.UTC().Format(time.RFC3339)+"]") {
+		t.Fatalf("must label latest tried-count like latest-value: %q", got)
+	}
+	if strings.Contains(lower, "[restaurant:if]") {
+		t.Fatalf("must not cluster stop-token if: %q", got)
+	}
+	if strings.Contains(lower, "korean-style-bbq") || strings.Contains(lower, "[restaurant:korean") {
+		t.Fatalf("must not treat Korean-style BBQ as a venue: %q", got)
+	}
+	if strings.Contains(lower, "distinct items") {
+		t.Fatalf("restaurant unique-entity path must not label N distinct items: %q", got)
+	}
+	if strings.Contains(got, "\n1. ") || strings.Contains(got, "\n2. ") {
+		t.Fatalf("restaurant unique-entity path must not number bullets: %q", got)
+	}
+	if strings.Contains(lower, "the answer is") || strings.Contains(lower, "the answer is 4") {
 		t.Fatalf("must not invent a numeric gold: %q", got)
 	}
 }

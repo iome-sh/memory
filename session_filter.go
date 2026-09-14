@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ConvTagPrefix groups haystack sessions that belong to one conversation/palace
@@ -517,15 +518,16 @@ var destCatalog = []namedIdentity{
 var restaurantCatalog = []namedIdentity{}
 
 var (
-	reHoursPrep        = regexp.MustCompile(`(?i)\b(?:\d+|` + wordNumberAlt + `)\s+hours?\s+(?:to|in|for|at|toward|towards)\s+`)
-	reKitAnchor        = regexp.MustCompile(`(?i)\b(?:model\s+)?kits?\b`)
-	reNamedPlant       = regexp.MustCompile(`(?i)\b([A-Za-z][A-Za-z0-9-]*)\s+plants?\b`)
-	reModelCode        = regexp.MustCompile(`(?i)^[a-z]{1,3}-?\d{1,3}[a-z0-9]*$`)
-	reMarkCode         = regexp.MustCompile(`(?i)^mk\.?[ivxlcdm0-9]+$`)
-	reRestaurantAnchor = regexp.MustCompile(`(?i)\brestaurants?\b`)
-	reQuotedName       = regexp.MustCompile(`["“”]([^"“”\n]{2,48})["“”]`)
-	reDiningVerb       = regexp.MustCompile(`(?i)\b(?:(?:went|go(?:ing)?)\s+back\s+to|(?:went|go(?:ing)?)\s+to|tried|try(?:ing)?|ate\s+at|eat(?:ing)?\s+at|dined\s+at|dine\s+at|had\s+(?:dinner|lunch|brunch|breakfast)\s+at|visited|visit(?:ing)?|ordered\s+(?:from|at)|stopped\s+(?:by|at))\s+`)
-	reRestaurantSuffix = regexp.MustCompile(`\b((?:[A-Z][A-Za-z0-9'’.-]*\s+){0,3}[A-Z][A-Za-z0-9'’.-]*)\s+(Kitchens?|Houses?|Grills?|Bistros?|Caf[eé]s?|BBQs?|Eaterys?|Eateries|Diners?|Taverns?)\b`)
+	reHoursPrep         = regexp.MustCompile(`(?i)\b(?:\d+|` + wordNumberAlt + `)\s+hours?\s+(?:to|in|for|at|toward|towards)\s+`)
+	reKitAnchor         = regexp.MustCompile(`(?i)\b(?:model\s+)?kits?\b`)
+	reNamedPlant        = regexp.MustCompile(`(?i)\b([A-Za-z][A-Za-z0-9-]*)\s+plants?\b`)
+	reModelCode         = regexp.MustCompile(`(?i)^[a-z]{1,3}-?\d{1,3}[a-z0-9]*$`)
+	reMarkCode          = regexp.MustCompile(`(?i)^mk\.?[ivxlcdm0-9]+$`)
+	reRestaurantAnchor  = regexp.MustCompile(`(?i)\brestaurants?\b`)
+	reQuotedName        = regexp.MustCompile(`["“”]([^"“”\n]{2,48})["“”]`)
+	reDiningVerb        = regexp.MustCompile(`(?i)\b(?:(?:went|go(?:ing)?)\s+back\s+to|(?:went|go(?:ing)?)\s+to|tried|try(?:ing)?|ate\s+at|eat(?:ing)?\s+at|dined\s+at|dine\s+at|had\s+(?:dinner|lunch|brunch|breakfast)\s+at|visited|visit(?:ing)?|ordered\s+(?:from|at)|stopped\s+(?:by|at))\s+`)
+	reRestaurantSuffix  = regexp.MustCompile(`\b((?:[A-Z][A-Za-z0-9'’.-]*\s+){0,3}[A-Z][A-Za-z0-9'’.-]*)\s+(Kitchens?|Houses?|Grills?|Bistros?|Caf[eé]s?|BBQs?|Eaterys?|Eateries|Diners?|Taverns?)\b`)
+	reTriedCountMention = regexp.MustCompile(`(?i)\b(?:tried|try(?:ing)?)\s+(?:(?:\d+|` + wordNumberAlt + `)\s+)?(?:different\s+)?(?:ones|restaurants)\b(?:\s+so\s+far|\s+recently)?`)
 )
 
 var kitPhraseStop = map[string]struct{}{
@@ -577,6 +579,10 @@ var restaurantPhraseStop = map[string]struct{}{
 	"so": {}, "far": {}, "there": {}, "here": {}, "it": {}, "them": {},
 	"city": {}, "town": {}, "area": {}, "neighborhood": {},
 	"making": {}, "make": {}, "home": {},
+	"if": {}, "whether": {}, "maybe": {},
+	"could": {}, "would": {}, "should": {}, "can": {}, "will": {},
+	"did": {}, "does": {}, "do": {},
+	"not": {}, "no": {}, "yes": {}, "your": {}, "you": {},
 }
 
 var restaurantCuisineStop = map[string]struct{}{
@@ -976,6 +982,9 @@ func extractRestaurantPhrases(text string) []string {
 				continue
 			}
 			if isRestaurantNameToken(tok) {
+				if isCuisineToken(low) && len(collected) == 0 {
+					continue
+				}
 				collected = append([]string{tok}, collected...)
 				if len(collected) >= 4 {
 					break
@@ -1032,6 +1041,15 @@ func takeRestaurantName(rest string) string {
 		if !isRestaurantNameToken(tok) {
 			break
 		}
+		if isCuisineToken(low) && len(parts) == 0 {
+			next := ""
+			if i+1 < len(fields) {
+				next = fields[i+1]
+			}
+			if !isVenueGenericSuffix(next) {
+				break
+			}
+		}
 		parts = append(parts, tok)
 		if len(parts) >= 4 {
 			break
@@ -1045,7 +1063,10 @@ func isRestaurantNameToken(tok string) bool {
 		return false
 	}
 	low := strings.ToLower(tok)
-	if _, ok := restaurantCuisineStop[low]; ok {
+	if _, stop := restaurantPhraseStop[low]; stop {
+		return false
+	}
+	if isCuisineToken(low) {
 		return true
 	}
 	if _, ok := restaurantGenericName[low]; ok {
@@ -1053,6 +1074,49 @@ func isRestaurantNameToken(tok string) bool {
 	}
 	r := []rune(tok)
 	return r[0] >= 'A' && r[0] <= 'Z'
+}
+
+func isCuisineToken(low string) bool {
+	low = strings.ToLower(strings.Trim(low, ".,;:!?\"'`()[]"))
+	if low == "" {
+		return false
+	}
+	if _, ok := restaurantCuisineStop[low]; ok {
+		return true
+	}
+	for _, part := range strings.Split(low, "-") {
+		if part == "" || part == "style" || part == "inspired" {
+			continue
+		}
+		if _, ok := restaurantCuisineStop[part]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func isVenueGenericSuffix(tok string) bool {
+	switch strings.ToLower(strings.Trim(tok, ".,;:!?\"'`()[]")) {
+	case "kitchen", "kitchens", "house", "houses",
+		"grill", "grills", "bistro", "bistros",
+		"cafe", "cafes", "café", "cafés",
+		"eatery", "eateries", "diner", "diners",
+		"tavern", "taverns":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRestaurantDishOrGenericToken(low string) bool {
+	low = strings.ToLower(strings.Trim(low, ".,;:!?\"'`()[]"))
+	if isCuisineToken(low) {
+		return true
+	}
+	if _, ok := restaurantGenericName[low]; ok {
+		return true
+	}
+	return low == "style" || low == "inspired"
 }
 
 func normalizeRestaurantName(s string) string {
@@ -1065,7 +1129,7 @@ func normalizeRestaurantName(s string) string {
 			fields = fields[:len(fields)-1]
 			continue
 		}
-		if _, ok := restaurantCuisineStop[low]; ok {
+		if isCuisineToken(low) {
 			fields = fields[:len(fields)-1]
 			continue
 		}
@@ -1077,7 +1141,7 @@ func normalizeRestaurantName(s string) string {
 			fields = fields[1:]
 			continue
 		}
-		if _, ok := restaurantCuisineStop[low]; ok && len(fields) > 1 {
+		if isCuisineToken(low) && len(fields) > 1 {
 			fields = fields[1:]
 			continue
 		}
@@ -1094,6 +1158,16 @@ func normalizeRestaurantName(s string) string {
 		}
 	}
 	if len(cleaned) == 0 {
+		return ""
+	}
+	onlyDish := true
+	for _, tok := range cleaned {
+		if !isRestaurantDishOrGenericToken(strings.ToLower(tok)) {
+			onlyDish = false
+			break
+		}
+	}
+	if onlyDish {
 		return ""
 	}
 	if len(cleaned) == 1 {
@@ -1128,12 +1202,17 @@ func identitySlug(s string) string {
 
 // assembleUniqueEntityCountEvidence lists one dash bullet per distinctive kit /
 // plant / restaurant / hour-destination identity. Catalogs are aliases; unseen
-// kit phrases, restaurant names, and hour destinations still cluster. No
+// kit phrases, restaurant names, and hour destinations still cluster. Restaurant
+// queries prepend latest-first "tried N" self-reports (not a gold answer). No
 // (N distinct items) header; cluster count is not gold.
 func assembleUniqueEntityCountEvidence(query string, matched []MemoryEntry) []string {
 	kind := countEntityKind(query)
 	if kind == "" || kind == "clothing" {
 		return nil
+	}
+	var out []string
+	if kind == "restaurant" {
+		out = extractTriedCountMentions(matched)
 	}
 	type filled struct {
 		snippet string
@@ -1156,7 +1235,7 @@ func assembleUniqueEntityCountEvidence(query string, matched []MemoryEntry) []st
 			n++
 		}
 	}
-	if len(got) == 0 {
+	if len(got) == 0 && len(out) == 0 {
 		return nil
 	}
 	type ordered struct {
@@ -1168,14 +1247,87 @@ func assembleUniqueEntityCountEvidence(query string, matched []MemoryEntry) []st
 		list = append(list, ordered{order: v.order, snip: v.snippet})
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].order < list[j].order })
-	out := make([]string, 0, len(list))
 	for _, x := range list {
+		if len(out) >= maxCountEvidenceSnippets {
+			break
+		}
 		out = append(out, x.snip)
+	}
+	return out
+}
+
+func extractTriedCountMentions(matched []MemoryEntry) []string {
+	type hit struct {
+		when  time.Time
+		snip  string
+		order int
+	}
+	var hits []hit
+	seen := make(map[string]struct{}, 4)
+	n := 0
+	for _, e := range matched {
+		when := entryEventTime(e)
+		text := factSnippetText(e)
+		if text == "" {
+			continue
+		}
+		for _, sent := range splitEvidenceSentences(text) {
+			if !reTriedCountMention.MatchString(sent) {
+				continue
+			}
+			snip := triedCountSnippet(sent)
+			key := strings.ToLower(snip)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			hits = append(hits, hit{
+				when:  when,
+				snip:  formatLatestValueLabel(when) + " " + snip,
+				order: n,
+			})
+			n++
+		}
+	}
+	if len(hits) == 0 {
+		return nil
+	}
+	sort.SliceStable(hits, func(i, j int) bool {
+		if !hits[i].when.Equal(hits[j].when) {
+			return hits[i].when.After(hits[j].when)
+		}
+		return hits[i].order < hits[j].order
+	})
+	out := make([]string, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, h.snip)
 		if len(out) >= maxCountEvidenceSnippets {
 			break
 		}
 	}
 	return out
+}
+
+func triedCountSnippet(sent string) string {
+	sent = strings.TrimSpace(sent)
+	loc := reTriedCountMention.FindStringIndex(sent)
+	if loc == nil {
+		return sent
+	}
+	start := loc[0]
+	head := strings.ToLower(strings.TrimSpace(sent[:start]))
+	switch {
+	case strings.HasSuffix(head, "i've"):
+		start = strings.LastIndex(strings.ToLower(sent[:loc[0]]), "i've")
+	case strings.HasSuffix(head, "i have"):
+		start = strings.LastIndex(strings.ToLower(sent[:loc[0]]), "i have")
+	case strings.HasSuffix(head, "i"):
+		start = strings.LastIndex(strings.ToLower(sent[:loc[0]]), "i")
+	}
+	if start < 0 {
+		start = loc[0]
+	}
+	return strings.TrimSpace(sent[start:loc[1]])
 }
 
 const (
