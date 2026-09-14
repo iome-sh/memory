@@ -2,7 +2,7 @@
 
 **Repository:** [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory)  
 **Scope:** Temporal features **inside this package** (`PalaceStore`), not MCP/TUI hosts.  
-**As of:** 2026-09-13 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index · [#134](https://github.com/iome-sh/memory/pull/134) `2a3257c` T4-perf `ListFactsAsOf` via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity · [#135](https://github.com/iome-sh/memory/pull/135) Wave I n=12 · [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a` unique-entity restaurant clusters · [#138](https://github.com/iome-sh/memory/pull/138) n=60 remesure · [#140](https://github.com/iome-sh/memory/pull/140) `865994b` official V1 **first** run unpublished (BGE mixed n=500 **388/500**)
+**As of:** 2026-09-13 · tagged **v1.5.12** · unreleased on `main`: unique-entity / dated-event / latest-value / skip-vector / clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index · [#134](https://github.com/iome-sh/memory/pull/134) `2a3257c` T4-perf `ListFactsAsOf` via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity · [#135](https://github.com/iome-sh/memory/pull/135) Wave I n=12 · [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a` unique-entity restaurant clusters · [#138](https://github.com/iome-sh/memory/pull/138) n=60 remesure · [#140](https://github.com/iome-sh/memory/pull/140) `865994b` official V1 **first** run unpublished (BGE mixed n=500 **388/500**) · [#141](https://github.com/iome-sh/memory/pull/141) `7deafa5` T6+ weeks/months text-date delta
 
 This is the canonical temporal plan for the hierarchical agent memory library. Callers own tenancy above `BaseDir`. Companion hosts ([iomesh-tui](https://github.com/iome-sh/iomesh-tui) **v1.3.7**, [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) **v0.4.2**) are optional.
 
@@ -151,7 +151,7 @@ func AssembleCountEvidence(query string, facts []MemoryEntry) string
 func AssembleTemporalEvidence(query string, facts []MemoryEntry) string
 ```
 
-Count queries are **not** calendar windows. They union matching `turn_fact` children across `conv:` sessions (`unionCountQueryFacts` over `collectSearchCandidates`), rank named-pattern facts, diversify by session, then Limit. Clothing clusters are action×object (dry-clean / return / pick-up); N-header is clothing-only ([#124](https://github.com/iome-sh/memory/pull/124)); bullets are `1. 2. 3.` in cluster order ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). That does **not** invent “the answer is 3”. Unique-entity clusters cover kits, plants, hour+destination, and restaurants (catalogs as aliases; noun-phrase / dest extract in [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`; restaurant clusters in [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a`). Temporal evidence lists **text date phrases** separately from ingest `Timestamp`; which-first sorts by parsed text time. Dated-span how-many with ≥2 parsed text times appends `text dates N days apart (phrase → phrase)` ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`) — not ingest `Timestamp`, not a gold answer.
+Count queries are **not** calendar windows. They union matching `turn_fact` children across `conv:` sessions (`unionCountQueryFacts` over `collectSearchCandidates`), rank named-pattern facts, diversify by session, then Limit. Clothing clusters are action×object (dry-clean / return / pick-up); N-header is clothing-only ([#124](https://github.com/iome-sh/memory/pull/124)); bullets are `1. 2. 3.` in cluster order ([#127](https://github.com/iome-sh/memory/pull/127) `a4c0445`). That does **not** invent “the answer is 3”. Unique-entity clusters cover kits, plants, hour+destination, and restaurants (catalogs as aliases; noun-phrase / dest extract in [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`; restaurant clusters in [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a`). Temporal evidence lists **text date phrases** separately from ingest `Timestamp`; which-first sorts by parsed text time. Dated-span how-many with ≥2 parsed text times appends `text dates N days apart (phrase → phrase)` ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`); how-many-weeks/months also append week (floor days/7) and calendar-month lines ([#141](https://github.com/iome-sh/memory/pull/141) `7deafa5`) — not ingest `Timestamp`, not a gold answer.
 
 ---
 
@@ -175,7 +175,7 @@ Count queries are **not** calendar windows. They union matching `turn_fact` chil
 
 ## Future phases
 
-Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader assembly). btree / typed edges stay gated on measured limiters, not on eval hunger. Next kernel is **T6+** weeks/months text-date delta (official V1 TR residual). Official V1 **run 2** (same pin) before any README number.
+Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader assembly). btree / typed edges stay gated on measured limiters, not on eval hunger. **T6+** weeks/months text-date delta is **shipped** ([#141](https://github.com/iome-sh/memory/pull/141) `7deafa5`). Next: restaurant remesure after #136 TBD; official V1 **run 2** (same pin) before any README number.
 
 ### T1 residuals (after v1.5.12)
 
@@ -189,7 +189,7 @@ Do not start Qwen3 or a dual-clock KG to chase n=12 clothes (that miss is reader
 | Projects N=8 overcount | Wave H MiniLM | Clothing-only N header ([#124](https://github.com/iome-sh/memory/pull/124)). Wave I: projects **pass all three** (`Count evidence:` without N). MiniLM recovered. |
 | Unique-entity n=60 (kits 5, hours 15, plants) | n=60 v1.5.12 **before** [#119](https://github.com/iome-sh/memory/pull/119) | **T7 shipped** ([#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`). n=60 `5154a76`: kits `gpt4_59c863d7` / hours `aae3761f` / plants `3a704032` **pass all three**. |
 | Days-between TR | n=60 `08f4fc43` / `2a1811e2` / `2c63a862` | **T6 shipped** ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`). n=60 `5154a76`: `2a1811e2` / `2c63a862` **pass all three**; `08f4fc43` **miss all three**. Days-only. Does not invent gold. |
-| Official V1 TR weeks/months | First run TR **83/133 (0.624)** (`9bee542`) | **T6+** weeks/months text-date delta — next kernel [#141](https://github.com/iome-sh/memory/pull/141) `a0013c1` (`feat/t6-weeks-months-delta`, in-flight). T6 [#129](https://github.com/iome-sh/memory/pull/129) is days-only. Parsed text times, not ingest `Timestamp`. Do not invent gold. |
+| Official V1 TR weeks/months | First run TR **83/133 (0.624)** (`9bee542`) | **T6+ shipped** ([#141](https://github.com/iome-sh/memory/pull/141) `7deafa5`). Week (floor days/7) + calendar-month text-date deltas. T6 [#129](https://github.com/iome-sh/memory/pull/129) days line kept. Parsed text times, not ingest `Timestamp`. Official V1 remesure **TBD**. Do not invent gold. |
 | KU stale amount | `852ce960` $350k vs gold $400k | Latest-value evidence ([#122](https://github.com/iome-sh/memory/pull/122)). n=60 `5154a76`: **miss all three** (reader $350k). Reader/evidence; do **not** invent NLP supersede. |
 | KU restaurants 3 vs 4 | Wave I `6aeb4375` miss all three (gold **four**, hyp **three**) | **T7+ restaurant clusters shipped** ([#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a`). n=60 `5154a76` is **before** #136: still 3 vs 4 all three. Remesure after #136 **TBD**. Clothing N-header unchanged. Does not invent gold 4. |
 | Skip-vector + #124 + #127 n=12 | Wave I `e094bec` | hash/MiniLM/BGE **10/12** MS **1/2**. Clothes still reader-side. KU `6aeb4375` 3 vs 4. [#134](https://github.com/iome-sh/memory/pull/134) not this remesure. |
@@ -258,15 +258,13 @@ Qwen3-0.6B **1024-d** only as an **opt-in** constructor/env preset when a concre
 
 n=60 `5154a76` remesure: `2a1811e2` / `2c63a862` pass all three; `08f4fc43` miss all three.
 
-Days-only. How-many-weeks / how-many-months dated-span is **T6+** (official V1 TR weeks/months still fail).
+Days-only T6. How-many-weeks / how-many-months dated-span is **T6+ shipped**.
 
-### T6+ — Weeks/months text-date delta (**next kernel**)
+### T6+ — Weeks/months text-date delta (**shipped**)
 
 **Why:** Official V1 **first** run (BGE mixed n=500, kernel `9bee542`, [#140](https://github.com/iome-sh/memory/pull/140) `865994b`) scores TR **83/133 (0.624)**. T6 ([#129](https://github.com/iome-sh/memory/pull/129) `625a772`) already appends `text dates N days apart` from parsed text times. How-many-**weeks** / how-many-**months** dated-span questions still fail on that run — evidence reports days while the question asks weeks/months. Using ingest `Timestamp` remains the wrong clock.
 
-**In-flight:** [#141](https://github.com/iome-sh/memory/pull/141) `a0013c1` (`feat/t6-weeks-months-delta`, not merged as of this writing).
-
-**In scope** (as in #141):
+**Shipped** ([#141](https://github.com/iome-sh/memory/pull/141) `7deafa5`):
 
 - How-many-weeks / how-many-months still keep the T6 **days** line (`text dates N days apart (phrase → phrase)`)
 - Weeks queries also append `text dates N weeks apart (floor days/7; remainder R days)` (remainder omitted when R=0)
@@ -275,6 +273,8 @@ Days-only. How-many-weeks / how-many-months dated-span is **T6+** (official V1 T
 - Does **not** invent gold (“the answer is N”)
 - Does **not** treat how-many-weeks/months as a calendar-window filter
 - Days-only queries omit the week/month lines
+
+Official V1 remesure after #141 is **TBD**. Do not invent a score.
 
 **Out of scope:** NLP supersede; dual-clock store; publishing a README number; inventing remesure scores.
 
@@ -320,7 +320,7 @@ A dual-clock store would record **when the row was written** separately from eve
 ## Suggested implementation order
 
 1. **T1–T7 / T4-perf / T6 / T7+ restaurants — shipped.** T1 SessionIDs / skip-vector / latest-value / clothing-only N / numbered clothes ([#122](https://github.com/iome-sh/memory/pull/122)+[#124](https://github.com/iome-sh/memory/pull/124)+[#127](https://github.com/iome-sh/memory/pull/127)); T6 days-only text-date delta [#129](https://github.com/iome-sh/memory/pull/129) `625a772`; T7 unique-entity [#132](https://github.com/iome-sh/memory/pull/132) `e4dcb73`; T4-perf [#134](https://github.com/iome-sh/memory/pull/134) `2a3257c`; T7+ restaurants [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a`; Wave I n=12 [#135](https://github.com/iome-sh/memory/pull/135); n=60 [#138](https://github.com/iome-sh/memory/pull/138). Official V1 first run unpublished [#140](https://github.com/iome-sh/memory/pull/140) `865994b`.
-2. **T6+ weeks/months text-date delta — next kernel.** Official V1 TR **83/133 (0.624)** weeks/months still fail (T6 is days-only). In-flight [#141](https://github.com/iome-sh/memory/pull/141) `a0013c1` (`feat/t6-weeks-months-delta`). Parsed text times, not ingest `Timestamp`. Do not invent gold.
+2. **T6+ weeks/months text-date delta — shipped.** [#141](https://github.com/iome-sh/memory/pull/141) `7deafa5`. Official V1 first-run TR **83/133 (0.624)** weeks/months still fail on kernel `9bee542` (T6 was days-only). Week (floor days/7) + calendar-month text-date deltas. Parsed text times, not ingest `Timestamp`. Do not invent gold. Official V1 remesure **TBD**.
 3. **Restaurant remesure after [#136](https://github.com/iome-sh/memory/pull/136) — TBD.** Do not invent a score. n=60 `5154a76` is before #136 (`6aeb4375` 3 vs 4).
 4. **Latest-value KU `852ce960` $400k still miss.** n=60 `5154a76` reader $350k all three. Reader/evidence; do **not** invent NLP supersede.
 5. **Clothes reader residual — park more assembly.** Wave I numbered `1. 2. 3.` + N=3 in retrieve; reader summed 2. Do not start Qwen3 or dual-clock to chase it.
@@ -334,7 +334,7 @@ A dual-clock store would record **when the row was written** separately from eve
 - Prefer new options fields and methods over breaking `SearchMemory` signatures
 - Embedding dimension changes require Qdrant collection recreation; note in the release
 - v1.5.2 K1 · v1.5.3 K2 list · v1.5.4 K4 as-of · v1.5.5 A2 multi-hop · v1.5.6 A3 supersession · v1.5.7 hop ranking · v1.5.8 meta-index patch · v1.5.11 persist-onnx-vec opt-in, TTFH, LongMemEval card · v1.5.12 T1 SessionIDs / conv tags / count assembly
-- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · [#134](https://github.com/iome-sh/memory/pull/134) `2a3257c` T4-perf `ListFactsAsOf` via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity · [#135](https://github.com/iome-sh/memory/pull/135) Wave I n=12 · [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a` unique-entity restaurant clusters · [#138](https://github.com/iome-sh/memory/pull/138) n=60 remesure · [#140](https://github.com/iome-sh/memory/pull/140) `865994b` official V1 first run unpublished (BGE mixed n=500 **388/500**)
+- Unreleased on `main` after v1.5.12: [#119](https://github.com/iome-sh/memory/pull/119) unique-entity + dated evidence · [#122](https://github.com/iome-sh/memory/pull/122) latest-value + skip-vector · [#124](https://github.com/iome-sh/memory/pull/124) clothing-only N · [#126](https://github.com/iome-sh/memory/pull/126) T4 `ListFactsAsOf` tests · [#127](https://github.com/iome-sh/memory/pull/127) numbered clothes · [#128](https://github.com/iome-sh/memory/pull/128) T2 list-latency bench · [#129](https://github.com/iome-sh/memory/pull/129) T6 text-date delta · [#131](https://github.com/iome-sh/memory/pull/131) search/count via meta index (btree parked) · [#134](https://github.com/iome-sh/memory/pull/134) `2a3257c` T4-perf `ListFactsAsOf` via meta index · [#132](https://github.com/iome-sh/memory/pull/132) T7 generalized unique-entity · [#135](https://github.com/iome-sh/memory/pull/135) Wave I n=12 · [#136](https://github.com/iome-sh/memory/pull/136) `0a40b0a` unique-entity restaurant clusters · [#138](https://github.com/iome-sh/memory/pull/138) n=60 remesure · [#140](https://github.com/iome-sh/memory/pull/140) `865994b` official V1 first run unpublished (BGE mixed n=500 **388/500**) · [#141](https://github.com/iome-sh/memory/pull/141) `7deafa5` T6+ weeks/months text-date delta
 
 ---
 
@@ -346,4 +346,4 @@ A dual-clock store would record **when the row was written** separately from eve
 - `PersistEmbeddings` defaults **off**. Hash / empty / `"hash"` models **never** persist `GenerateSimpleEmbedding` vectors as stored vectors or as `QueryVec`.
 - Flock is **not** shipped. Supported topology is **one process per palace root**.
 - Do not start Qwen3 or a dual-clock knowledge graph to chase n=12 clothes. That miss is reader assembly (clusters are in retrieve; the reader still summed 2). Numbered bullets ([#127](https://github.com/iome-sh/memory/pull/127)) are a kernel nudge, not a gold answer.
-- btree / typed edges / Qwen3 default stay gated as written above. T6+ is the next kernel; T2 / T3 / T5 / T8 stay parked.
+- btree / typed edges / Qwen3 default stay gated as written above. T6+ is **shipped**; T2 / T3 / T5 / T8 stay parked.
