@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Restaurant stop-token `as`:** unique-entity restaurant clusters drop leftover `[restaurant:as]` (Wave L leftover cluster). Phrase stops include `as` and `is` (`at` already). Does not invent a numeric gold. Clothing N-header unchanged.
 - **Restaurant tried-count:** unique-entity restaurant evidence lists latest-first “tried N” mentions; cuisine+BBQ dishes are not venues; stop-token `if` ([#146](https://github.com/iome-sh/memory/pull/146) `89c1dc0`). Does not invent a numeric gold. Wave J hash n=12 still 3 vs 4 is **before** this PR. Wave K hash n=12 `6aeb4375` **PASS**.
 - **Latest-value clip:** long snippets keep the dollar amount in the visible window so a later `$400,000` is not truncated off ([#143](https://github.com/iome-sh/memory/pull/143) `5d3aca5`). Does not NLP-supersede; stale amounts still listed. Remesure of KU `852ce960` **TBD** (n=60, not n=12).
 - **`longmemeval-v1-card` scored run LIMIT:** with `LONGMEMEVAL_QA_LIMIT` unset/0, generate the full mixed oracle (**n=500**) and do not pass `--limit` (no longer coerced to n=12). `LONGMEMEVAL_QA_LIMIT=12` remains an explicit mixed sample, **not** official V1. Prefix-n is not V1. No README number. dual_write OFF. not Memory GA. Hash is not V1.
