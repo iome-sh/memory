@@ -180,13 +180,13 @@ Honesty:
 - `public_vs_internal` only if a public status page exists
 - `crm_only_restatement` is overlay restating CRM without a pulse ·
   overlay does **not** GET Salesforce/CRM
-- `no_memo` is a missing living memo (RevOps **V2-C** sitting; not this
-  kernel page)
+- `no_memo` is a missing living memo (RevOps **V2-C** sitting — later
+  subsection)
 - do **not** stamp mesh on overlay
 
 **Not** Memory GA (public MIT ≠ GA). **Not** overlay PULSE. leftover_is_bind
 stays **OPEN**. **Not** V2-B (palace-path host wiring — next subsection).
-**Not** V2-C RevOps. **not E-G1.** dual_write **OFF**.
+**Not** V2-C (RevOps sitting). **not E-G1.** dual_write **OFF**.
 
 ### Palace path (V2-B)
 
@@ -217,7 +217,34 @@ Honesty:
 - do **not** invent in-repo `examples/dept-rca/ops` or `sales` or
   `customer_success` (TUI kit paths)
 - public MIT ≠ GA
-- **Not** Memory GA. **Not** V2-C RevOps. **not E-G1.**
+- **Not** Memory GA. **Not** V2-C (RevOps sitting — next subsection).
+  **not E-G1.**
+
+### RevOps sitting (V2-C)
+
+V2-C is a **host recipe**, not a new kernel SoR. One Zendesk **OR**
+Salesforce pulse + living memo + cite-both or named miss (`no_memo` /
+`crm_only_restatement` / `no_mesh_pulse`) + ACK. The kernel does **not**
+GET CRM. The kernel does **not** classify miss classes. This page is a
+pointer, not a live sitting.
+
+Host recipe:
+
+- pick **one** pulse: Zendesk **OR** Salesforce (catalog list ≠
+  Connected until a signed event)
+- living memo (private overlay)
+- cite-both or named miss (`no_memo` / `crm_only_restatement` /
+  `no_mesh_pulse`)
+- ACK
+
+Honesty:
+
+- kernel does **not** GET Salesforce/CRM · overlay does **not** GET CRM
+- kernel does **not** classify miss classes · do **not** stamp mesh
+- do **not** invent in-repo `examples/dept-rca/ops` or `sales` or
+  `customer_success` (TUI kit paths)
+- leftover_is_bind stays **OPEN** · dual_write **OFF**
+- **Not** Memory GA. **not E-G1.**
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
