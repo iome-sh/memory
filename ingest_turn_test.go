@@ -479,3 +479,93 @@ func TestDeptRCASupportKit_WalkingSkeleton(t *testing.T) {
 		t.Fatal("facts-as-of ticket created time should find the 14-day unused-seat rule")
 	}
 }
+
+// Host --department maps to Tag dept:{id}. Exact EntryHasTag on search and
+// facts-as-of; empty Tag does not filter. Kernel has no org IDs.
+func TestIngestTurn_TagFilterSearchAndFactsAsOf(t *testing.T) {
+	t.Run("metaIndex", func(t *testing.T) {
+		testIngestTurnTagFilterSearchAndFactsAsOf(t, false)
+	})
+	t.Run("DisableMetaIndex", func(t *testing.T) {
+		testIngestTurnTagFilterSearchAndFactsAsOf(t, true)
+	})
+}
+
+func testIngestTurnTagFilterSearchAndFactsAsOf(t *testing.T, disableMetaIndex bool) {
+	t.Helper()
+	store := NewPalaceStoreWithConfig(PalaceConfig{
+		BaseDir:          t.TempDir(),
+		EmbeddingFunc:    GenerateSimpleEmbedding,
+		DisableMetaIndex: disableMetaIndex,
+	})
+	if err := store.IngestTurn(MemoryEntry{
+		SessionID: "dept-support-zd-1001",
+		Content: MemoryContent{
+			Summary: "support refund unused seats",
+			Full:    "Support department refund policy for unused seats.",
+			Tags:    []string{"dept:support"},
+		},
+		ExtractedFacts: []string{"Support refund unused seats within 14 days"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.IngestTurn(MemoryEntry{
+		SessionID: "dept-sales-q2",
+		Content: MemoryContent{
+			Summary: "sales refund unused seats",
+			Full:    "Sales department refund policy for unused seats.",
+			Tags:    []string{"dept:sales"},
+		},
+		ExtractedFacts: []string{"Sales refund unused seats on closed deals"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	assertDeptOnly := func(t *testing.T, entries []MemoryEntry, wantTag string) {
+		t.Helper()
+		if len(entries) == 0 {
+			t.Fatalf("empty results for Tag=%q", wantTag)
+		}
+		other := "dept:sales"
+		if wantTag == "dept:sales" {
+			other = "dept:support"
+		}
+		for _, e := range entries {
+			if e.Provenance.SourceHint != SourceHintPrivate {
+				t.Fatalf("%s source_hint=%q want private", e.ID, e.Provenance.SourceHint)
+			}
+			if !EntryHasTag(e, wantTag) {
+				t.Fatalf("%s missing %s; tags=%v temporal=%v", e.ID, wantTag, e.Content.Tags, e.TemporalTags)
+			}
+			if EntryHasTag(e, other) {
+				t.Fatalf("%s leaked %s; tags=%v", e.ID, other, e.Content.Tags)
+			}
+		}
+	}
+	assertBothDepts := func(t *testing.T, entries []MemoryEntry) {
+		t.Helper()
+		var sawSupport, sawSales bool
+		for _, e := range entries {
+			if EntryHasTag(e, "dept:support") {
+				sawSupport = true
+			}
+			if EntryHasTag(e, "dept:sales") {
+				sawSales = true
+			}
+		}
+		if !sawSupport || !sawSales {
+			t.Fatalf("empty Tag should not filter; support=%v sales=%v ids=%v", sawSupport, sawSales, idsOf(entries))
+		}
+	}
+
+	supportFacts := store.ListFactsAsOf(FactsAsOfOptions{Tag: "dept:support", Limit: 20})
+	assertDeptOnly(t, supportFacts, "dept:support")
+
+	supportHits := store.SearchMemoryWithOptions("refund", SearchMemoryOptions{Tag: "dept:support", Limit: 20})
+	assertDeptOnly(t, supportHits, "dept:support")
+
+	allFacts := store.ListFactsAsOf(FactsAsOfOptions{Tag: "", Limit: 20})
+	assertBothDepts(t, allFacts)
+	allHits := store.SearchMemoryWithOptions("refund", SearchMemoryOptions{Tag: "", Limit: 20})
+	assertBothDepts(t, allHits)
+}

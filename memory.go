@@ -639,14 +639,17 @@ func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []Memo
 	return keepKeywordHitsFirst(out, keywordHits)
 }
 
-// SearchMemoryOptions configures hybrid retrieval with optional session, time-window,
-// as-of validity, and temporal re-ranking filters.
+// SearchMemoryOptions configures hybrid retrieval with optional session, tag,
+// time-window, as-of validity, and temporal re-ranking filters.
 type SearchMemoryOptions struct {
 	// SessionID, when non-empty, keeps entries whose SessionID matches or that
 	// carry tag conv:<SessionID> (T1: inner haystack sessions under one conv).
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
 	SessionIDs []string
+	// Tag exact-matches TemporalTags or Content.Tags via EntryHasTag.
+	// Host-owned string (e.g. dept:support); the kernel has no org IDs.
+	Tag string
 	// TimeFrom / TimeTo filter by entry event time (see entryEventTime).
 	// Both bounds are inclusive when set.
 	TimeFrom *time.Time
@@ -714,7 +717,7 @@ func searchCandidateTiers(opts SearchMemoryOptions) []MemoryTier {
 }
 
 // collectSearchCandidates returns retrieve-tier entries. When the meta index is
-// enabled, session/time/tier filters run on entryMeta and full JSON is loaded
+// enabled, session/time/tier/tag filters run on entryMeta and full JSON is loaded
 // only for survivors (same index as ListMemoryWithOptions). Query substring is
 // not applied here: search keyword haystack includes Keyphrases and
 // ExtractedFacts, which list queryHay does not. DisableMetaIndex keeps the
@@ -726,6 +729,7 @@ func (ps *PalaceStore) collectSearchCandidates(opts SearchMemoryOptions) []Memor
 			SessionIDs:      opts.SessionIDs,
 			TimeFrom:        opts.TimeFrom,
 			TimeTo:          opts.TimeTo,
+			Tag:             opts.Tag,
 			Tier:            opts.Tier,
 			IncludeArchival: opts.IncludeArchival,
 		})
@@ -742,6 +746,16 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 		var filtered []MemoryEntry
 		for _, e := range results {
 			if entryMatchesSessionFilter(e, opts.SessionID, opts.SessionIDs) {
+				filtered = append(filtered, e)
+			}
+		}
+		results = filtered
+	}
+
+	if opts.Tag != "" {
+		var filtered []MemoryEntry
+		for _, e := range results {
+			if EntryHasTag(e, opts.Tag) {
 				filtered = append(filtered, e)
 			}
 		}
@@ -793,7 +807,7 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 // Latest-value questions (amount / pre-approved) union matching scalars and
 // rank later Timestamp first. Count and temporal-order / dated-span queries
 // skip scoreEntriesByVector even when QueryVec is set (keyword + assembly).
-// Candidates use the list meta index for session/time/tier when enabled;
+// Candidates use the list meta index for session/time/tier/tag when enabled;
 // unionCountQueryFacts scans that slice, not a second palace walk.
 func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOptions) []MemoryEntry {
 	limit := opts.Limit
