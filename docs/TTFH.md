@@ -85,6 +85,17 @@ do **not** stamp mesh; no invented ARR; no customer names. **D5b** two-org
 **Parked**. **D6** parked. **not** Memory GA. **not E-G1.** dual_write **OFF**.
 Kernel has no org IDs.
 
+Host TUI customer_success kit (V1.6 **D5d**): ingest TUI kit
+`examples/dept-rca/customer_success` (health-note + renewal + playbook
+UTF-8) with support+ops+sales into **one** palace (still one-tenant
+composition). facts-as-of `--department customer_success` is host Tag
+`dept:{id}` — **not** a kernel org filter; as-of **before** renewal
+`2026-09-01` (`2026-08-31T18:00:00Z`). **≠ two-org**. leftover_is_bind
+**OPEN**. Overlay does **not** GET Salesforce/CRM. Mesh miss is **success**;
+do **not** stamp mesh; no invented ARR; no customer names. **D5b** two-org
+**Parked**. **D6** parked. **not** Memory GA. **not E-G1.** dual_write **OFF**.
+Kernel has no org IDs.
+
 ## Host path (optional)
 
 Companion pins, not a kernel dependency. Published tags — do not invent a
