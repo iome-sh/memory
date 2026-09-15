@@ -115,7 +115,7 @@ below · R1 ≠ R3 overlay PULSE.
 - **R2** `/memory ingest` — three RCA-shaped turns (local overlay stays **private**)
 - **R2** `/memory digest --require-sources mesh,private` — **cite-both or explicit miss** (miss is **named**: `no_mesh_pulse` when `missing=mesh`, etc.)
 - **R2** Short-term: `/memory patterns` — ops **Beta** · empty ≠ invent · never APPLY
-- **R2** Long-term: `/memory facts-as-of --as-of <RFC3339>` — palace · **not Memory GA**
+- **R2** Long-term: `/memory facts-as-of --as-of <RFC3339>` — palace · pass `SessionIDs` · **not Memory GA**
 - **R3** `/dashboard` consume — parked · required for E-G1 · `--live` decoded-N is not this
 - **R4** After PULSE: `iomesh memory pull` — dual_write **OFF** · pull ≠ Connected
 
@@ -185,8 +185,39 @@ Honesty:
 - do **not** stamp mesh on overlay
 
 **Not** Memory GA (public MIT ≠ GA). **Not** overlay PULSE. leftover_is_bind
-stays **OPEN**. **Not** V2-B (IngestTurn / SessionIDs / provenance).
+stays **OPEN**. **Not** V2-B (palace-path host wiring — next subsection).
 **Not** V2-C RevOps. **not E-G1.** dual_write **OFF**.
+
+### Palace path (V2-B)
+
+V2-B is **host wiring** of fields the kernel already has. Not a new kernel
+SoR. `SessionIDs` already exist (`SearchMemoryOptions` /
+`FactsAsOfOptions`). The kernel still does **not** classify miss classes
+and does **not** emit a digest footer. Not a typed `IngestTurn` receipt.
+
+Host contract:
+
+- retrieve / facts-as-of: pass `SessionIDs` (any-of; also matches
+  `conv:<id>` tags). Host `--department` stays Tag `dept:{id}` — **not**
+  a kernel org filter. Kernel has no org IDs.
+- `IngestTurn` error means leftover JSON on disk (partial persist: parent
+  and earlier facts remain; not silent success; not rollback)
+- provenance footer is **host** formatting of `source_hint` /
+  `source_step` / `parent_ids` / `id` (kernel JSON fields; the kernel
+  does not emit the footer)
+- dated dual values print as **two figures**, not one LME % (unpublished
+  official V1 BGE mixed n=500 on pin `9bee542`: **388/500** vs
+  **384/500**; two runs not identical; INTERNAL unpublished)
+
+Honesty:
+
+- `PersistEmbeddings` default **OFF** · hash never stored
+- dual_write **OFF** · leftover_is_bind stays **OPEN**
+- overlay does **not** GET Salesforce/CRM · do **not** stamp mesh
+- do **not** invent in-repo `examples/dept-rca/ops` or `sales` or
+  `customer_success` (TUI kit paths)
+- public MIT ≠ GA
+- **Not** Memory GA. **Not** V2-C RevOps. **not E-G1.**
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
