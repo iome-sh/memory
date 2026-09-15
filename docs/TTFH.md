@@ -75,6 +75,16 @@ org-wide RCA engine. Mesh miss is **success**; do **not** stamp mesh on
 the files. **D5b** two-org **Parked**. **D6** parked (T2/T3/T5/T8, LME %).
 **not** Memory GA. **not E-G1.** dual_write **OFF**. Kernel has no org IDs.
 
+Host TUI sales kit (V1.6 **D5c**): ingest TUI kit `examples/dept-rca/sales`
+(call-notes + qbr + list-price UTF-8) with support+ops into **one** palace
+(still one-tenant composition). facts-as-of `--department sales` is host
+Tag `dept:{id}` — **not** a kernel org filter; as-of **before** list-price
+change `2026-03-01` (`2026-02-28T18:00:00Z`). **≠ two-org**. leftover_is_bind
+**OPEN**. Overlay does **not** GET Salesforce/CRM. Mesh miss is **success**;
+do **not** stamp mesh; no invented ARR; no customer names. **D5b** two-org
+**Parked**. **D6** parked. **not** Memory GA. **not E-G1.** dual_write **OFF**.
+Kernel has no org IDs.
+
 ## Host path (optional)
 
 Companion pins, not a kernel dependency. Published tags — do not invent a
