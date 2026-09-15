@@ -313,3 +313,169 @@ func TestIngestTurn_TTFHShapedWalkingSkeleton(t *testing.T) {
 		}
 	}
 }
+
+// V1.6 support-department overlay kit (examples/dept-rca/support): ticket
+// export + policy + macro as private overlay. Facts-as-of the ticket finds
+// the 14-day unused-seat rule. source_hint stays private (not mesh). A green
+// unit test is not E-G1.
+func TestDeptRCASupportKit_WalkingSkeleton(t *testing.T) {
+	kit := filepath.Join("examples", "dept-rca", "support")
+	for _, name := range []string{"README.md", "ticket-export.md", "policy.md", "macro.md", "main.go"} {
+		path := filepath.Join(kit, name)
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("kit file %s: %v", path, err)
+		}
+		if len(strings.TrimSpace(string(b))) == 0 {
+			t.Fatalf("kit file %s empty", path)
+		}
+	}
+
+	policy, err := os.ReadFile(filepath.Join(kit, "policy.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyBody := string(policy)
+	if !strings.Contains(policyBody, "14 days") {
+		t.Fatal("policy.md must state the 14-day unused-seat rule")
+	}
+	if !strings.Contains(policyBody, "valid_from 2026-01-01") {
+		t.Fatal("policy.md must carry valid_from 2026-01-01")
+	}
+
+	ticket, err := os.ReadFile(filepath.Join(kit, "ticket-export.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ticketBody := string(ticket)
+	if !strings.Contains(ticketBody, "ZD-1001") {
+		t.Fatal("ticket-export.md must be ticket ZD-1001")
+	}
+	if !strings.Contains(ticketBody, "2026-06-15T14:22:00Z") {
+		t.Fatal("ticket-export.md must record created 2026-06-15T14:22:00Z")
+	}
+	if !strings.Contains(ticketBody, "Example workspace") {
+		t.Fatal("ticket-export.md must use Example workspace (no live customer)")
+	}
+
+	macro, err := os.ReadFile(filepath.Join(kit, "macro.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	macroBody := string(macro)
+
+	ticketAt, err := time.Parse(time.RFC3339, "2026-06-15T14:22:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyFrom, err := time.Parse(time.RFC3339, "2026-01-01T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	macroAt, err := time.Parse(time.RFC3339, "2026-06-15T16:05:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store := NewPalaceStoreWithConfig(PalaceConfig{
+		BaseDir:       t.TempDir(),
+		EmbeddingFunc: GenerateSimpleEmbedding,
+	})
+	session := "dept-support-zd-1001"
+	tags := []string{"dept:support", "scenario:support"}
+	turns := []MemoryEntry{
+		{
+			SessionID: session,
+			Timestamp: policyFrom,
+			TemporalTags: []string{
+				"valid_from:" + policyFrom.UTC().Format(time.RFC3339),
+			},
+			Content: MemoryContent{
+				Summary: "Unused-seat refund policy",
+				Full:    policyBody,
+				Tags:    tags,
+			},
+			ExtractedFacts: []string{"Unused seats may be refunded within 14 days of invoice"},
+		},
+		{
+			SessionID: session,
+			Timestamp: ticketAt,
+			Content: MemoryContent{
+				Summary: "ZD-1001 unused-seat refund",
+				Full:    ticketBody,
+				Tags:    tags,
+			},
+			ExtractedFacts: []string{"Example workspace requested a refund for unused seats on ticket ZD-1001"},
+		},
+		{
+			SessionID: session,
+			Timestamp: macroAt,
+			Content: MemoryContent{
+				Summary: "Macro: unused-seat refund points at 14-day policy",
+				Full:    macroBody,
+				Tags:    tags,
+			},
+			ExtractedFacts: []string{"Agent reply points at the 14-day unused-seat refund policy"},
+		},
+	}
+	for i, turn := range turns {
+		if err := store.IngestTurn(turn); err != nil {
+			t.Fatalf("ingest %d: %v", i+1, err)
+		}
+	}
+
+	hits := store.SearchMemoryWithOptions("refund unused seats policy", SearchMemoryOptions{
+		SessionID: session,
+		Limit:     10,
+	})
+	if len(hits) == 0 {
+		t.Fatal("retrieve-after-ingest empty (same process)")
+	}
+	sawPrivate := false
+	sawPolicy := false
+	for _, h := range hits {
+		if h.Provenance.SourceHint == "mesh" {
+			t.Fatalf("overlay must not stamp mesh; hit %s source_hint=%q", h.ID, h.Provenance.SourceHint)
+		}
+		if h.Provenance.SourceHint != SourceHintPrivate {
+			t.Fatalf("hit %s source_hint=%q want private", h.ID, h.Provenance.SourceHint)
+		}
+		sawPrivate = true
+		hay := strings.ToLower(h.Content.Summary + " " + h.Content.Full)
+		if strings.Contains(hay, "14 day") {
+			sawPolicy = true
+		}
+	}
+	if !sawPrivate {
+		t.Fatal("expected source_hint=private on retrieve hits")
+	}
+	if !sawPolicy {
+		t.Fatalf("expected 14-day refund policy in same-session retrieve, got %d hits", len(hits))
+	}
+
+	facts := store.ListFactsAsOf(FactsAsOfOptions{
+		AsOf:      ticketAt,
+		SessionID: session,
+		Query:     "refund",
+		Limit:     10,
+	})
+	if len(facts) == 0 {
+		t.Fatal("facts-as-of ticket created time empty")
+	}
+	found14 := false
+	for _, f := range facts {
+		if f.Provenance.SourceHint == "mesh" {
+			t.Fatalf("fact %s stamped mesh", f.ID)
+		}
+		if f.Provenance.SourceHint != SourceHintPrivate {
+			t.Fatalf("fact %s source_hint=%q want private", f.ID, f.Provenance.SourceHint)
+		}
+		hay := strings.ToLower(f.Content.Summary + " " + f.Content.Full + " " + f.OriginalText)
+		if strings.Contains(hay, "14 day") {
+			found14 = true
+		}
+	}
+	if !found14 {
+		t.Fatal("facts-as-of ticket created time should find the 14-day unused-seat rule")
+	}
+}
