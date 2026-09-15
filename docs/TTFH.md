@@ -66,6 +66,15 @@ is **unchanged**. Host `--department` maps to palace `Tag` `dept:{id}` on
 search and facts-as-of (exact `EntryHasTag`); the kernel has no org IDs.
 **not** Memory GA. **not E-G1.** dual_write **OFF**.
 
+Host TUI one-tenant two-kit (V1.6 **D5**): ingest TUI kits
+[`examples/dept-rca/support`](../examples/dept-rca/support) and
+`examples/dept-rca/ops` into **one** palace (one-tenant composition).
+facts-as-of `--department support|ops` is host Tag `dept:{id}` — **not**
+a kernel org filter. **≠ two-org**. leftover_is_bind **OPEN**. **not** an
+org-wide RCA engine. Mesh miss is **success**; do **not** stamp mesh on
+the files. **D5b** two-org **Parked**. **D6** parked (T2/T3/T5/T8, LME %).
+**not** Memory GA. **not E-G1.** dual_write **OFF**. Kernel has no org IDs.
+
 ## Host path (optional)
 
 Companion pins, not a kernel dependency. Published tags — do not invent a
