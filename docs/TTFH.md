@@ -244,7 +244,32 @@ Honesty:
 - do **not** invent in-repo `examples/dept-rca/ops` or `sales` or
   `customer_success` (TUI kit paths)
 - leftover_is_bind stays **OPEN** · dual_write **OFF**
-- **Not** Memory GA. **not E-G1.**
+- **Not** Memory GA. **Not** V2-D (Sev-1 CS packet — next subsection).
+  **not E-G1.**
+
+### Sev-1 CS packet (V2-D)
+
+V2-D is a **host overlay**, not a new kernel SoR. D5d kit + **same
+incident id** + customer-facing snippet. Zendesk is **optional**
+(catalog list ≠ Connected until a signed event). The kernel does **not**
+GET CRM. The kernel does **not** classify miss classes. This page is a
+pointer, not a live sitting.
+
+Host overlay:
+
+- D5d kit (TUI path `examples/dept-rca/customer_success`)
+- **same incident id** (do not invent a new incident)
+- customer-facing snippet (private overlay)
+- Zendesk **optional** (catalog list ≠ Connected until a signed event)
+
+Honesty:
+
+- kernel does **not** GET Salesforce/CRM · overlay does **not** GET CRM
+- kernel does **not** classify miss classes · do **not** stamp mesh
+- do **not** invent in-repo `examples/dept-rca/customer_success` (TUI
+  kit path)
+- leftover_is_bind stays **OPEN** · dual_write **OFF**
+- **Not** overlay PULSE. **Not** Memory GA. **not E-G1.**
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
