@@ -62,7 +62,9 @@ Host TUI `iomesh memory ingest-dir` (V1.6 **D2**): default **128 files ×
 64 KiB**; `--source-hint private` (never mesh); `--department` /
 `--scenario` tags; skip `.pdf` with export-text-first (**no OCR**); skip
 report. Kernel example [`examples/dept-rca/support`](../examples/dept-rca/support)
-is **unchanged**. **not** Memory GA. **not E-G1.** dual_write **OFF**.
+is **unchanged**. Host `--department` maps to palace `Tag` `dept:{id}` on
+search and facts-as-of (exact `EntryHasTag`); the kernel has no org IDs.
+**not** Memory GA. **not E-G1.** dual_write **OFF**.
 
 ## Host path (optional)
 
