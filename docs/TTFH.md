@@ -113,7 +113,7 @@ below · R1 ≠ R3 overlay PULSE.
 - **R1** `iomesh ttfh --live` — fail-open consume probe (**EMPTY** unless decoded messages; never invent **PULSE**; not overlay PULSE)
 - [`scripts/ttfh-demo.sh`](https://github.com/iome-sh/iomesh-tui/blob/main/scripts/ttfh-demo.sh) in the TUI repo — unit then optional live
 - **R2** `/memory ingest` — three RCA-shaped turns (local overlay stays **private**)
-- **R2** `/memory digest --require-sources mesh,private` — **cite-both or explicit miss**
+- **R2** `/memory digest --require-sources mesh,private` — **cite-both or explicit miss** (miss is **named**: `no_mesh_pulse` when `missing=mesh`, etc.)
 - **R2** Short-term: `/memory patterns` — ops **Beta** · empty ≠ invent · never APPLY
 - **R2** Long-term: `/memory facts-as-of --as-of <RFC3339>` — palace · **not Memory GA**
 - **R3** `/dashboard` consume — parked · required for E-G1 · `--live` decoded-N is not this
@@ -128,11 +128,13 @@ only: **EMPTY** until decoded broker messages; unreachable/no endpoint stays
 EMPTY and fail-open. Never invent PULSE. dual_write **OFF**. **not** Memory GA.
 This optional host path is **not** E-G1.
 
-### Local-only cite-both miss
+### Local-only cite-both miss (`no_mesh_pulse`)
 
-With no mesh receipts (local overlay only), cite-both must miss mesh. Do
-**not** stamp mesh on the local overlay to force cite-both. Catalog / grant /
-`source=external` never satisfy cite-both.
+With no mesh receipts (local overlay only), cite-both must miss mesh.
+That transcript is **`no_mesh_pulse`** (`missing=mesh`). Do **not** stamp
+mesh on the local overlay to force cite-both. Catalog / grant /
+`source=external` never satisfy cite-both. The kernel does **not**
+classify miss classes.
 
 ```text
 /memory ingest
@@ -144,11 +146,47 @@ With no mesh receipts (local overlay only), cite-both must miss mesh. Do
 #         → provenance.source_hint=private  tag=source_hint:private
 
 /memory digest --require-sources mesh,private
-require-sources: miss · required=mesh,private · cited=private · missing=mesh · receipt window newest-first · n=3 · mesh not in this receipt set · local palace on disk
+require-sources: miss · required=mesh,private · cited=private · missing=mesh · miss_class=no_mesh_pulse · receipt window newest-first · n=3 · mesh not in this receipt set · local palace on disk
 ```
 
 That miss is **success** for the flag (no mesh-class receipt in a local-only
-palace). This page is documentation of the commands, not a live mesh session.
+palace). `miss_class=` is a **host** digest token (TUI this wave); the
+kernel does not emit it. This page is documentation of the commands, not a
+live mesh session.
+
+### Named miss classes (V2-A)
+
+Digest can already cite-both or miss. V2-A **names** the miss. These are
+host digest tokens (copy, **not** classifiers). The kernel does **not**
+classify miss classes. Not a new kernel SoR.
+
+**Classes:** `no_mesh_pulse` · `no_private_overlay` · `conflict` ·
+`insufficient_signal` · `linked_pr_miss` · `public_vs_internal` ·
+`no_memo` · `crm_only_restatement`.
+
+Mapping already true on the host digest:
+
+- `missing=mesh` → `no_mesh_pulse` (typical local overlay / kit)
+- `missing=private` → `no_private_overlay`
+- empty / rejected patterns → `insufficient_signal` (host hyphenated
+  `insufficient-signal · nothing reliable today`)
+- `conflict` / `linked_pr_miss` / `public_vs_internal` / `no_memo` /
+  `crm_only_restatement` are **vocabulary**, not kernel-computed
+
+Honesty:
+
+- `linked_pr_miss` is a private eval column on the SRE recipe · **not**
+  an MTTR claim
+- `public_vs_internal` only if a public status page exists
+- `crm_only_restatement` is overlay restating CRM without a pulse ·
+  overlay does **not** GET Salesforce/CRM
+- `no_memo` is a missing living memo (RevOps **V2-C** sitting; not this
+  kernel page)
+- do **not** stamp mesh on overlay
+
+**Not** Memory GA (public MIT ≠ GA). **Not** overlay PULSE. leftover_is_bind
+stays **OPEN**. **Not** V2-B (IngestTurn / SessionIDs / provenance).
+**Not** V2-C RevOps. **not E-G1.** dual_write **OFF**.
 
 Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
 palace. Optional Ollama is a TUI pin, not a kernel requirement.
