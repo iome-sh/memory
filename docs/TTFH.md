@@ -46,6 +46,18 @@ A green `go run` and a green unit test
 (`TestIngestTurn_TTFHShapedWalkingSkeleton`) lock retrieve-after-ingest for
 this kernel path. They are **not** E-G1.
 
+## Department overlay (V1.6)
+
+Support-department kit: [`examples/dept-rca/support`](../examples/dept-rca/support)
+(ticket export + policy + macro as **private overlay**). Temporal ask: what
+was the refund rule as-of the ticket. Digest cite-both: **mesh miss is
+success**. Overlay, **not E-G1**. It does **not** replace the three-turn
+technical skeleton above.
+
+```bash
+go run ./examples/dept-rca/support
+```
+
 ## Host path (optional)
 
 Companion pins, not a kernel dependency. Published tags — do not invent a
