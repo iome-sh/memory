@@ -141,6 +141,16 @@ type PalaceConfig struct {
 	// The in-memory meta index still runs unless DisableMetaIndex is set.
 	// Default false (durable snapshot enabled). FS Palace remains source of truth.
 	DisableDurableIndex bool
+	// TransactionalIngest makes IngestTurn crash-safe across the parent turn
+	// and turn_fact children: wal/pending/<turnID>.json lists dest relative
+	// paths and SHA-256 payloads, payloads land on *.tmp-<turnID> sidecars
+	// (fsynced), then rename to dests, then the pending record is deleted.
+	// Default false keeps the laptop contract (partial persist: a child
+	// Write error does not roll back the parent). Recover-on-open of leftover
+	// wal/pending runs even when this flag is false (cloud crash leftover).
+	// Intent log, not flock, not a multi-process lock. Not Memory GA.
+	// dual_write OFF. PersistEmbeddings default remains off.
+	TransactionalIngest bool
 }
 
 // EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
@@ -195,6 +205,8 @@ func NewPalaceStoreWithConfig(cfg PalaceConfig) *PalaceStore {
 		metaIndexDirty: true, // rebuild on first list
 	}
 	_ = ps.ensureDirs()
+	// Replay leftover wal/pending even when TransactionalIngest is false.
+	ps.recoverPendingIngest()
 	return ps
 }
 
@@ -216,6 +228,7 @@ func (ps *PalaceStore) ensureDirs() error {
 		filepath.Join(ps.BaseDir, "versions", "memory-entries"),
 		filepath.Join(ps.BaseDir, "relations"),
 		filepath.Join(ps.BaseDir, "indexes"),
+		filepath.Join(ps.BaseDir, walPendingRelDir),
 	}
 	for _, d := range dirs {
 		if err := palaceMkdirAll(d); err != nil {
@@ -1290,8 +1303,11 @@ func extractKeyphrases(text string) []string {
 //
 // Fact-augmented children get valid_from stamped when unset; child Write errors are returned.
 //
-// Partial persist is the contract: a child Write error does not roll back the parent or earlier
-// facts already written. A non-nil error does not mean nothing persisted. Not all-or-nothing.
+// Partial persist is the default laptop contract: a child Write error does not roll back the
+// parent or earlier facts already written. A non-nil error does not mean nothing persisted.
+// When PalaceConfig.TransactionalIngest is true, parent and turn_fact children commit via
+// wal/pending (intent log + fsynced *.tmp-<turnID> + rename). Not all-or-nothing unless that
+// flag is on. Not flock. Not Memory GA. dual_write OFF.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
@@ -1335,19 +1351,42 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 
 	ensurePrivateIngestSource(&turn)
 
+	facts := collectTurnFacts(turn)
+	if ps.Config.TransactionalIngest {
+		entries := make([]MemoryEntry, 0, 1+len(facts))
+		entries = append(entries, turn)
+		entries = append(entries, facts...)
+		if err := ps.commitIngestTurnEntries(turn.TurnID, entries); err != nil {
+			return fmt.Errorf("transactional ingest: %w", err)
+		}
+		return nil
+	}
+
 	if err := ps.Write(turn); err != nil {
 		return fmt.Errorf("failed to write turn entry: %w", err)
 	}
 
+	for _, factEntry := range facts {
+		if err := ps.Write(factEntry); err != nil {
+			return fmt.Errorf("failed to write turn fact: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// collectTurnFacts builds turn_fact children for IngestTurn. Blank fact
+// strings are dropped. IDs are assigned here so transactional ingest can
+// list dests in wal/pending before any rename.
+func collectTurnFacts(turn MemoryEntry) []MemoryEntry {
+	var facts []MemoryEntry
 	for _, factText := range turn.ExtractedFacts {
 		if strings.TrimSpace(factText) == "" {
 			continue
 		}
 		now := time.Now().UTC()
-		factID := GenerateMemoryID()
-
 		factEntry := MemoryEntry{
-			ID:        factID,
+			ID:        GenerateMemoryID(),
 			Type:      "turn_fact",
 			Tier:      TierSemantic,
 			Version:   1,
@@ -1375,13 +1414,9 @@ func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 		if !hasValidFromTag(factEntry) {
 			factEntry.TemporalTags = append(factEntry.TemporalTags, validFromTagPrefix+now.Format(time.RFC3339))
 		}
-
-		if err := ps.Write(factEntry); err != nil {
-			return fmt.Errorf("failed to write turn fact: %w", err)
-		}
+		facts = append(facts, factEntry)
 	}
-
-	return nil
+	return facts
 }
 
 // inheritTurnFactTags copies the parent turn's Content.Tags and appends the
