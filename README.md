@@ -127,7 +127,7 @@ If `PalaceConfig.BaseDir` (or `NewPalaceStore`'s argument) is empty, the store u
 
 ## Topology
 
-**One process per palace root.** Multi-process writers on a shared `BaseDir` are unsupported. In-process `writeMu` serializes `relations/entity-graph.json` and `indexes/event-time.json`. Isolation is the directory you pass as `BaseDir` (this library does not implement mesh `X-IOMesh-Org`).
+**One process per palace root.** Multi-process writers on a shared `BaseDir` are unsupported. In-process `writeMu` serializes `relations/entity-graph.json` and `indexes/event-time.json`. Isolation is the directory you pass as `BaseDir` (this library does not implement mesh `X-IOMesh-Org`). `PalaceConfig.TransactionalIngest` (default **false**) makes `IngestTurn` crash-safe across parent + `turn_fact` children via `wal/pending`; the laptop default remains partial persist. Recover-on-open replays leftover pending even when the flag is off. Intent log, not flock.
 
 Last-write-wins evidence (not a lock): [`scripts/two_process_writer_probe.sh`](scripts/two_process_writer_probe.sh). Flock is not shipped.
 

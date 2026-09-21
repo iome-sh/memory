@@ -27,6 +27,14 @@ func TestPalaceStore_FreshPalaceModeBits(t *testing.T) {
 	versionPath := filepath.Join(base, "versions", "memory-entries", "mode-entry", "v1.json")
 	graphPath := filepath.Join(base, "relations", "entity-graph.json")
 	indexPath := filepath.Join(base, "indexes", "event-time.json")
+	pendingDir := filepath.Join(base, "wal", "pending")
+	if info, err := os.Stat(pendingDir); err != nil {
+		t.Fatalf("expected wal/pending: %v", err)
+	} else if !info.IsDir() {
+		t.Fatal("wal/pending is not a directory")
+	} else if got := info.Mode().Perm(); got != palaceDirMode {
+		t.Errorf("wal/pending mode %04o, want %04o", got, palaceDirMode)
+	}
 	for _, p := range []string{entryPath, versionPath, graphPath, indexPath} {
 		info, err := os.Stat(p)
 		if err != nil {
