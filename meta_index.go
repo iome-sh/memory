@@ -20,10 +20,23 @@ type entryMeta struct {
 	EventTime time.Time
 	SessionID string
 	// Tags is the union of TemporalTags and Content.Tags (order not significant).
+	// Not used for validity or ListFactsAsOf entity match: a content tag may
+	// look like valid_until: or entity: without being a temporal tag.
 	Tags []string
 	Path string
 	// queryHay is lowercased Summary + Full + OriginalText for substring Query.
 	queryHay string
+	// hasValidity / validFrom / validUntil are computed from TemporalTags only,
+	// same rules as hasValidityTags / ParseValidityWindow / EntryValidAt.
+	hasValidity bool
+	validFrom   *time.Time
+	validUntil  *time.Time
+	// entityTags are TemporalTags with the entity: prefix (not Content.Tags).
+	entityTags []string
+	// entityKeys are normalized EntryEntityKeys. entityKeysKnown is false when
+	// the row cannot prove a non-match; SupersedeEntityFacts then loads the file.
+	entityKeys      []string
+	entityKeysKnown bool
 }
 
 // metaFromEntry builds an entryMeta from a loaded MemoryEntry and its FS path.
@@ -33,15 +46,119 @@ func metaFromEntry(e MemoryEntry, path string) entryMeta {
 	tags = append(tags, e.TemporalTags...)
 	tags = append(tags, e.Content.Tags...)
 	hay := strings.ToLower(e.Content.Summary + " " + e.Content.Full + " " + e.OriginalText)
+	has, from, until := validityFromTemporalTags(e.TemporalTags)
 	return entryMeta{
-		ID:        e.ID,
-		Tier:      e.Tier,
-		EventTime: entryEventTime(e),
-		SessionID: e.SessionID,
-		Tags:      tags,
-		Path:      path,
-		queryHay:  hay,
+		ID:              e.ID,
+		Tier:            e.Tier,
+		EventTime:       entryEventTime(e),
+		SessionID:       e.SessionID,
+		Tags:            tags,
+		Path:            path,
+		queryHay:        hay,
+		hasValidity:     has,
+		validFrom:       from,
+		validUntil:      until,
+		entityTags:      temporalEntityTags(e.TemporalTags),
+		entityKeys:      normalizedEntityKeys(e),
+		entityKeysKnown: true,
 	}
+}
+
+// validityFromTemporalTags mirrors EntryValidAt's tag rules. Content.Tags are
+// not consulted: a content "valid_until:" tag must not close the meta row.
+func validityFromTemporalTags(tags []string) (has bool, from, until *time.Time) {
+	e := MemoryEntry{TemporalTags: tags}
+	has = hasValidityTags(e)
+	from, until = ParseValidityWindow(e)
+	return has, cloneTimePtr(from), cloneTimePtr(until)
+}
+
+func cloneTimePtr(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	c := t.UTC()
+	return &c
+}
+
+// temporalEntityTags copies TemporalTags that use the entity: prefix.
+// Content.Tags are omitted so they cannot widen ListFactsAsOf's entity filter.
+func temporalEntityTags(tags []string) []string {
+	var out []string
+	for _, t := range tags {
+		if strings.HasPrefix(t, entityTagPrefix) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// normalizedEntityKeys is EntryEntityKeys lower-cased and trimmed, first-seen order.
+func normalizedEntityKeys(e MemoryEntry) []string {
+	raw := EntryEntityKeys(e)
+	if len(raw) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, k := range raw {
+		n := normalizeEntityKey(k)
+		if n == "" {
+			continue
+		}
+		if _, ok := seen[n]; ok {
+			continue
+		}
+		seen[n] = struct{}{}
+		out = append(out, n)
+	}
+	return out
+}
+
+// metaValidAt is EntryValidAt on the cached temporal window / event time.
+func metaValidAt(m entryMeta, asOf time.Time) bool {
+	if asOf.IsZero() {
+		asOf = time.Now().UTC()
+	}
+	if !m.hasValidity {
+		if m.EventTime.IsZero() {
+			return true
+		}
+		return !m.EventTime.After(asOf)
+	}
+	if m.validFrom != nil && asOf.Before(*m.validFrom) {
+		return false
+	}
+	if m.validUntil != nil && !asOf.Before(*m.validUntil) {
+		return false
+	}
+	return true
+}
+
+// metaMatchesEntity is entryMatchesEntity over temporal entity tags only.
+func metaMatchesEntity(m entryMeta, entity string) bool {
+	if entity == "" {
+		return true
+	}
+	return tagsMatchEntity(m.entityTags, entity)
+}
+
+// metaCouldMatchEntityKey reports whether m might satisfy entryHasEntityKey.
+// A row that does not know its keys cannot prove a non-match, so the caller loads the file.
+func metaCouldMatchEntityKey(m entryMeta, entityKey string) bool {
+	want := normalizeEntityKey(entityKey)
+	if want == "" {
+		return false
+	}
+	if !m.entityKeysKnown {
+		return true
+	}
+	for _, k := range m.entityKeys {
+		if normalizeEntityKey(k) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // entryMetaJSON is a slim unmarshal target for rebuild (avoids full MemoryEntry alloc).
@@ -59,6 +176,9 @@ type entryMetaJSON struct {
 		Full    string   `json:"full"`
 		Tags    []string `json:"tags"`
 	} `json:"content"`
+	Relations struct {
+		RelatedConcepts []string `json:"related_concepts"`
+	} `json:"relations"`
 }
 
 func (m entryMetaJSON) toMeta(path string, dirTier MemoryTier) entryMeta {
@@ -75,6 +195,9 @@ func (m entryMetaJSON) toMeta(path string, dirTier MemoryTier) entryMeta {
 			Summary: m.Content.Summary,
 			Full:    m.Content.Full,
 			Tags:    m.Content.Tags,
+		},
+		Relations: MemoryRelations{
+			RelatedConcepts: m.Relations.RelatedConcepts,
 		},
 	}
 	if e.Tier == 0 {
@@ -244,6 +367,7 @@ func (ps *PalaceStore) rebuildMetaIndexLocked() {
 				continue
 			}
 			path := filepath.Clean(filepath.Join(dir, name))
+			ps.noteEntryJSONRead(path)
 			data, err := os.ReadFile(path)
 			if err != nil {
 				continue

@@ -164,6 +164,227 @@ func TestDurableEventTimeIndex_IncrementalWritePersists(t *testing.T) {
 	}
 }
 
+func TestDurableEventTimeIndex_V2StoresValidityAndEntityKeys(t *testing.T) {
+	baseDir := t.TempDir()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	until := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+	if err := store.Write(MemoryEntry{
+		ID: "f", Tier: TierSemantic, Timestamp: from,
+		TemporalTags: []string{
+			"entity:person:alice",
+			"subject:auth",
+			"valid_from:" + from.Format(time.RFC3339),
+			"valid_until:" + until.Format(time.RFC3339),
+		},
+		Content: MemoryContent{
+			Summary: "hello",
+			Tags:    []string{"entity:org:acme", "valid_until:2099-01-01T00:00:00Z"},
+		},
+		Relations: MemoryRelations{RelatedConcepts: []string{"Project:Widget"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// First list rebuilds from tier JSON (writes landed while the index was dirty).
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+
+	raw, err := os.ReadFile(filepath.Join(baseDir, "indexes", "event-time.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snap durableEventTimeIndex
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		t.Fatal(err)
+	}
+	if snap.Version != 2 {
+		t.Fatalf("version = %d, want 2", snap.Version)
+	}
+	var row durableEntryMeta
+	found := false
+	for _, e := range snap.Entries {
+		if e.ID == "f" {
+			row = e
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing f in %+v", snap.Entries)
+	}
+	if !row.HasValidity || row.ValidFrom == nil || !row.ValidFrom.Equal(from) {
+		t.Fatalf("valid_from = %v has=%v", row.ValidFrom, row.HasValidity)
+	}
+	if row.ValidUntil == nil || !row.ValidUntil.Equal(until) {
+		t.Fatalf("valid_until = %v, want %v (content tag must not win)", row.ValidUntil, until)
+	}
+	if len(row.EntityTags) != 1 || row.EntityTags[0] != "entity:person:alice" {
+		t.Fatalf("entity_tags = %v", row.EntityTags)
+	}
+	if !row.EntityKeysKnown {
+		t.Fatal("entity_keys_known false after rebuild")
+	}
+	for _, k := range []string{"person:alice", "entity:person:alice", "subject:auth", "org:acme", "entity:org:acme", "project:widget"} {
+		if !idsInclude(row.EntityKeys, k) {
+			t.Fatalf("entity_keys %v missing %s", row.EntityKeys, k)
+		}
+	}
+}
+
+func TestDurableEventTimeIndex_V1RebuildsNotMisread(t *testing.T) {
+	baseDir := t.TempDir()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	asOf := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	closedUntil := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	vf := "valid_from:" + from.Format(time.RFC3339)
+	if err := store.Write(MemoryEntry{
+		ID: "closed", Tier: TierContextual, Timestamp: asOf.Add(-2 * time.Hour),
+		TemporalTags: []string{vf, "valid_until:" + closedUntil.Format(time.RFC3339), "entity:person:alice"},
+		Content:      MemoryContent{Summary: "old"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Write(MemoryEntry{
+		ID: "open", Tier: TierContextual, Timestamp: asOf.Add(-time.Hour),
+		TemporalTags: []string{vf, "entity:person:alice"},
+		Content:      MemoryContent{Summary: "current"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.ListFactsAsOf(FactsAsOfOptions{AsOf: asOf, Entity: "person:alice", Limit: 10})
+
+	idxPath := filepath.Join(baseDir, "indexes", "event-time.json")
+	raw, err := os.ReadFile(idxPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snap durableEventTimeIndex
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		t.Fatal(err)
+	}
+	if snap.Version != durableEventTimeIndexVersion {
+		t.Fatalf("seed version %d", snap.Version)
+	}
+	// Keep the tier stamp. Drop v2 fields and claim v1 so a naive decoder
+	// would treat the closed fact as known-by event time.
+	snap.Version = 1
+	for i := range snap.Entries {
+		snap.Entries[i].HasValidity = false
+		snap.Entries[i].ValidFrom = nil
+		snap.Entries[i].ValidUntil = nil
+		snap.Entries[i].EntityTags = nil
+		snap.Entries[i].EntityKeys = nil
+		snap.Entries[i].EntityKeysKnown = false
+	}
+	downgraded, err := json.Marshal(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(idxPath, downgraded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	got := reopened.ListFactsAsOf(FactsAsOfOptions{AsOf: asOf, Entity: "person:alice", Limit: 10})
+	if ids := idsOf(got); !stringSliceEq(ids, []string{"open"}) {
+		t.Fatalf("v1 snapshot misread: %v", ids)
+	}
+	if reopened.MetaIndexRebuilds() != 1 {
+		t.Fatalf("v1 file must rebuild once, rebuilds=%d", reopened.MetaIndexRebuilds())
+	}
+	raw, err = os.ReadFile(idxPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rewritten durableEventTimeIndex
+	if err := json.Unmarshal(raw, &rewritten); err != nil {
+		t.Fatal(err)
+	}
+	if rewritten.Version != durableEventTimeIndexVersion {
+		t.Fatalf("rewritten version %d", rewritten.Version)
+	}
+	var closed durableEntryMeta
+	for _, e := range rewritten.Entries {
+		if e.ID == "closed" {
+			closed = e
+		}
+	}
+	if !closed.HasValidity || closed.ValidUntil == nil || !closed.ValidUntil.Equal(closedUntil) {
+		t.Fatalf("rebuilt closed meta = %+v", closed)
+	}
+	if len(closed.EntityTags) != 1 || closed.EntityTags[0] != "entity:person:alice" {
+		t.Fatalf("rebuilt entity_tags = %v", closed.EntityTags)
+	}
+}
+
+func TestDurableEventTimeIndex_WritePatchesValidity(t *testing.T) {
+	baseDir := t.TempDir()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	asOf := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	if err := store.Write(MemoryEntry{
+		ID: "alice", Tier: TierSemantic, Timestamp: from,
+		TemporalTags: []string{"entity:person:alice", "valid_from:" + from.Format(time.RFC3339)},
+		Content:      MemoryContent{Summary: "open"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Write(MemoryEntry{
+		ID: "noise", Tier: TierContextual, Timestamp: from,
+		Content: MemoryContent{Summary: "noise"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	rebuilds := store.MetaIndexRebuilds()
+	if rebuilds == 0 {
+		t.Fatal("expected initial rebuild")
+	}
+	n, err := store.SupersedeEntityFacts("person:alice", asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("supersede count = %d, want 1", n)
+	}
+	if got := store.MetaIndexRebuilds(); got != rebuilds {
+		t.Fatalf("validity patch rebuilt index: %d → %d", rebuilds, got)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(baseDir, "indexes", "event-time.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var snap durableEventTimeIndex
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		t.Fatal(err)
+	}
+	var row durableEntryMeta
+	for _, e := range snap.Entries {
+		if e.ID == "alice" {
+			row = e
+		}
+	}
+	if !row.HasValidity || row.ValidUntil == nil || !row.ValidUntil.Equal(asOf) {
+		t.Fatalf("patched durable validity = %+v", row)
+	}
+	if !row.EntityKeysKnown || !idsInclude(row.EntityKeys, "person:alice") {
+		t.Fatalf("patched entity keys = %v known=%v", row.EntityKeys, row.EntityKeysKnown)
+	}
+
+	reopened := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	reads := trackEntryJSONReads(reopened)
+	got := reopened.ListFactsAsOf(FactsAsOfOptions{AsOf: asOf, Entity: "person:alice", Limit: 10})
+	if len(got) != 0 {
+		t.Fatalf("closed fact still listed: %v", idsOf(got))
+	}
+	if reopened.MetaIndexRebuilds() != 0 {
+		t.Fatalf("reopen rebuilt %d; patched snapshot stamp should match", reopened.MetaIndexRebuilds())
+	}
+	if idsInclude(*reads, "alice") || idsInclude(*reads, "noise") {
+		t.Fatalf("closed/noise bodies read from patched snapshot: %v", *reads)
+	}
+}
+
 func listHasID(entries []MemoryEntry, id string) bool {
 	for _, e := range entries {
 		if e.ID == id {

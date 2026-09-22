@@ -2,6 +2,7 @@ package memory
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -415,6 +416,284 @@ func TestListFactsAsOf_MetaIndexMatchesScan(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMetaValidAt_MatchesEntryValidAt(t *testing.T) {
+	asOf := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	from := asOf.Add(-time.Hour)
+	until := asOf
+	cases := []MemoryEntry{
+		{ID: "untagged-before", Timestamp: asOf.Add(-time.Hour)},
+		{ID: "untagged-after", Timestamp: asOf.Add(time.Hour)},
+		{ID: "untagged-zero"},
+		{ID: "untagged-eq", Timestamp: asOf},
+		{
+			ID: "from-open", Timestamp: asOf.Add(48 * time.Hour),
+			TemporalTags: []string{"valid_from:" + from.Format(time.RFC3339)},
+		},
+		{
+			ID:           "from-future",
+			TemporalTags: []string{"valid_from:" + asOf.Add(time.Hour).Format(time.RFC3339)},
+		},
+		{
+			ID: "until-exclusive",
+			TemporalTags: []string{
+				"valid_from:" + from.Format(time.RFC3339),
+				"valid_until:" + until.Format(time.RFC3339),
+			},
+		},
+		{
+			ID:           "until-later",
+			TemporalTags: []string{"valid_until:" + asOf.Add(time.Hour).Format(time.RFC3339)},
+		},
+		{
+			ID: "bad-tag", Timestamp: asOf.Add(time.Hour),
+			TemporalTags: []string{"valid_from:not-a-time"},
+		},
+		{
+			ID: "last-wins",
+			TemporalTags: []string{
+				"valid_from:" + asOf.Add(2*time.Hour).Format(time.RFC3339),
+				"valid_from:" + from.Format(time.RFC3339),
+			},
+		},
+		{
+			ID: "content-until-ignored", Timestamp: asOf.Add(-time.Hour),
+			Content: MemoryContent{Tags: []string{"valid_until:" + from.Format(time.RFC3339)}},
+		},
+		{
+			ID: "content-entity-ignored", Timestamp: asOf.Add(-time.Hour),
+			Content: MemoryContent{Tags: []string{"entity:person:mallory"}},
+		},
+		{ID: "created-at-only", CreatedAt: asOf.Add(-time.Minute)},
+		{ID: "last-access-future", LastAccessed: asOf.Add(time.Minute)},
+	}
+	for _, e := range cases {
+		m := metaFromEntry(e, "x")
+		if got, want := metaValidAt(m, asOf), EntryValidAt(e, asOf); got != want {
+			t.Fatalf("%s metaValidAt=%v EntryValidAt=%v tags=%v content=%v", e.ID, got, want, e.TemporalTags, e.Content.Tags)
+		}
+		if e.ID == "content-until-ignored" && (m.hasValidity || m.validUntil != nil) {
+			t.Fatalf("content valid_until stored on meta: %+v", m.validUntil)
+		}
+		if e.ID == "content-entity-ignored" && len(m.entityTags) != 0 {
+			t.Fatalf("content entity tag stored on meta: %v", m.entityTags)
+		}
+		if e.ID == "content-entity-ignored" && metaMatchesEntity(m, "mallory") {
+			t.Fatal("content entity: tag widened meta entity match")
+		}
+	}
+}
+
+// v1 rows have no has_validity. Decoding them as v2 would treat a closed fact
+// as known-by event time. toMeta must not recover validity from the mixed Tags slice.
+func TestDurableMetaV1Shape_DoesNotInferValidityOrEntity(t *testing.T) {
+	asOf := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	past := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	m := (durableEntryMeta{
+		ID:        "closed",
+		EventTime: asOf.Add(-time.Hour),
+		Tags: []string{
+			"entity:person:alice",
+			"valid_until:" + past.Format(time.RFC3339),
+		},
+	}).toMeta(t.TempDir())
+	if !metaValidAt(m, asOf) {
+		t.Fatal("v1-shaped row (has_validity false) must stay known-by, not parse Tags")
+	}
+	if metaMatchesEntity(m, "person:alice") {
+		t.Fatal("mixed Tags must not satisfy facts-as-of entity match")
+	}
+	if m.entityKeysKnown {
+		t.Fatal("v1-shaped row must not claim known entity keys")
+	}
+	if !metaCouldMatchEntityKey(m, "person:alice") {
+		t.Fatal("unknown entity keys cannot prove a non-match")
+	}
+}
+
+func writeClosedOpenAsOfFixture(t *testing.T, store *PalaceStore) time.Time {
+	t.Helper()
+	asOf := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	vf := "valid_from:" + from.Format(time.RFC3339)
+	untilPast := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	vuPast := "valid_until:" + untilPast.Format(time.RFC3339)
+	vuAsOf := "valid_until:" + asOf.Format(time.RFC3339)
+	entries := []MemoryEntry{
+		{
+			ID: "alice-closed-a", Tier: TierContextual, Timestamp: asOf.Add(-10 * time.Hour),
+			TemporalTags: []string{vf, vuPast, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "alice closed a"},
+		},
+		{
+			ID: "alice-closed-b", Tier: TierContextual, Timestamp: asOf.Add(-9 * time.Hour),
+			TemporalTags: []string{vf, vuAsOf, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "alice closed at asOf exclusive"},
+		},
+		{
+			ID: "alice-closed-sem", Tier: TierSemantic, Timestamp: asOf.Add(-time.Hour),
+			TemporalTags: []string{vf, vuPast, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "alice closed semantic"},
+		},
+		{
+			ID: "alice-open", Tier: TierContextual, Timestamp: asOf.Add(-6 * time.Hour),
+			TemporalTags: []string{vf, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "alice open"},
+		},
+		{
+			ID: "bob-open", Tier: TierSemantic, Timestamp: asOf.Add(-8 * time.Hour),
+			TemporalTags: []string{vf, "entity:person:bob"},
+			Content:      MemoryContent{Summary: "bob open"},
+		},
+		{
+			ID: "future-untagged", Tier: TierContextual, Timestamp: asOf.Add(2 * time.Hour),
+			Content: MemoryContent{Summary: "event after asOf"},
+		},
+		{
+			ID: "past-untagged", Tier: TierContextual, Timestamp: asOf.Add(-2 * time.Hour),
+			Content: MemoryContent{Summary: "known by event time"},
+		},
+		{
+			ID: "content-entity-decoy", Tier: TierContextual, Timestamp: asOf.Add(-4 * time.Hour),
+			TemporalTags: []string{vf},
+			Content: MemoryContent{
+				Summary: "content entity tag",
+				Tags:    []string{"entity:person:alice"},
+			},
+		},
+		{
+			ID: "content-until-decoy", Tier: TierContextual, Timestamp: asOf.Add(-3 * time.Hour),
+			Content: MemoryContent{
+				Summary: "content valid_until is not a window",
+				Tags:    []string{vuPast},
+			},
+		},
+	}
+	for _, e := range entries {
+		if err := store.Write(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return asOf
+}
+
+func TestListFactsAsOf_IndexMatchesScanWithClosedFacts(t *testing.T) {
+	baseDir := t.TempDir()
+	idx := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	asOf := writeClosedOpenAsOfFixture(t, idx)
+	scan := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir, DisableMetaIndex: true})
+
+	unfiltered := []string{
+		"bob-open",
+		"past-untagged",
+		"content-until-decoy",
+		"content-entity-decoy",
+		"alice-open",
+	}
+	absent := []string{
+		"alice-closed-a", "alice-closed-b", "alice-closed-sem", "future-untagged",
+	}
+	assertSameAsOf := func(t *testing.T, opts FactsAsOfOptions, want []string) {
+		t.Helper()
+		gotIdx := idx.ListFactsAsOf(opts)
+		gotScan := scan.ListFactsAsOf(opts)
+		if !sameIDsInOrder(gotIdx, gotScan) {
+			t.Fatalf("index vs scan: index=%v scan=%v", idsOf(gotIdx), idsOf(gotScan))
+		}
+		if got := idsOf(gotIdx); !stringSliceEq(got, want) {
+			t.Fatalf("ids = %v, want %v", got, want)
+		}
+		for _, id := range absent {
+			if entryIDsContain(gotIdx, id) {
+				t.Fatalf("absent id %s in %v", id, idsOf(gotIdx))
+			}
+		}
+	}
+	assertSameAsOf(t, FactsAsOfOptions{AsOf: asOf, Limit: 20}, unfiltered)
+	assertSameAsOf(t, FactsAsOfOptions{AsOf: asOf, Entity: "person:alice", Limit: 20}, []string{"alice-open"})
+	assertSameAsOf(t, FactsAsOfOptions{AsOf: asOf, Entity: "alice", Limit: 20}, []string{"alice-open"})
+}
+
+func TestListFactsAsOf_IndexSkipsClosedBodies(t *testing.T) {
+	baseDir := t.TempDir()
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	asOf := writeClosedOpenAsOfFixture(t, store)
+	// Warm so the measured list uses the index, not the rebuild walk.
+	_ = store.ListFactsAsOf(FactsAsOfOptions{AsOf: asOf, Limit: 20})
+
+	opts := FactsAsOfOptions{AsOf: asOf, Entity: "person:alice", Limit: 20}
+	reads := trackEntryJSONReads(store)
+	got := store.ListFactsAsOf(opts)
+	if ids := idsOf(got); !stringSliceEq(ids, []string{"alice-open"}) {
+		t.Fatalf("indexed ids = %v", ids)
+	}
+	for _, id := range []string{"alice-closed-a", "alice-closed-b", "alice-closed-sem", "future-untagged", "bob-open", "content-entity-decoy"} {
+		if idsInclude(*reads, id) {
+			t.Fatalf("indexed as-of read %s: %v", id, *reads)
+		}
+	}
+	if !idsInclude(*reads, "alice-open") {
+		t.Fatalf("open fact body was not loaded: %v", *reads)
+	}
+
+	reopened := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir})
+	rreads := trackEntryJSONReads(reopened)
+	rgot := reopened.ListFactsAsOf(opts)
+	if !sameIDsInOrder(got, rgot) {
+		t.Fatalf("reopen ids = %v, want %v", idsOf(rgot), idsOf(got))
+	}
+	if reopened.MetaIndexRebuilds() != 0 {
+		t.Fatalf("v2 snapshot should load without rebuild, rebuilds=%d", reopened.MetaIndexRebuilds())
+	}
+	for _, id := range []string{"alice-closed-a", "alice-closed-b", "alice-closed-sem", "future-untagged"} {
+		if idsInclude(*rreads, id) {
+			t.Fatalf("durable as-of read %s: %v", id, *rreads)
+		}
+	}
+	if !idsInclude(*rreads, "alice-open") {
+		t.Fatalf("reopen did not load open fact: %v", *rreads)
+	}
+
+	scan := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: baseDir, DisableMetaIndex: true})
+	sreads := trackEntryJSONReads(scan)
+	sgot := scan.ListFactsAsOf(opts)
+	if !sameIDsInOrder(got, sgot) {
+		t.Fatalf("scan ids = %v, want %v", idsOf(sgot), idsOf(got))
+	}
+	if !idsInclude(*sreads, "alice-closed-a") || !idsInclude(*sreads, "future-untagged") {
+		t.Fatalf("DisableMetaIndex should still read non-survivors: %v", *sreads)
+	}
+}
+
+func trackEntryJSONReads(ps *PalaceStore) *[]string {
+	got := &[]string{}
+	ps.entryJSONRead = func(path string) {
+		id := strings.TrimSuffix(filepath.Base(path), ".json")
+		*got = append(*got, id)
+	}
+	return got
+}
+
+func idsInclude(ids []string, want string) bool {
+	for _, id := range ids {
+		if id == want {
+			return true
+		}
+	}
+	return false
+}
+
+func stringSliceEq(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestSearchMemoryWithOptions_AsOfFilter(t *testing.T) {

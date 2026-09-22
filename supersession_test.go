@@ -355,6 +355,256 @@ func TestSetValidUntilTag_PreservesValidFrom(t *testing.T) {
 	}
 }
 
+func TestSupersedeEntityFacts_IndexSkipsUnrelatedBodies(t *testing.T) {
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	asOf := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	vf := "valid_from:" + from.Format(time.RFC3339)
+	writeBoth := func(t *testing.T, store *PalaceStore) {
+		t.Helper()
+		entries := supersedeIndexFixture(from, asOf, vf)
+		for _, e := range entries {
+			if err := store.Write(e); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	idxDir := t.TempDir()
+	idx := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: idxDir})
+	writeBoth(t, idx)
+	_ = idx.ListMemoryWithOptions(ListMemoryOptions{Limit: 100})
+	reads := trackEntryJSONReads(idx)
+	n, err := idx.SupersedeEntityFacts("person:alice", asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 6 {
+		t.Fatalf("indexed supersede count = %d, want 6", n)
+	}
+	// Snapshot before assertSupersedeClosures, which Loads every id.
+	idxReads := append([]string(nil), (*reads)...)
+	for _, id := range []string{"bob", "noise-w", "noise-c", "noise-a", "noise-s", "via-subject"} {
+		if idsInclude(idxReads, id) {
+			t.Fatalf("indexed supersede read unrelated %s: %v", id, idxReads)
+		}
+	}
+	for _, id := range []string{"open-temporal", "open-until-future", "open-known-by", "via-content", "via-related", "via-archival"} {
+		if !idsInclude(idxReads, id) {
+			t.Fatalf("indexed supersede skipped open fact %s: %v", id, idxReads)
+		}
+	}
+	assertSupersedeClosures(t, idx, asOf)
+
+	// Unknown keys cannot prove a non-match: still close the open fact, and load the rest.
+	idx.entryJSONRead = nil
+	store2 := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	writeBoth(t, store2)
+	_ = store2.ListMemoryWithOptions(ListMemoryOptions{Limit: 100})
+	store2.metaMu.Lock()
+	for i := range store2.metaIndex {
+		store2.metaIndex[i].entityKeysKnown = false
+		store2.metaIndex[i].entityKeys = nil
+	}
+	store2.metaMu.Unlock()
+	ureads := trackEntryJSONReads(store2)
+	n, err = store2.SupersedeEntityFacts("person:alice", asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 6 {
+		t.Fatalf("unknown-key supersede count = %d, want 6", n)
+	}
+	unknownReads := append([]string(nil), (*ureads)...)
+	if !idsInclude(unknownReads, "noise-w") || !idsInclude(unknownReads, "open-temporal") {
+		t.Fatalf("unknown keys should load non-matches and open facts: %v", unknownReads)
+	}
+	assertSupersedeClosures(t, store2, asOf)
+
+	scanDir := t.TempDir()
+	scan := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: scanDir, DisableMetaIndex: true})
+	writeBoth(t, scan)
+	sreads := trackEntryJSONReads(scan)
+	n, err = scan.SupersedeEntityFacts("person:alice", asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 6 {
+		t.Fatalf("scan supersede count = %d, want 6", n)
+	}
+	scanReads := append([]string(nil), (*sreads)...)
+	if !idsInclude(scanReads, "noise-w") || !idsInclude(scanReads, "bob") {
+		t.Fatalf("DisableMetaIndex should scan unrelated bodies: %v", scanReads)
+	}
+	assertSupersedeClosures(t, scan, asOf)
+}
+
+func TestSupersedeEntityFacts_SubjectKeyFromMeta(t *testing.T) {
+	store := NewPalaceStoreWithConfig(PalaceConfig{BaseDir: t.TempDir()})
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	asOf := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	if err := store.Write(MemoryEntry{
+		ID: "subj", Tier: TierWorking, Timestamp: from,
+		TemporalTags: []string{"subject:auth", "valid_from:" + from.Format(time.RFC3339)},
+		Content:      MemoryContent{Summary: "auth"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Write(MemoryEntry{
+		ID: "other", Tier: TierContextual, Timestamp: from,
+		TemporalTags: []string{"entity:person:alice", "valid_from:" + from.Format(time.RFC3339)},
+		Content:      MemoryContent{Summary: "alice"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.ListMemoryWithOptions(ListMemoryOptions{Limit: 10})
+	reads := trackEntryJSONReads(store)
+	n, err := store.SupersedeEntityFacts("Subject:Auth", asOf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("count = %d, want 1", n)
+	}
+	if idsInclude(*reads, "other") {
+		t.Fatalf("subject supersede read unrelated: %v", *reads)
+	}
+	loaded, ok := store.Load("subj", TierWorking)
+	if !ok {
+		t.Fatal("missing subj")
+	}
+	_, until := ParseValidityWindow(loaded)
+	if until == nil || !until.Equal(asOf) {
+		t.Fatalf("subject valid_until = %v", until)
+	}
+	other, _ := store.Load("other", TierContextual)
+	if _, u := ParseValidityWindow(other); u != nil {
+		t.Fatalf("other closed: %v", u)
+	}
+}
+
+func supersedeIndexFixture(from, asOf time.Time, vf string) []MemoryEntry {
+	return []MemoryEntry{
+		{
+			ID: "open-temporal", Tier: TierSemantic, Timestamp: from,
+			TemporalTags: []string{vf, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "temporal"},
+		},
+		{
+			ID: "open-until-future", Tier: TierContextual, Timestamp: from,
+			TemporalTags: []string{
+				vf, "entity:person:alice",
+				"valid_until:" + asOf.Add(24*time.Hour).Format(time.RFC3339),
+			},
+			Content: MemoryContent{Summary: "until later"},
+		},
+		{
+			ID: "open-known-by", Tier: TierContextual, Timestamp: from,
+			TemporalTags: []string{"entity:person:alice"},
+			Content:      MemoryContent{Summary: "no validity tags"},
+		},
+		{
+			ID: "not-yet-known", Tier: TierContextual, Timestamp: asOf.Add(time.Hour),
+			TemporalTags: []string{"entity:person:alice"},
+			Content:      MemoryContent{Summary: "event after asOf"},
+		},
+		{
+			ID: "already-closed", Tier: TierContextual, Timestamp: from,
+			TemporalTags: []string{
+				vf, "entity:person:alice",
+				"valid_until:" + from.Add(24*time.Hour).Format(time.RFC3339),
+			},
+			Content: MemoryContent{Summary: "already closed"},
+		},
+		{
+			ID: "via-content", Tier: TierContextual, Timestamp: from,
+			Content: MemoryContent{Summary: "content entity", Tags: []string{"entity:person:alice"}},
+		},
+		{
+			ID: "via-related", Tier: TierContextual, Timestamp: from,
+			Relations: MemoryRelations{RelatedConcepts: []string{"Person:Alice"}},
+			Content:   MemoryContent{Summary: "related"},
+		},
+		{
+			ID: "via-archival", Tier: TierArchival, Timestamp: from,
+			TemporalTags: []string{vf, "entity:person:alice"},
+			Content:      MemoryContent{Summary: "archival open"},
+		},
+		{
+			ID: "via-subject", Tier: TierWorking, Timestamp: from,
+			TemporalTags: []string{"subject:auth", vf},
+			Content:      MemoryContent{Summary: "subject only"},
+		},
+		{
+			ID: "bob", Tier: TierSemantic, Timestamp: from,
+			TemporalTags: []string{vf, "entity:person:bob"},
+			Content:      MemoryContent{Summary: "bob"},
+		},
+		{ID: "noise-w", Tier: TierWorking, Timestamp: from, Content: MemoryContent{Summary: "nw"}},
+		{ID: "noise-c", Tier: TierContextual, Timestamp: from, Content: MemoryContent{Summary: "nc"}},
+		{ID: "noise-a", Tier: TierArchival, Timestamp: from, Content: MemoryContent{Summary: "na"}},
+		{ID: "noise-s", Tier: TierSemantic, Timestamp: from, Content: MemoryContent{Summary: "ns"}},
+	}
+}
+
+func assertSupersedeClosures(t *testing.T, store *PalaceStore, asOf time.Time) {
+	t.Helper()
+	closed := []struct {
+		id   string
+		tier MemoryTier
+	}{
+		{"open-temporal", TierSemantic},
+		{"open-until-future", TierContextual},
+		{"open-known-by", TierContextual},
+		{"via-content", TierContextual},
+		{"via-related", TierContextual},
+		{"via-archival", TierArchival},
+	}
+	for _, c := range closed {
+		e, ok := store.Load(c.id, c.tier)
+		if !ok {
+			t.Fatalf("missing %s", c.id)
+		}
+		_, until := ParseValidityWindow(e)
+		if until == nil || !until.Equal(asOf) {
+			t.Fatalf("%s valid_until = %v, want %v", c.id, until, asOf)
+		}
+		if EntryValidAt(e, asOf) {
+			t.Fatalf("%s still valid at asOf", c.id)
+		}
+	}
+	untouched := []struct {
+		id   string
+		tier MemoryTier
+	}{
+		{"not-yet-known", TierContextual},
+		{"bob", TierSemantic},
+		{"via-subject", TierWorking},
+		{"noise-w", TierWorking},
+		{"noise-c", TierContextual},
+		{"noise-a", TierArchival},
+		{"noise-s", TierSemantic},
+	}
+	for _, c := range untouched {
+		e, ok := store.Load(c.id, c.tier)
+		if !ok {
+			t.Fatalf("missing %s", c.id)
+		}
+		_, until := ParseValidityWindow(e)
+		if until != nil && until.Equal(asOf) {
+			t.Fatalf("%s was closed at asOf", c.id)
+		}
+	}
+	already, ok := store.Load("already-closed", TierContextual)
+	if !ok {
+		t.Fatal("missing already-closed")
+	}
+	_, until := ParseValidityWindow(already)
+	want := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+	if until == nil || !until.Equal(want) {
+		t.Fatalf("already-closed valid_until = %v, want original %v", until, want)
+	}
+}
+
 func containsTag(tags []string, want string) bool {
 	for _, t := range tags {
 		if t == want {
