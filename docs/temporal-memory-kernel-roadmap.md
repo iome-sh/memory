@@ -129,7 +129,7 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry
 
 Tags: `valid_from:<RFC3339>` inclusive start; `valid_until:<RFC3339>` **exclusive** end. No tags → valid if event time is zero or `!eventTime.After(asOf)`. Compaction SUMMARIZE / MERGE / CREATE_CORE_PRINCIPLE stamp `valid_from` from the parent.
 
-T4 tests ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): `ListFactsAsOf` after MERGE/SUMMARIZE still returns the product; sources move to archival without invented `valid_until`; ARCHIVE that only moves tiers stays valid at now. Dual-clock store is **not** shipped. **T4-perf shipped** ([#134](https://github.com/iome-sh/memory/pull/134) `2a3257c`): session/tier/query collect through the list meta index (no Limit); `EntryValidAt` / entity still after load. btree still parked.
+T4 tests ([#126](https://github.com/iome-sh/memory/pull/126) `3fcbe4d`): `ListFactsAsOf` after MERGE/SUMMARIZE still returns the product; sources move to archival without invented `valid_until`; ARCHIVE that only moves tiers stays valid at now. Dual-clock store is **not** shipped. **T4-perf shipped** ([#134](https://github.com/iome-sh/memory/pull/134) `2a3257c`): session/tier/query collect through the list meta index (no Limit); `EntryValidAt` / entity still after load. Follow-up: validity (`TemporalTags` only) and temporal `entity:` tags also filter on `entryMeta` before that load; `SupersedeEntityFacts` uses the index instead of a full tier scan when it is enabled; durable snapshot is schema v2 (v1 rebuilds once). `DisableMetaIndex` keeps the JSON walk. btree still parked. Not Memory GA.
 
 ### A3 lite — Supersession + latest-value retrieve
 

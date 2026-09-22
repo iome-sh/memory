@@ -56,32 +56,55 @@ func (ps *PalaceStore) supersedeEntityFactsExcluding(entityKey string, asOf time
 		asOf = asOf.UTC()
 	}
 
-	// Scan all primary tiers (incl. Archival) so open facts are closed wherever stored.
-	tiers := []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic}
-	updated := 0
-	for _, tier := range tiers {
-		entries := ps.ListEntriesInTier(tier)
-		for _, e := range entries {
-			if excludeID != "" && e.ID == excludeID {
-				continue
-			}
-			if !entryHasEntityKey(e, key) {
-				continue
-			}
-			// Only currently-open facts at asOf (covers untagged + open windows;
-			// already-closed windows fail EntryValidAt and are skipped).
-			if !EntryValidAt(e, asOf) {
-				continue
-			}
-			e.TemporalTags = setValidUntilTag(e.TemporalTags, asOf)
-			e.UpdatedAt = asOf
-			if err := ps.Write(e); err != nil {
-				return updated, err
-			}
-			updated++
+	// Index on: load meta rows that could match entryHasEntityKey (all tiers,
+	// including Archival). Unknown rows are loaded. Open facts are not dropped
+	// here. Index off: full tier scan, same as before.
+	var entries []MemoryEntry
+	if ps.Config.DisableMetaIndex {
+		for _, tier := range []MemoryTier{TierWorking, TierContextual, TierArchival, TierSemantic} {
+			entries = append(entries, ps.ListEntriesInTier(tier)...)
 		}
+	} else {
+		entries = ps.loadSupersedeCandidates(key)
+	}
+	updated := 0
+	for _, e := range entries {
+		if excludeID != "" && e.ID == excludeID {
+			continue
+		}
+		if !entryHasEntityKey(e, key) {
+			continue
+		}
+		// Only currently-open facts at asOf (covers untagged + open windows;
+		// already-closed windows fail EntryValidAt and are skipped).
+		if !EntryValidAt(e, asOf) {
+			continue
+		}
+		e.TemporalTags = setValidUntilTag(e.TemporalTags, asOf)
+		e.UpdatedAt = asOf
+		if err := ps.Write(e); err != nil {
+			return updated, err
+		}
+		updated++
 	}
 	return updated, nil
+}
+
+// loadSupersedeCandidates loads entries the meta index cannot prove are
+// unrelated to entityKey. Match sources are entryHasEntityKey's: temporal and
+// content entity:/subject: tags, plus RelatedConcepts. A row with unknown keys
+// is loaded. Validity is not applied here so an open fact is not skipped.
+func (ps *PalaceStore) loadSupersedeCandidates(entityKey string) []MemoryEntry {
+	ps.metaMu.Lock()
+	ps.ensureMetaIndexLocked()
+	rows := make([]entryMeta, 0)
+	for _, m := range ps.metaIndex {
+		if metaCouldMatchEntityKey(m, entityKey) {
+			rows = append(rows, m)
+		}
+	}
+	ps.metaMu.Unlock()
+	return ps.loadEntriesFromMeta(rows)
 }
 
 // normalizeEntityKey trims and lower-cases an entity key for matching.

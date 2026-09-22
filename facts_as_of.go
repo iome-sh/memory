@@ -121,7 +121,16 @@ type FactsAsOfOptions struct {
 }
 
 // entryMatchesEntity implements FactsAsOfOptions.Entity matching.
+// Only TemporalTags participate; Content.Tags do not.
 func entryMatchesEntity(e MemoryEntry, entity string) bool {
+	if entity == "" {
+		return true
+	}
+	return tagsMatchEntity(e.TemporalTags, entity)
+}
+
+// tagsMatchEntity is the FactsAsOfOptions.Entity rule over a tag slice.
+func tagsMatchEntity(tags []string, entity string) bool {
 	if entity == "" {
 		return true
 	}
@@ -130,14 +139,14 @@ func entryMatchesEntity(e MemoryEntry, entity string) bool {
 		if !strings.HasPrefix(want, entityTagPrefix) {
 			want = entityTagPrefix + entity
 		}
-		for _, t := range e.TemporalTags {
+		for _, t := range tags {
 			if t == want {
 				return true
 			}
 		}
 		return false
 	}
-	for _, t := range e.TemporalTags {
+	for _, t := range tags {
 		if strings.HasPrefix(t, entityTagPrefix) && strings.Contains(t, entity) {
 			return true
 		}
@@ -155,22 +164,15 @@ func tierSemanticRank(t MemoryTier) int {
 }
 
 // collectFactsAsOfCandidates returns as-of list candidates. When the meta
-// index is enabled, session/tier/query/tag run on entryMeta and full JSON is
-// loaded only for survivors (same index as ListMemoryWithOptions). Limit is
-// not passed — ListMemoryWithOptions would default Limit=50 and starve as-of.
-// AsOf/entity are not applied here: entryMeta has no valid_from/until, and
-// entity matching is post-load. DisableMetaIndex keeps the O(n)
-// ListEntriesInTier walk plus session/tag filters.
-func (ps *PalaceStore) collectFactsAsOfCandidates(opts FactsAsOfOptions) []MemoryEntry {
+// index is enabled, session/tier/query/tag plus validity and temporal entity
+// match run on entryMeta; full JSON is loaded only for survivors. Limit is
+// not applied here — ListMemoryWithOptions would default Limit=50 and starve
+// as-of. asOf is the already-resolved instant (zero means now inside
+// metaValidAt). DisableMetaIndex keeps the O(n) ListEntriesInTier walk plus
+// session/tag filters; validity and entity stay post-load on that path.
+func (ps *PalaceStore) collectFactsAsOfCandidates(opts FactsAsOfOptions, asOf time.Time) []MemoryEntry {
 	if !ps.Config.DisableMetaIndex {
-		return ps.listMemoryViaIndex(ListMemoryOptions{
-			SessionID:       opts.SessionID,
-			SessionIDs:      opts.SessionIDs,
-			Query:           opts.Query,
-			Tag:             opts.Tag,
-			Tier:            opts.Tier,
-			IncludeArchival: opts.IncludeArchival,
-		})
+		return ps.listFactsAsOfViaIndex(opts, asOf)
 	}
 	var results []MemoryEntry
 	if opts.Tier != nil {
@@ -205,6 +207,33 @@ func (ps *PalaceStore) collectFactsAsOfCandidates(opts FactsAsOfOptions) []Memor
 	return results
 }
 
+// listFactsAsOfViaIndex filters entryMeta, then loads survivors. Caller must
+// not pass Limit. Post-load EntryValidAt / entity checks remain a backstop.
+func (ps *PalaceStore) listFactsAsOfViaIndex(opts FactsAsOfOptions, asOf time.Time) []MemoryEntry {
+	ps.metaMu.Lock()
+	ps.ensureMetaIndexLocked()
+	filtered := filterMetaIndex(ps.metaIndex, ListMemoryOptions{
+		SessionID:       opts.SessionID,
+		SessionIDs:      opts.SessionIDs,
+		Query:           opts.Query,
+		Tag:             opts.Tag,
+		Tier:            opts.Tier,
+		IncludeArchival: opts.IncludeArchival,
+	})
+	rows := make([]entryMeta, 0, len(filtered))
+	for _, m := range filtered {
+		if !metaValidAt(m, asOf) {
+			continue
+		}
+		if !metaMatchesEntity(m, opts.Entity) {
+			continue
+		}
+		rows = append(rows, m)
+	}
+	ps.metaMu.Unlock()
+	return ps.loadEntriesFromMeta(rows)
+}
+
 // ListFactsAsOf lists entries valid at AsOf with optional filters.
 // Filters apply before Limit (underfill class, same as K1/K2).
 //
@@ -214,11 +243,11 @@ func (ps *PalaceStore) collectFactsAsOfCandidates(opts FactsAsOfOptions) []Memor
 // Default tiers when Tier == nil: Working + Contextual + Semantic
 // (+ Archival if IncludeArchival).
 //
-// When the meta index is enabled, session/tier/query/tag collect through
-// listMemoryViaIndex (no Limit). Entity and EntryValidAt still run after
-// load. DisableMetaIndex keeps the O(n) ListEntriesInTier walk.
-// Bi-temporal lite (validity window tags). Not full Graphiti dual
-// clocks + graph.
+// When the meta index is enabled, session/tier/query/tag, validity, and
+// temporal entity match run on entryMeta before load (no Limit). Entity and
+// EntryValidAt still run after load. DisableMetaIndex keeps the O(n)
+// ListEntriesInTier walk. Bi-temporal lite (validity window tags). Not full
+// Graphiti dual clocks + graph. Not Memory GA.
 func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 	limit := opts.Limit
 	if limit <= 0 {
@@ -229,7 +258,7 @@ func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 		asOf = time.Now().UTC()
 	}
 
-	results := ps.collectFactsAsOfCandidates(opts)
+	results := ps.collectFactsAsOfCandidates(opts, asOf)
 
 	// Tag before Limit (underfill class).
 	if opts.Tag != "" {

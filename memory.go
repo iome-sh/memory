@@ -133,9 +133,9 @@ type PalaceConfig struct {
 	// output or DefaultHashEmbeddingDim.
 	EmbeddingDim int
 	// DisableMetaIndex forces ListMemoryWithOptions, search candidate
-	// collection, and ListFactsAsOf to use the full FS scan path instead of
-	// the best-effort in-memory metadata index (K2 residual / s1066).
-	// Default false (index enabled). Useful for parity tests.
+	// collection, ListFactsAsOf, and SupersedeEntityFacts to use the full FS
+	// scan path instead of the best-effort in-memory metadata index
+	// (K2 residual / s1066). Default false (index enabled). Useful for parity tests.
 	DisableMetaIndex bool
 	// DisableDurableIndex skips load/save of indexes/event-time.json.
 	// The in-memory meta index still runs unless DisableMetaIndex is set.
@@ -171,6 +171,9 @@ type PalaceStore struct {
 	metaIndexDirty    bool // true = needs rebuild (starts true until first ensure)
 	metaIndexGen      uint64
 	metaIndexRebuilds uint64 // full tier-JSON walks only (tests / observability)
+	// entryJSONRead, when set, is called with the path before a tier entry
+	// JSON body is read (Load, loadEntry, meta rebuild). Test hook only.
+	entryJSONRead func(path string)
 
 	// lastCompaction is set when PerformCompaction runs on a non-empty tier (in-process).
 	lastCompaction time.Time
@@ -273,8 +276,16 @@ func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 	return entries
 }
 
+// noteEntryJSONRead fires the test hook before a tier entry body read.
+func (ps *PalaceStore) noteEntryJSONRead(path string) {
+	if ps.entryJSONRead != nil {
+		ps.entryJSONRead(path)
+	}
+}
+
 // loadEntry is an internal helper to load a MemoryEntry from a full filesystem path.
 func (ps *PalaceStore) loadEntry(fullPath string) (MemoryEntry, bool) {
+	ps.noteEntryJSONRead(fullPath)
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		return MemoryEntry{}, false
@@ -424,6 +435,7 @@ func (ps *PalaceStore) archiveToVersions(entry MemoryEntry) error {
 func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 	dir := ps.getTierDir(tier)
 	path := filepath.Join(dir, id+".json")
+	ps.noteEntryJSONRead(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return MemoryEntry{}, false

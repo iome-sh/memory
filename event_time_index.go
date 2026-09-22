@@ -9,7 +9,13 @@ import (
 )
 
 const (
-	durableEventTimeIndexVersion = 1
+	// durableEventTimeIndexVersion is the on-disk entryMeta schema.
+	// v2 stores has_validity / valid_from / valid_until plus temporal entity
+	// tags and normalized entity keys. A v1 file fails the version check so
+	// rebuildMetaIndexLocked rewrites it. Do not decode v1 as v2: missing
+	// has_validity looks like "no validity tags" and would keep closed facts
+	// via the known-by event-time rule.
+	durableEventTimeIndexVersion = 2
 	durableEventTimeIndexRelPath = "indexes/event-time.json"
 )
 
@@ -24,13 +30,19 @@ type durableEventTimeIndex struct {
 }
 
 type durableEntryMeta struct {
-	ID        string     `json:"id"`
-	Tier      MemoryTier `json:"tier"`
-	EventTime time.Time  `json:"event_time"`
-	SessionID string     `json:"session_id"`
-	Tags      []string   `json:"tags"`
-	RelPath   string     `json:"rel_path"`
-	QueryHay  string     `json:"query_hay"`
+	ID              string     `json:"id"`
+	Tier            MemoryTier `json:"tier"`
+	EventTime       time.Time  `json:"event_time"`
+	SessionID       string     `json:"session_id"`
+	Tags            []string   `json:"tags"`
+	RelPath         string     `json:"rel_path"`
+	QueryHay        string     `json:"query_hay"`
+	HasValidity     bool       `json:"has_validity"`
+	ValidFrom       *time.Time `json:"valid_from,omitempty"`
+	ValidUntil      *time.Time `json:"valid_until,omitempty"`
+	EntityTags      []string   `json:"entity_tags,omitempty"`
+	EntityKeys      []string   `json:"entity_keys,omitempty"`
+	EntityKeysKnown bool       `json:"entity_keys_known"`
 }
 
 func (ps *PalaceStore) eventTimeIndexPath() string {
@@ -45,13 +57,19 @@ func (m entryMeta) toDurable(baseDir string) durableEntryMeta {
 		}
 	}
 	return durableEntryMeta{
-		ID:        m.ID,
-		Tier:      m.Tier,
-		EventTime: m.EventTime,
-		SessionID: m.SessionID,
-		Tags:      m.Tags,
-		RelPath:   rel,
-		QueryHay:  m.queryHay,
+		ID:              m.ID,
+		Tier:            m.Tier,
+		EventTime:       m.EventTime,
+		SessionID:       m.SessionID,
+		Tags:            m.Tags,
+		RelPath:         rel,
+		QueryHay:        m.queryHay,
+		HasValidity:     m.hasValidity,
+		ValidFrom:       cloneTimePtr(m.validFrom),
+		ValidUntil:      cloneTimePtr(m.validUntil),
+		EntityTags:      m.entityTags,
+		EntityKeys:      m.entityKeys,
+		EntityKeysKnown: m.entityKeysKnown,
 	}
 }
 
@@ -61,13 +79,19 @@ func (d durableEntryMeta) toMeta(baseDir string) entryMeta {
 		path = filepath.Join(baseDir, filepath.FromSlash(d.RelPath))
 	}
 	return entryMeta{
-		ID:        d.ID,
-		Tier:      d.Tier,
-		EventTime: d.EventTime,
-		SessionID: d.SessionID,
-		Tags:      d.Tags,
-		Path:      path,
-		queryHay:  d.QueryHay,
+		ID:              d.ID,
+		Tier:            d.Tier,
+		EventTime:       d.EventTime,
+		SessionID:       d.SessionID,
+		Tags:            d.Tags,
+		Path:            path,
+		queryHay:        d.QueryHay,
+		hasValidity:     d.HasValidity,
+		validFrom:       cloneTimePtr(d.ValidFrom),
+		validUntil:      cloneTimePtr(d.ValidUntil),
+		entityTags:      append([]string(nil), d.EntityTags...),
+		entityKeys:      append([]string(nil), d.EntityKeys...),
+		entityKeysKnown: d.EntityKeysKnown,
 	}
 }
 
