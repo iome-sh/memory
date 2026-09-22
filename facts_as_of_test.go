@@ -432,7 +432,7 @@ func TestMetaValidAt_MatchesEntryValidAt(t *testing.T) {
 			TemporalTags: []string{"valid_from:" + from.Format(time.RFC3339)},
 		},
 		{
-			ID: "from-future",
+			ID:           "from-future",
 			TemporalTags: []string{"valid_from:" + asOf.Add(time.Hour).Format(time.RFC3339)},
 		},
 		{
@@ -443,7 +443,7 @@ func TestMetaValidAt_MatchesEntryValidAt(t *testing.T) {
 			},
 		},
 		{
-			ID: "until-later",
+			ID:           "until-later",
 			TemporalTags: []string{"valid_until:" + asOf.Add(time.Hour).Format(time.RFC3339)},
 		},
 		{

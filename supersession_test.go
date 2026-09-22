@@ -381,17 +381,19 @@ func TestSupersedeEntityFacts_IndexSkipsUnrelatedBodies(t *testing.T) {
 	if n != 6 {
 		t.Fatalf("indexed supersede count = %d, want 6", n)
 	}
-	assertSupersedeClosures(t, idx, asOf)
+	// Snapshot before assertSupersedeClosures, which Loads every id.
+	idxReads := append([]string(nil), (*reads)...)
 	for _, id := range []string{"bob", "noise-w", "noise-c", "noise-a", "noise-s", "via-subject"} {
-		if idsInclude(*reads, id) {
-			t.Fatalf("indexed supersede read unrelated %s: %v", id, *reads)
+		if idsInclude(idxReads, id) {
+			t.Fatalf("indexed supersede read unrelated %s: %v", id, idxReads)
 		}
 	}
 	for _, id := range []string{"open-temporal", "open-until-future", "open-known-by", "via-content", "via-related", "via-archival"} {
-		if !idsInclude(*reads, id) {
-			t.Fatalf("indexed supersede skipped open fact %s: %v", id, *reads)
+		if !idsInclude(idxReads, id) {
+			t.Fatalf("indexed supersede skipped open fact %s: %v", id, idxReads)
 		}
 	}
+	assertSupersedeClosures(t, idx, asOf)
 
 	// Unknown keys cannot prove a non-match: still close the open fact, and load the rest.
 	idx.entryJSONRead = nil
@@ -412,8 +414,9 @@ func TestSupersedeEntityFacts_IndexSkipsUnrelatedBodies(t *testing.T) {
 	if n != 6 {
 		t.Fatalf("unknown-key supersede count = %d, want 6", n)
 	}
-	if !idsInclude(*ureads, "noise-w") || !idsInclude(*ureads, "open-temporal") {
-		t.Fatalf("unknown keys should load non-matches and open facts: %v", *ureads)
+	unknownReads := append([]string(nil), (*ureads)...)
+	if !idsInclude(unknownReads, "noise-w") || !idsInclude(unknownReads, "open-temporal") {
+		t.Fatalf("unknown keys should load non-matches and open facts: %v", unknownReads)
 	}
 	assertSupersedeClosures(t, store2, asOf)
 
@@ -428,10 +431,11 @@ func TestSupersedeEntityFacts_IndexSkipsUnrelatedBodies(t *testing.T) {
 	if n != 6 {
 		t.Fatalf("scan supersede count = %d, want 6", n)
 	}
-	assertSupersedeClosures(t, scan, asOf)
-	if !idsInclude(*sreads, "noise-w") || !idsInclude(*sreads, "bob") {
-		t.Fatalf("DisableMetaIndex should scan unrelated bodies: %v", *sreads)
+	scanReads := append([]string(nil), (*sreads)...)
+	if !idsInclude(scanReads, "noise-w") || !idsInclude(scanReads, "bob") {
+		t.Fatalf("DisableMetaIndex should scan unrelated bodies: %v", scanReads)
 	}
+	assertSupersedeClosures(t, scan, asOf)
 }
 
 func TestSupersedeEntityFacts_SubjectKeyFromMeta(t *testing.T) {
