@@ -33,7 +33,7 @@ Evidence that the surface is absent (not an Exists membership model):
 
 This tip does not show isolated namespaces or folders inside one palace with one writer per workspace. It also does not show a namespace API that could be read as that feature.
 
-Why inconclusive: directories and tags exist, and a one-process-per-root writer contract exists, but neither is defined as namespace or folder isolation for a workspace. Treating either as Exists namespace ACL would invent the feature AC-ACL-03 is blocked on.
+Why inconclusive: directories and tags exist, and a one-process-per-root writer contract exists, but neither is defined as namespace or folder isolation for a workspace. Treating either as Exists namespace ACL would invent that feature. Namespace chrome stays unproven.
 
 What was found, and why it is not that feature:
 
@@ -43,7 +43,7 @@ What was found, and why it is not that feature:
 - `README.md` Topology: one process per palace root. Isolation is the directory passed as `BaseDir`. This library does not implement mesh `X-IOMesh-Org`.
 - `PalaceStore.writeMu` (`memory.go`) serializes in-process rewrites of `relations/entity-graph.json` and `indexes/event-time.json`. `PalaceConfig.TransactionalIngest` is an intent log for one writer (`wal/pending`), not a multi-process lock (`SECURITY.md`, `memory.go`).
 - `internal/writerprobe` and `cmd/two-process-writer-probe`: two OS processes on one root are last-write-wins evidence. Package comment: multi-process writers remain unsupported; not a lock, not flock, not tenancy.
-- Host tag `dept:{id}` is an optional exact `EntryHasTag` filter. `docs/TTFH.md` and `TestIngestTurn_TagFilterSearchAndFactsAsOf` (`ingest_turn_test.go`): several department tags can sit in **one** palace; empty `Tag` returns both; “kernel has no org IDs”; the tag is not a kernel org filter. `docs/TTFH.md` D5: one-tenant composition, not two-org.
+- Tag `dept:{id}` is an optional exact `EntryHasTag` filter. `docs/TTFH.md` and `TestIngestTurn_TagFilterSearchAndFactsAsOf` (`ingest_turn_test.go`): several department tags can sit in one palace; empty `Tag` returns both; the kernel has no org IDs; the tag is not a kernel org filter.
 
 Adjacent process contract (not the Q2 stamp): one writer process per palace root is documented at `README.md` Topology, `SECURITY.md` (single-writer contract), and `PalaceStore.writeMu`. That is per root, not per namespace or folder, and not a workspace-member writer. It is not stamped Exists for Q2.
 
@@ -53,18 +53,10 @@ Adjacent process contract (not the Q2 stamp): one writer process per palace root
 
 No API grants a second human read or write on a shared palace. Do not describe multi-human read/write as Exists.
 
-## Locks
-
-Catalog≠Connected · APPLY NO · host APPLY / `AION_MEMORY_HOST_APPLY` RED · Rego ≠ CM file ACL · dual_write OFF buyer · Data Mesh = hypothesis only · no Stripe mute · Hybrid D locked: palace-per-dept = separate $199 workspaces (commercial Exists) · do not invent in-palace multi-dept ACL as Exists · multi-human R/W = Gap · never invent Exists RBAC.
-
-Rego: no Rego sources in this tip. Mesh routing/tool policy is not memory file ACL. Nothing in this dig treats it as file ACL.
-
-`$199` / palace-per-dept is the commercial lock carried with this issue. This module has no price or workspace-billing type. Separate `BaseDir` roots are the kernel trust boundary above; they are not an in-palace department ACL.
-
 ## What would unblock UNKNOWN
 
-- **Q1:** A cited API, in this module or in a separate entitlement issue, that names the membership subject and how that subject binds to one palace. This tip has no such API. Hosted palace and mesh org header are explicitly not implemented here (`SECURITY.md`, `docs/OPEN_SOURCE_AUDIT.md`).
-- **Q2:** A cited contract that names a namespace or folder as a default-deny isolation boundary, with one writer, and that omits unauthorized names from list results. Tier directories (`ensureDirs` / `getTierDir`) and optional `Tag` filters (`ListMemoryOptions`, `EntryHasTag`) do not meet that bar. Until that contract exists in tip, namespace chrome and member-read chrome stay unproven.
+- **Q1:** A cited API in this module that names the membership subject and how that subject binds to one palace. This tip has no such API. Hosted palace and mesh org header are explicitly not implemented here (`SECURITY.md`, `docs/OPEN_SOURCE_AUDIT.md`).
+- **Q2:** A cited contract that names a namespace or folder as a default-deny isolation boundary, with one writer, and that omits unauthorized names from list results. Tier directories (`ensureDirs` / `getTierDir`) and optional `Tag` filters (`ListMemoryOptions`, `EntryHasTag`) do not meet that bar. Until that contract exists in tip, namespace chrome stays unproven.
 
 ## Search log
 
@@ -77,4 +69,3 @@ Rego: no Rego sources in this tip. Mesh routing/tool policy is not memory file A
 | `workspace` | fixture prose in `examples/dept-rca/support/`; not a principal |
 | `writer` / `single-writer` | one process per palace root; multi-process writers unsupported |
 | `tenant` | `palace_fs.go` “local tenant palace” comment plus “Not multi-tenant isolation”; `SECURITY.md` says not multi-tenant |
-| Rego | no Rego files |
