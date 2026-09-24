@@ -61,7 +61,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 3. Download models only from sources you trust; pin paths via `MEMORY_ONNX_MODEL_PATH`  
 4. Do not commit palace contents, `.env`, or API keys  
 5. Scope Qdrant endpoints to private networks when used  
-6. Treat residual docs under `docs/operations/` as process truth for shipped-vs-residual claims  
+6. Judge shipped-vs-residual claims from the library API and this file  
 
 ## Dependency security
 

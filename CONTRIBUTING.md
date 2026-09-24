@@ -9,7 +9,7 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality and 
 - Hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
 - Public MCP host: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
 
-This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. Maintainer process residuals ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md), [docs/PUBLIC_FLIP_READINESS.md](docs/PUBLIC_FLIP_READINESS.md)) are **not** operator how-tos — the visibility flip is already complete.
+This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. The maintainer process residual ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md)) is **not** an operator how-to — the visibility flip is already complete.
 
 ## Development setup
 
@@ -29,8 +29,6 @@ make test-race
 make cover
 make vuln
 make ci          # fmt-check + vet + test + vuln + build (local gate)
-make residual-gate   # offline residual pins (s1297 / s1303 / s1313)
-make public-flip-readiness-gate   # offline M4 readiness residual (public MIT; gate PASS is not a visibility flip)
 ```
 
 Heavy optional gates (models / network; not required for PR CI):
@@ -46,7 +44,6 @@ make longmemeval-v1-card   # methodology card; SKIP if oracle missing (exit 0); 
 
 - Prefer **pure Go** for default CI paths; keep ORT/CGO behind `-tags ORT`  
 - Do **not** invent a hosted Palace SLA or freemium cloud Memory narrative in docs  
-- Residual docs under `docs/operations/` are shipped-vs-residual pins — keep gates green when you touch related claims  
 - Prefer small, focused PRs with tests for new behavior  
 - Run `gofmt` (or `make fmt`) before commit  
 

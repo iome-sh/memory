@@ -4,13 +4,13 @@
 
 Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace kernel) vs public **iomesh-tui**. Visibility flip is **complete** (public MIT). Re-run before each major release. Sibling MCP host **`iomesh-memory-mcp`** is already public (separate act).
 
-> Operator residual + offline gate live in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) (`make public-flip-readiness-gate`). **Public MIT** (flip complete). **Residual PASS ≠ public flip.** Gate PASS is not a product release.
+> **Public MIT** (flip complete). **Residual PASS ≠ public flip.** Gate PASS is not a product release. This audit is the maintainer process residual in the public tree.
 
 ## Visibility
 
 | Check | Status |
 |-------|--------|
-| Repository visibility | **Public** (MIT) — flipped deliberately. Flip complete is current fact. See [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). |
+| Repository visibility | **Public** (MIT) — flipped deliberately. Flip complete is current fact. |
 | Private vulnerability reporting path documented | Pass (SECURITY.md · security@iome.sh · advisory) |
 | No accidental hosted-product claims | Pass (scope locks below) |
 | Residual PASS ≠ public flip | Pass |
@@ -62,8 +62,6 @@ Checklist for the OSS **process bar** of **github.com/iome-sh/memory** (Palace k
 | Optional LongMemEval/ONNX (dispatch only — not mandatory CI) | Present |
 | Dependabot (gomod + actions) | Present |
 | Makefile `ci` / `check` / `vuln` / `fmt-check` | Present |
-| Makefile `public-flip-readiness-gate` | Present |
-| `docs/PUBLIC_FLIP_READINESS.md` | Present |
 | README badges + links + scope locks | Present |
 
 ## Process-bar audit vs iomesh-tui
@@ -92,7 +90,7 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 
 - **CodeQL:** not claimed green. Enable default setup (recommended).  
 - **History serials:** residual docs may still stamp continuum serials; CONTRIBUTING public repository policy governs the **forward** PR surface. Do not rewrite published history lightly.  
-- **Repo description / topics / homepage / delete-branch-on-merge:** maintainer GitHub settings — see [`PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md) post-flip steps.  
+- **Repo description / topics / homepage / delete-branch-on-merge:** maintainer GitHub settings.  
 - **GoReleaser:** N/A for this library; primary artifact is annotated git tag + `go get` (see [RELEASING.md](../RELEASING.md)). Binary products (iomesh-tui / iomesh-memory-mcp) differ.  
 - **Signing / matrix:** library consumers verify via `go.sum` / module proxy checksum DB — **not** cosign on this package. Peer binary cosign/SBOM is mention-only; docs ≠ invent cosign-on-library (see [RELEASING.md](../RELEASING.md#signing--release-matrix)).
 
@@ -111,7 +109,7 @@ Closeout matrix vs public **iomesh-tui** process bar for a Go **library** module
 
 ## Maintainer actions after going public (visibility already public)
 
-See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBLIC_FLIP_READINESS.md). Summary:
+Maintainer checklist (visibility already public):
 
 1. GitHub visibility → Public (**done** — flip complete)  
 2. Enable **Private vulnerability reporting**  
@@ -136,7 +134,7 @@ See expanded residual-honest checklist in [`docs/PUBLIC_FLIP_READINESS.md`](PUBL
 | Dimension | Verdict |
 |-----------|---------|
 | Process bar vs iomesh-tui | **Pass** (artifacts + CI spirit + public policy) |
-| Public-flip **readiness** docs + offline gate | **Pass** (public MIT) |
+| Visibility readiness | **Pass** — public MIT. Extended readiness note is not in this tree. |
 | Visibility public flip | **Done** — **public MIT** |
 | Product narrative | **Pass** — public MIT · local filesystem library |
 | Security docs | **Pass** |
