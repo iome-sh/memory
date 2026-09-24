@@ -271,7 +271,6 @@ Locked mixed slices and auth notes: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGME
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development workflow |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
 | [SUPPORT.md](SUPPORT.md) | How to get help |
-| [docs/temporal-memory-kernel-roadmap.md](docs/temporal-memory-kernel-roadmap.md) | Temporal API roadmap |
 | [docs/TTFH.md](docs/TTFH.md) | Walking-skeleton operator notes |
 | [docs/LONGMEMEVAL.md](docs/LONGMEMEVAL.md) | LongMemEval methodology (no published official number) |
 
