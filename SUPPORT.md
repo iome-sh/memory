@@ -30,7 +30,6 @@ It does **not** support hosted multitenant Memory or private control-plane broke
 |-----------|------|----------------|
 | **This repo (`memory`)** | Kernel library | Issues on **iome-sh/memory** |
 | **[iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp)** | Lean MCP host binary that *consumes* this kernel | Issues on **iome-sh/iomesh-memory-mcp** |
-| **[iomesh-tui](https://github.com/iome-sh/iomesh-tui)** | Optional agent TUI/CLI (mesh hooks) | Issues on **iome-sh/iomesh-tui** |
 
 File host binary, install packaging, and MCP protocol issues on the **host** repo. File pure kernel/API bugs here. Cross-link when both are involved.
 
