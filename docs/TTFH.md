@@ -103,15 +103,16 @@ newer tag.
 
 | Piece | Pin | Role |
 |-------|-----|------|
-| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | **v1.3.7** | Agent TUI/CLI |
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | **v0.4.2** | MCP host over this kernel |
+
+> **Note:** The TUI is archived and no longer installable. To run the kernel
+> directly, see the [README Quick start](../README.md#quick-start).
 
 In the TUI, with the memory host attached. Same walk as the bullets
 below · R1 ≠ R3 overlay PULSE.
 
 - **R0** `iomesh ttfh --unit` — offline smoke (no broker)
 - **R1** `iomesh ttfh --live` — fail-open consume probe (**EMPTY** unless decoded messages; never invent **PULSE**; not overlay PULSE)
-- [`scripts/ttfh-demo.sh`](https://github.com/iome-sh/iomesh-tui/blob/main/scripts/ttfh-demo.sh) in the TUI repo — unit then optional live
 - **R2** `/memory ingest` — three RCA-shaped turns (local overlay stays **private**)
 - **R2** `/memory digest --require-sources mesh,private` — **cite-both or explicit miss** (miss is **named**: `no_mesh_pulse` when `missing=mesh`, etc.)
 - **R2** Short-term: `/memory patterns` — ops **Beta** · empty ≠ invent · never APPLY

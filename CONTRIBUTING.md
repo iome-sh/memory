@@ -90,7 +90,7 @@ This policy is **in force** for this **public** MIT repository (flip complete). 
 
 - Do **not** put private SR&ED / program ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG  
 - Do **not** reference private monorepos (control-plane / broker), internal pending-todos paths, or unpublished stage URLs  
-- Prefer public names: **`github.com/iome-sh/memory`**, product host **`iomesh-memory-mcp`**, public TUI **`iomesh-tui`**  
+- Prefer public names: **`github.com/iome-sh/memory`** and product host **`iomesh-memory-mcp`**  
 - Continuum serials in historical residual docs may remain; strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
 - Do **not** invent a freemium hosted Palace SLA  
 - Binary/package names operators actually run (e.g. **iomesh-memory-mcp**) may appear when documenting install/wire-up; do **not** document “clone the private monorepo” build paths  

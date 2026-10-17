@@ -36,14 +36,13 @@ go get github.com/iome-sh/memory@v1.5.12
 
 Requires the Go version in [`go.mod`](go.mod) (currently **1.27**). CI uses `GOTOOLCHAIN=auto`.
 
-Optional hosts that already pin this module:
+Optional host that already pins this module:
 
 ```bash
-# Requires Go 1.27+ (this module and both hosts; see go.mod).
+# Requires Go 1.27+ (this module and the host; see go.mod).
 # go install writes to $(go env GOPATH)/bin.
 export PATH="$(go env GOPATH)/bin:${PATH}"
 go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@v0.4.2
-go install github.com/iome-sh/iomesh-tui/cmd/iomesh@v1.3.7
 ```
 
 ## Quick start
@@ -279,9 +278,6 @@ Locked mixed slices and auth notes: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGME
 | Repository | Role |
 |------------|------|
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | MCP host binary for this kernel (**v0.4.2**) |
-| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Multi-provider agent TUI/CLI (**v1.3.7**) |
-| [iomesh-client-sdk-go](https://github.com/iome-sh/iomesh-client-sdk-go) | Official Go client for I/O Mesh |
-| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client for I/O Mesh (Beta / pre-1.0) |
 
 This module is a **library** (`go get` tags). Binary packaging, SBOM, and cosign apply to host tools such as `iomesh-memory-mcp` — see [RELEASING.md](RELEASING.md).
 

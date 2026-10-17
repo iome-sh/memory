@@ -97,7 +97,7 @@ go mod download github.com/iome-sh/memory@vX.Y.Z
 ```
 
 - **No `GOPRIVATE` / PAT** required for this public module.  
-- Cosign / SBOM / GoReleaser apply to **binary peers** (`iomesh-memory-mcp`, `iomesh-tui`) — not to this library surface. See [Signing / release matrix](#signing--release-matrix) below.  
+- Cosign / SBOM / GoReleaser apply to the **binary peer** (`iomesh-memory-mcp`) — not to this library surface. See [Signing / release matrix](#signing--release-matrix) below.  
 - Host release matrix for the MCP binary lives in the peer’s `RELEASING.md` (mention only; do not invent peer forever-green from this tip).
 
 ### Security-supported versions
@@ -135,7 +135,7 @@ go get github.com/iome-sh/memory@v1.5.12
 
 This package is a **Go library module**. The primary release artifact is an **annotated git tag** plus consumers running `go get github.com/iome-sh/memory@vX.Y.Z`.
 
-- **GoReleaser is not required** here (unlike binary products **iomesh-tui** / **iomesh-memory-mcp**, which ship cross-built archives).  
+- **GoReleaser is not required** here (unlike the binary product **iomesh-memory-mcp**, which ships cross-built archives).  
 - Optional: `gh release create vX.Y.Z` (or `gh release edit`) for human-readable notes from CHANGELOG — notes only, not binary assets.  
 - Optional longmemeval / helper cmd binaries may be built in CI for smoke; they are not the module’s public product surface.
 
@@ -145,7 +145,7 @@ How library consumers verify releases, and how this module peers with binary hos
 
 ### Matrix (this module vs binary peers)
 
-| Concern | **memory** (this repo · Go library) | Binary peers (**iomesh-tui**, **iomesh-memory-mcp**) — *mention only* |
+| Concern | **memory** (this repo · Go library) | Binary peer (**iomesh-memory-mcp**) — *mention only* |
 |---------|-------------------------------------|------------------------------------------------------------------------|
 | Primary artifact | Annotated semver **git tag** (`vX.Y.Z`) on `main` | GitHub Release archives from **GoReleaser** on `v*` tags |
 | Consumer install | `go get github.com/iome-sh/memory@vX.Y.Z` (or `@main`) | `go install …@vX.Y.Z` and/or downloaded release binaries |
@@ -176,7 +176,7 @@ go mod download github.com/iome-sh/memory@vX.Y.Z
 
 Binary edge hosts that *consume* this library ship their **own** release packaging:
 
-- **iomesh-tui** / **iomesh-memory-mcp**: GoReleaser cross-builds, `checksums.txt`, SPDX SBOM, keyless cosign on tag releases (see each peer’s `RELEASING.md`).  
+- **iomesh-memory-mcp**: GoReleaser cross-builds, `checksums.txt`, SPDX SBOM, keyless cosign on tag releases (see its `RELEASING.md`).  
 - This page **mentions** that path only. It does **not** claim peer release workflows are forever green, that cosign verify always succeeds in every environment, or that GHCR images are published.
 
 ### What this matrix does **not** mean
