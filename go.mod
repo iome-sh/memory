@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/google/uuid v1.6.0
 	github.com/knights-analytics/hugot v0.7.8
-	github.com/nrednav/cuid2 v1.1.0
+	github.com/nrednav/cuid2 v1.1.1
 	github.com/qdrant/go-client v1.19.2
 )
 
