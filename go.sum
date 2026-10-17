@@ -74,8 +74,8 @@ github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db h1:62I3jR2Em
 github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db/go.mod h1:l0dey0ia/Uv7NcFFVbCLtqEBQbrT4OCwCSKTEv6enCw=
 github.com/muesli/termenv v0.16.0 h1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc=
 github.com/muesli/termenv v0.16.0/go.mod h1:ZRfOIKPFDYQoDFF4Olj7/QJbW60Ol/kL1pU3VfY/Cnk=
-github.com/nrednav/cuid2 v1.1.0 h1:Y2P9Fo1Iz7lKuwcn+fS0mbxkNvEqoNLUtm0+moHCnYc=
-github.com/nrednav/cuid2 v1.1.0/go.mod h1:jBjkJAI+QLM4EUGvtwGDHC1cP1QQrRNfLo/A7qJFDhA=
+github.com/nrednav/cuid2 v1.1.1 h1:N8adNQHBxh7xyQLhilDmBZtWHRztIN/plOMCxGEndAc=
+github.com/nrednav/cuid2 v1.1.1/go.mod h1:jBjkJAI+QLM4EUGvtwGDHC1cP1QQrRNfLo/A7qJFDhA=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
