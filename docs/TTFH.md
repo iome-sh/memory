@@ -105,6 +105,9 @@ newer tag.
 |-------|-----|------|
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | **v0.4.2** | MCP host over this kernel |
 
+> **Note:** The TUI is archived and no longer installable. To run the kernel
+> directly, see the [README Quick start](../README.md#quick-start).
+
 In the TUI, with the memory host attached. Same walk as the bullets
 below · R1 ≠ R3 overlay PULSE.
 
