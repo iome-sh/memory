@@ -176,7 +176,7 @@ Kernel-only · not Memory GA · dual_write OFF.
 ### Added
 
 - Open-source process bar for this Go **library** module: CONTRIBUTING public repository policy · Issues & discussions · CI/branch-protection table · maintainer checklist · RELEASING library/no-GoReleaser note.
-- Offline readiness script: `scripts/public_flip_readiness_gate.sh` · `make public-flip-readiness-gate`.
+- Offline readiness check and its Make target (since removed).
 - Open-source process bar: LICENSE (MIT), NOTICE, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT, RELEASING, OPEN_SOURCE_AUDIT, GitHub PR/issue templates, Dependabot, CI lint/govulncheck/ci-success, `make ci` — **repository remains private** until a deliberate visibility flip.
 
 ### Changed
