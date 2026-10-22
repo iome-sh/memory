@@ -206,9 +206,7 @@ Host contract:
 - provenance footer is **host** formatting of `source_hint` /
   `source_step` / `parent_ids` / `id` (kernel JSON fields; the kernel
   does not emit the footer)
-- dated dual values print as **two figures**, not one LME % (unpublished
-  official V1 BGE mixed n=500 on pin `9bee542`: **388/500** vs
-  **384/500**; two runs not identical; INTERNAL unpublished)
+- dated dual values print as **two figures**
 
 Honesty:
 
