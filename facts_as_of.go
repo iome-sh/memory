@@ -91,7 +91,7 @@ func EntryValidAt(e MemoryEntry, asOf time.Time) bool {
 	return true
 }
 
-// FactsAsOfOptions configures as-of validity listing (K4 first slice / s616).
+// FactsAsOfOptions configures as-of validity listing.
 //
 // Filters apply before Limit so many invalid-at-asOf entries do not underfill.
 type FactsAsOfOptions struct {

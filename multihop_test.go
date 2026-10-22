@@ -212,7 +212,7 @@ func TestMultiHopRetrieve_HopDistanceRanking(t *testing.T) {
 		t.Fatalf("legacy non-seed event-time order: got %v", lids)
 	}
 
-	// Explicit PreferShorterHops=true matches nil default (s1278 residual honesty).
+	// Explicit PreferShorterHops=true matches nil default.
 	on := true
 	explicit := store.MultiHopRetrieve(MultiHopOptions{
 		SeedEntity:        "person:alice",

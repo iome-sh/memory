@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-// ListMemoryOptions configures event-time ordered listing with optional filters (K2 / s611).
+// ListMemoryOptions configures event-time ordered listing with optional filters.
 //
 // Filters are applied before Limit so windowed/session timelines do not underfill
-// when many out-of-scope entries exist (same underfill class as SearchMemoryWithOptions K1).
+// when many out-of-scope entries exist (same underfill class as SearchMemoryWithOptions).
 //
 // Complexity: FS Palace is source of truth. When the best-effort meta index is enabled
 // (default), ListMemoryWithOptions filters on lightweight entryMeta and loads full JSON
-// only for survivors (s1066). Write/unlink patches a clean index in place (#63).
+// only for survivors. Write/unlink patches a clean index in place (#63).
 // A durable snapshot at indexes/event-time.json (#44) avoids re-parsing every tier
 // JSON on a fresh process when the stamp matches.
 // With DisableMetaIndex, falls back to O(n) full entry scan.
@@ -79,7 +79,7 @@ func EntryHasTagPrefix(e MemoryEntry, prefix string) bool {
 }
 
 // ListMemoryWithOptions returns entries ordered by event time with optional filters applied
-// before Limit (K2 / s611 timeline surface; s1066 meta index when enabled).
+// before Limit (uses the meta index when enabled).
 //
 // Order of operations: collect candidates → session → time → tag filters → query substring →
 // sort by entryEventTime → limit.

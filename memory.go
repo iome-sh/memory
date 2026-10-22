@@ -135,7 +135,7 @@ type PalaceConfig struct {
 	// DisableMetaIndex forces ListMemoryWithOptions, search candidate
 	// collection, ListFactsAsOf, and SupersedeEntityFacts to use the full FS
 	// scan path instead of the best-effort in-memory metadata index
-	// (K2 residual / s1066). Default false (index enabled). Useful for parity tests.
+	// Default false (index enabled). Useful for parity tests.
 	DisableMetaIndex bool
 	// DisableDurableIndex skips load/save of indexes/event-time.json.
 	// The in-memory meta index still runs unless DisableMetaIndex is set.
@@ -164,7 +164,7 @@ type PalaceStore struct {
 	BaseDir string
 	Config  PalaceConfig
 
-	// Best-effort in-memory metadata index for ListMemoryWithOptions (K2 / s1066).
+	// Best-effort in-memory metadata index for ListMemoryWithOptions.
 	// FS Palace remains source of truth. Write/unlink patches when clean; else rebuild lazily.
 	metaMu            sync.Mutex
 	metaIndex         []entryMeta
