@@ -117,7 +117,7 @@ func TestCosineSimilarity(t *testing.T) {
 	}
 }
 
-// RecMem Phase 1 tests
+// RecMem latent buffer tests
 func TestCompactionConfig_RecMemDefaults(t *testing.T) {
 	cfg := DefaultCompactionConfig
 	if cfg.DataSim != 0.7 {
@@ -189,7 +189,7 @@ func TestPalaceStore_WriteLatent(t *testing.T) {
 	}
 }
 
-// Phase 2 recurrence trigger tests
+// Recurrence trigger tests
 // Note: We use identical strings because the deterministic hash-based embedding
 // produces perfect similarity only for identical input. This makes the test reliable.
 func TestShouldTriggerPhaseTransition(t *testing.T) {
@@ -235,7 +235,7 @@ func TestClusterBySimilarity(t *testing.T) {
 	}
 }
 
-// Phase 3 SemanticRefine tests
+// SemanticRefine tests
 func TestSemanticRefine(t *testing.T) {
 	tempDir := t.TempDir()
 	store := NewPalaceStore(tempDir)

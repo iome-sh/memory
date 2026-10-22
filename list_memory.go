@@ -13,14 +13,14 @@ import (
 //
 // Complexity: FS Palace is source of truth. When the best-effort meta index is enabled
 // (default), ListMemoryWithOptions filters on lightweight entryMeta and loads full JSON
-// only for survivors. Write/unlink patches a clean index in place (#63).
-// A durable snapshot at indexes/event-time.json (#44) avoids re-parsing every tier
+// only for survivors. Write/unlink patches a clean index in place.
+// A durable snapshot at indexes/event-time.json avoids re-parsing every tier
 // JSON on a fresh process when the stamp matches.
 // With DisableMetaIndex, falls back to O(n) full entry scan.
 type ListMemoryOptions struct {
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
-	// conv:<id> tags match the same way as SearchMemoryWithOptions (T1).
+	// conv:<id> tags match the same way as SearchMemoryWithOptions.
 	SessionIDs []string
 	// TimeFrom / TimeTo filter by entry event time (see entryEventTime). Both inclusive when set.
 	TimeFrom *time.Time

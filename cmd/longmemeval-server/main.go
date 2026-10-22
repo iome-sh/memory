@@ -379,8 +379,8 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// File-based hybrid. Official QA must pass session_id so a shared palace
-	// is not other-session dominated (#55). Overlap-ranked keyword hits keep
-	// gold phrases ahead of OR-any-token flood (#56). Count / temporal-order
+	// is not other-session dominated. Overlap-ranked keyword hits keep
+	// gold phrases ahead of OR-any-token flood. Count / temporal-order
 	// queries skip QueryVec (no ONNX over candidates). Other queries still
 	// pass QueryVec; BatchEmbeddingFunc scores remaining candidates in one
 	// ONNX pass when set.
@@ -533,7 +533,7 @@ func classifyTemporalIntent(query string) (bool, time.Time, time.Time) {
 	q := strings.ToLower(query)
 	now := time.Now()
 
-	// Count / how-many questions are not calendar windows (T1).
+	// Count / how-many questions are not calendar windows.
 	if strings.Contains(q, "how many") || strings.Contains(q, "how much") {
 		return false, time.Time{}, time.Time{}
 	}

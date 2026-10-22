@@ -314,10 +314,9 @@ func TestIngestTurn_TTFHShapedWalkingSkeleton(t *testing.T) {
 	}
 }
 
-// V1.6 support-department overlay kit (examples/dept-rca/support): ticket
+// Support-department overlay kit (examples/dept-rca/support): ticket
 // export + policy + macro as private overlay. Facts-as-of the ticket finds
-// the 14-day unused-seat rule. source_hint stays private (not mesh). A green
-// unit test is not E-G1.
+// the 14-day unused-seat rule. source_hint stays private (not mesh).
 func TestDeptRCASupportKit_WalkingSkeleton(t *testing.T) {
 	kit := filepath.Join("examples", "dept-rca", "support")
 	for _, name := range []string{"README.md", "ticket-export.md", "policy.md", "macro.md", "main.go"} {

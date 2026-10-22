@@ -1,4 +1,4 @@
-// Support-department RCA overlay kit (V1.6 Wave 1).
+// Support-department RCA overlay kit.
 //
 // Ingest ticket export + policy + macro as private overlay, retrieve the
 // refund policy, list facts-as-of the ticket created time, print source_hint.

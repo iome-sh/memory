@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// Palace directory and file modes for a local tenant palace (Memory P0 / #85).
+// Palace directory and file modes for a local tenant palace.
 // Dirs 0700, files 0600. Not encryption at rest. Not multi-tenant isolation.
 const (
 	palaceDirMode  os.FileMode = 0o700

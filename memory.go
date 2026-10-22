@@ -26,7 +26,7 @@ const (
 	TierWorking    MemoryTier = 1
 	TierContextual MemoryTier = 2
 	TierArchival   MemoryTier = 3
-	// TierSemantic is used for high-fidelity atomic facts protected by RecMem Phase 3
+	// TierSemantic is used for high-fidelity atomic facts protected by RecMem semantic refinement
 	TierSemantic MemoryTier = 4
 )
 
@@ -60,7 +60,7 @@ type MemoryEntry struct {
 
 // MemoryContent holds summary/full/tags and optional persisted ONNX vectors.
 // Embedding fields are omitted unless PersistEmbeddings is on and the model is
-// a non-hash id. Hash vectors are never stored (kernel #45).
+// a non-hash id. Hash vectors are never stored.
 type MemoryContent struct {
 	Summary        string    `json:"summary"`
 	Full           string    `json:"full,omitempty"`
@@ -102,7 +102,7 @@ type MemoryStats struct {
 	WorkingCount    int
 	ContextualCount int
 	ArchivalCount   int
-	SemanticCount   int // Phase 3
+	SemanticCount   int // semantic tier entries
 	TotalEntries    int
 	LastCompaction  time.Time
 }
@@ -112,15 +112,15 @@ type MemoryStats struct {
 // directory. Not a leftover product path and not a hosted palace.
 const DefaultPalaceBaseDir = ".palace"
 
-// PalaceConfig for configurable PalaceStore creation (Phase 4.3)
+// PalaceConfig for configurable PalaceStore creation
 type PalaceConfig struct {
 	// BaseDir is the local palace root. Empty uses DefaultPalaceBaseDir (".palace").
 	BaseDir            string
 	MaxWorkingEntries  int
 	MaxWorkingAgeHours int
 	CompactionConfig   CompactionConfig
-	EmbeddingFunc      EmbeddingFunc      `json:"-"` // pluggable (Phase 5.1)
-	BatchEmbeddingFunc BatchEmbeddingFunc `json:"-"` // optional ONNX batch path (Phase 5.1)
+	EmbeddingFunc      EmbeddingFunc      `json:"-"` // pluggable
+	BatchEmbeddingFunc BatchEmbeddingFunc `json:"-"` // optional ONNX batch path
 	// PersistEmbeddings stores ONNX vectors on MemoryContent when true.
 	// Default false: Write does not persist embeddings. Hash models
 	// (EmbeddingModel empty or "hash") are never persisted even when true.
@@ -148,12 +148,12 @@ type PalaceConfig struct {
 	// Default false keeps the laptop contract (partial persist: a child
 	// Write error does not roll back the parent). Recover-on-open of leftover
 	// wal/pending runs even when this flag is false (cloud crash leftover).
-	// Intent log, not flock, not a multi-process lock. Not Memory GA.
-	// dual_write OFF. PersistEmbeddings default remains off.
+	// Intent log, not flock, not a multi-process lock.
+	// PersistEmbeddings default remains off.
 	TransactionalIngest bool
 }
 
-// EmbeddingFunc is injectable for semantic embeddings (Phase 5.1)
+// EmbeddingFunc is injectable for semantic embeddings
 type EmbeddingFunc func(text string, dim int) []float32
 
 // BatchEmbeddingFunc embeds multiple texts in one forward pass when supported (e.g. GONNXEmbedder).
@@ -184,7 +184,7 @@ type PalaceStore struct {
 	writeMu sync.Mutex
 }
 
-// NewPalaceStoreWithConfig creates PalaceStore with full configuration (Phase 4.3).
+// NewPalaceStoreWithConfig creates PalaceStore with full configuration.
 // Empty BaseDir defaults to DefaultPalaceBaseDir (".palace") under the process cwd.
 // EmbeddingModel is left empty (hash default) unless the caller set it.
 // PersistEmbeddings stays false unless the caller set it.
@@ -223,11 +223,11 @@ func NewPalaceStore(baseDir string) *PalaceStore {
 func (ps *PalaceStore) ensureDirs() error {
 	dirs := []string{
 		ps.BaseDir,
-		filepath.Join(ps.BaseDir, "tier-0-subconscious"), // RecMem latent buffer (Phase 1)
+		filepath.Join(ps.BaseDir, "tier-0-subconscious"), // RecMem latent buffer
 		filepath.Join(ps.BaseDir, "tier-1-working"),
 		filepath.Join(ps.BaseDir, "tier-2-contextual"),
 		filepath.Join(ps.BaseDir, "tier-3-archival"),
-		filepath.Join(ps.BaseDir, "tier-4-semantic"), // RecMem Phase 3 - high fidelity atomic facts
+		filepath.Join(ps.BaseDir, "tier-4-semantic"), // RecMem semantic tier - high fidelity atomic facts
 		filepath.Join(ps.BaseDir, "versions", "memory-entries"),
 		filepath.Join(ps.BaseDir, "relations"),
 		filepath.Join(ps.BaseDir, "indexes"),
@@ -256,7 +256,7 @@ func (ps *PalaceStore) getTierDir(tier MemoryTier) string {
 }
 
 // listSubconsciousEntries returns all entries currently stored in the RecMem subconscious (latent) buffer.
-// Used by AutoRecMemCompaction in Phase 2.
+// Used by AutoRecMemCompaction.
 func (ps *PalaceStore) listSubconsciousEntries() []MemoryEntry {
 	dir := filepath.Join(ps.BaseDir, "tier-0-subconscious")
 	files, err := os.ReadDir(dir)
@@ -297,7 +297,7 @@ func (ps *PalaceStore) loadEntry(fullPath string) (MemoryEntry, bool) {
 	return entry, true
 }
 
-// WriteLatent stores entry in the subconscious latent buffer (RecMem Phase 1).
+// WriteLatent stores entry in the subconscious latent buffer (RecMem).
 // No immediate promotion or LLM compaction is triggered.
 //
 // Versioning is caller-managed and best-effort, same as Write: Version==0 is
@@ -342,7 +342,7 @@ func (ps *PalaceStore) WriteLatent(entry MemoryEntry) error {
 //
 // PersistEmbeddings default false strips embedding fields before marshal
 // (including stuffed floats). Hash models (EmbeddingModel empty or "hash")
-// never persist vectors, even when the flag is true (kernel #45). When the
+// never persist vectors, even when the flag is true. When the
 // flag is on and EmbeddingModel is a non-hash id, the JSON rename is the
 // ingest ack; embedding is then filled best-effort. Embed miss, empty output,
 // or panic is not an ingest failure.
@@ -447,7 +447,7 @@ func (ps *PalaceStore) Load(id string, tier MemoryTier) (MemoryEntry, bool) {
 	return entry, true
 }
 
-// GetStats returns observability metrics (Phase 1.2)
+// GetStats returns observability metrics
 func (ps *PalaceStore) GetStats() MemoryStats {
 	stats := MemoryStats{LastCompaction: ps.lastCompaction}
 
@@ -495,7 +495,7 @@ func entryEmbedText(e MemoryEntry) string {
 // scoreEntriesByVector precomputes cosine similarity per entry (one embed per entry, not O(n log n) per sort compare).
 // When an entry already has a persisted Content.Embedding whose model and dim
 // match the query vec / store config, that vector is used and EmbeddingFunc is
-// not called for that entry. Hash models never use a stored vector (kernel #45).
+// not called for that entry. Hash models never use a stored vector.
 // When batchFn is set and more than one entry still needs an embed, uses a
 // single batch ONNX forward pass for those misses only.
 func scoreEntriesByVector(results []MemoryEntry, vec []float32, embedFn EmbeddingFunc, batchFn BatchEmbeddingFunc, cfg PalaceConfig) []scoredMemoryEntry {
@@ -584,7 +584,7 @@ func filterEntriesByKeywords(entries []MemoryEntry, query string) []MemoryEntry 
 
 // keywordOverlapCount is how many distinct query tokens (len≥3) appear in the haystack.
 // OR-any-token still *selects* hits; this score ranks unique gold phrases above
-// incidental 3-letter matches so hash top-k cannot bury needles (#56).
+// incidental 3-letter matches so hash top-k cannot bury needles.
 func keywordOverlapCount(e MemoryEntry, tokens []string) int {
 	if len(tokens) == 0 {
 		return 0
@@ -668,7 +668,7 @@ func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []Memo
 // time-window, as-of validity, and temporal re-ranking filters.
 type SearchMemoryOptions struct {
 	// SessionID, when non-empty, keeps entries whose SessionID matches or that
-	// carry tag conv:<SessionID> (T1: inner haystack sessions under one conv).
+	// carry tag conv:<SessionID> (inner haystack sessions under one conversation).
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
 	SessionIDs []string
@@ -680,7 +680,7 @@ type SearchMemoryOptions struct {
 	TimeFrom *time.Time
 	TimeTo   *time.Time
 	// AsOf, when non-nil, drops candidates where !EntryValidAt(e, *AsOf) before Limit
-	// (K4 facts-as-of / validity window; see EntryValidAt).
+	// (facts-as-of validity window; see EntryValidAt).
 	AsOf *time.Time
 	// Limit caps the result set (default 10 when <= 0).
 	Limit int
@@ -717,10 +717,10 @@ func entryEventTime(e MemoryEntry) time.Time {
 	return e.LastAccessed
 }
 
-// SearchMemory provides hybrid retrieval (keyword + vector + temporal) - Phase 4.1.
+// SearchMemory provides hybrid retrieval (keyword + vector + temporal).
 // Thin wrapper over SearchMemoryWithOptions with no session/time filters and ReRankTemporal=false.
 // When tier is nil, default tiers skip Archival (Working+Contextual+Semantic) unless
-// the query has no keyword hits on those tiers (low-confidence fallback; #87).
+// the query has no keyword hits on those tiers (low-confidence fallback).
 func (ps *PalaceStore) SearchMemory(query string, tier *MemoryTier, limit int, vec []float32) []MemoryEntry {
 	return ps.SearchMemoryWithOptions(query, SearchMemoryOptions{
 		Tier:     tier,
@@ -823,7 +823,7 @@ func filterSearchCandidates(results []MemoryEntry, opts SearchMemoryOptions) []M
 // Default tiers when Tier==nil match ListMemoryWithOptions: Working+Contextual+Semantic.
 // Archival is included when IncludeArchival is set, or when the default-tier keyword
 // hit set is empty (low-confidence fallback). That fallback is the empty keyword-hit
-// set, not a numeric cosine cutoff (Memory P0: do not invent a threshold).
+// set, not a numeric cosine cutoff (no invented threshold).
 // Count queries (`how many` / `how much`, except dated-span “how many days
 // between / did it take”) union matching turn_facts from the session/`conv:`
 // candidate set, rank named-pattern facts above fallback chatter, then
@@ -844,7 +844,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 
 	// Hybrid: keyword hits first (literal recall), then vector rank for the rest.
 	// QueryVec alone used to skip the keyword path; hash embeddings made that
-	// ranking noise and could drop an exact token past Limit (#45).
+	// ranking noise and could drop an exact token past Limit.
 	keywordHits := rankKeywordHitsByOverlap(filterEntriesByKeywords(results, query), query)
 	if opts.Tier == nil && !opts.IncludeArchival && len(keywordHits) == 0 {
 		// Low-confidence: no keyword hits on default tiers → include Archival.
@@ -898,7 +898,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = promoteTemporalEventEntries(results, query)
 	}
 	// Limit. Diversify distinct SessionIDs so one haystack session cannot
-	// fill every slot (T1). Single-session sets prefix Limit as before.
+	// fill every slot. Single-session sets prefix Limit as before.
 	if len(results) > limit {
 		results = diversifyBySession(results, limit)
 	}
@@ -906,7 +906,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 	return results
 }
 
-// EvictWorkingTier performs age/size-based eviction from Working tier (Phase 4.2)
+// EvictWorkingTier performs age/size-based eviction from Working tier
 func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	working := ps.ListEntriesInTier(TierWorking)
 	if len(working) <= maxCount {
@@ -930,7 +930,7 @@ func (ps *PalaceStore) EvictWorkingTier(maxAgeHours int, maxCount int) {
 	}
 }
 
-// PromoteToContextual promotes high-relevance Working entries (Phase 4.2)
+// PromoteToContextual promotes high-relevance Working entries
 func (ps *PalaceStore) PromoteToContextual(threshold float64) {
 	working := ps.ListEntriesInTier(TierWorking)
 	for _, e := range working {
@@ -953,7 +953,7 @@ type EntityGraph struct {
 // AddEntityRelationship adds normalized entity links (H-Mem style).
 // Ensures BaseDir/relations exists before write (safe if ensureDirs was skipped
 // or the directory was removed). Shared graph rewrite is serialized on writeMu
-// and written via temp+rename at 0600 (#86).
+// and written via temp+rename at 0600.
 func (ps *PalaceStore) AddEntityRelationship(entity, related string) {
 	ps.writeMu.Lock()
 	defer ps.writeMu.Unlock()
@@ -1319,7 +1319,7 @@ func extractKeyphrases(text string) []string {
 // parent or earlier facts already written. A non-nil error does not mean nothing persisted.
 // When PalaceConfig.TransactionalIngest is true, parent and turn_fact children commit via
 // wal/pending (intent log + fsynced *.tmp-<turnID> + rename). Not all-or-nothing unless that
-// flag is on. Not flock. Not Memory GA. dual_write OFF.
+// flag is on. Not flock.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
@@ -1422,7 +1422,7 @@ func collectTurnFacts(turn MemoryEntry) []MemoryEntry {
 				UsageCount:  1,
 			},
 		}
-		// K4 leftover: fact children participate in EntryValidAt without host tags.
+		// Fact children participate in EntryValidAt without host tags.
 		if !hasValidFromTag(factEntry) {
 			factEntry.TemporalTags = append(factEntry.TemporalTags, validFromTagPrefix+now.Format(time.RFC3339))
 		}
@@ -1458,7 +1458,7 @@ func inheritTurnFactTags(parentTags []string) []string {
 	return out
 }
 
-// SemanticRefine (RecMem Phase 3) protects high-stake atomic facts from clusters.
+// SemanticRefine (RecMem) protects high-stake atomic facts from clusters.
 // Products get SessionID / Timestamp from the parent and valid_from when unset.
 func (ps *PalaceStore) SemanticRefine(cluster []MemoryEntry) error {
 	if len(cluster) == 0 {
