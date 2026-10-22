@@ -11,6 +11,7 @@ How to get help for **`github.com/iome-sh/memory`** — the public **library ker
 | Security vulnerability | Private [Security Advisory](https://github.com/iome-sh/memory/security/advisories/new) or **security@iome.sh** — see [SECURITY.md](SECURITY.md) |
 | Kernel API | [README.md](README.md) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Other questions | **support@iome.sh** |
 
 When opening an issue, prefer a **title that names the API surface** (e.g. search, as-of facts, embeddings) and a short, redacted repro.
 
