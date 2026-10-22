@@ -4,8 +4,8 @@ This page documents the first worked path for `github.com/iome-sh/memory`:
 ingest three RCA-shaped turns, retrieve in the **same process**, list
 facts-as-of, and print `source_hint`.
 
-It does **not** declare Memory GA. It does **not** close **E-G1**. dual_write
-**OFF**.
+It is a local, single-process example. It is not a hosted service and not an
+end-to-end production run.
 
 ## Walking skeleton
 
@@ -44,253 +44,48 @@ Retrieve query: `hmac consume receipt` (session `inc-webhook-5xx`). Then
 
 A green `go run` and a green unit test
 (`TestIngestTurn_TTFHShapedWalkingSkeleton`) lock retrieve-after-ingest for
-this kernel path. They are **not** E-G1.
+this kernel path. They are not an end-to-end production run.
 
-## Department overlay (V1.6)
+## Department overlay
 
 Support-department kit: [`examples/dept-rca/support`](../examples/dept-rca/support)
 (ticket export + policy + macro as **private overlay**). Temporal ask: what
 was the refund rule as-of the ticket. Digest cite-both: **mesh miss is
-success**. Overlay, **not E-G1**. It does **not** replace the three-turn
+success**. It does **not** replace the three-turn
 technical skeleton above.
 
 ```bash
 go run ./examples/dept-rca/support
 ```
 
-Host TUI `iomesh memory ingest-dir` (V1.6 **D2**): default **128 files ×
-64 KiB**; `--source-hint private` (never mesh); `--department` /
-`--scenario` tags; skip `.pdf` with export-text-first (**no OCR**); skip
-report. Kernel example [`examples/dept-rca/support`](../examples/dept-rca/support)
-is **unchanged**. Host `--department` maps to palace `Tag` `dept:{id}` on
-search and facts-as-of (exact `EntryHasTag`); the kernel has no org IDs.
-**not** Memory GA. **not E-G1.** dual_write **OFF**.
-
-Host TUI one-tenant two-kit (V1.6 **D5**): ingest TUI kits
-[`examples/dept-rca/support`](../examples/dept-rca/support) and
-`examples/dept-rca/ops` into **one** palace (one-tenant composition).
-facts-as-of `--department support|ops` is host Tag `dept:{id}` — **not**
-a kernel org filter. **≠ two-org**. leftover_is_bind **OPEN**. **not** an
-org-wide RCA engine. Mesh miss is **success**; do **not** stamp mesh on
-the files. **D5b** two-org **Parked**. **D6** parked (T2/T3/T5/T8, LME %).
-**not** Memory GA. **not E-G1.** dual_write **OFF**. Kernel has no org IDs.
-
-Host TUI sales kit (V1.6 **D5c**): ingest TUI kit `examples/dept-rca/sales`
-(call-notes + qbr + list-price UTF-8) with support+ops into **one** palace
-(still one-tenant composition). facts-as-of `--department sales` is host
-Tag `dept:{id}` — **not** a kernel org filter; as-of **before** list-price
-change `2026-03-01` (`2026-02-28T18:00:00Z`). **≠ two-org**. leftover_is_bind
-**OPEN**. Overlay does **not** GET Salesforce/CRM. Mesh miss is **success**;
-do **not** stamp mesh; no invented ARR; no customer names. **D5b** two-org
-**Parked**. **D6** parked. **not** Memory GA. **not E-G1.** dual_write **OFF**.
-Kernel has no org IDs.
-
-Host TUI customer_success kit (V1.6 **D5d**): ingest TUI kit
-`examples/dept-rca/customer_success` (health-note + renewal + playbook
-UTF-8) with support+ops+sales into **one** palace (still one-tenant
-composition). facts-as-of `--department customer_success` is host Tag
-`dept:{id}` — **not** a kernel org filter; as-of **before** renewal
-`2026-09-01` (`2026-08-31T18:00:00Z`). **≠ two-org**. leftover_is_bind
-**OPEN**. Overlay does **not** GET Salesforce/CRM. Mesh miss is **success**;
-do **not** stamp mesh; no invented ARR; no customer names. **D5b** two-org
-**Parked**. **D6** parked. **not** Memory GA. **not E-G1.** dual_write **OFF**.
-Kernel has no org IDs.
-
 ## Host path (optional)
 
-Companion pins, not a kernel dependency. Published tags — do not invent a
-newer tag.
-
-| Piece | Pin | Role |
-|-------|-----|------|
-| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | **v0.4.2** | MCP host over this kernel |
+[iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) is the MCP
+host over this kernel. It is a companion, not a kernel dependency.
 
 > **Note:** The TUI is archived and no longer installable. To run the kernel
 > directly, see the [README Quick start](../README.md#quick-start).
 
-In the TUI, with the memory host attached. Same walk as the bullets
-below · R1 ≠ R3 overlay PULSE.
+Host-side digests, miss classes and department tags are host formatting of
+fields the kernel already stores (`source_hint`, `source_step`, `parent_ids`,
+`id`, tags such as `dept:{id}`). The kernel does not classify miss classes,
+does not emit a digest footer, and has no org IDs. A local-only palace has no
+mesh-class receipts, so a cite-both check over it reports a mesh miss. Do not
+stamp mesh on a local overlay to force cite-both.
 
-- **R0** `iomesh ttfh --unit` — offline smoke (no broker)
-- **R1** `iomesh ttfh --live` — fail-open consume probe (**EMPTY** unless decoded messages; never invent **PULSE**; not overlay PULSE)
-- **R2** `/memory ingest` — three RCA-shaped turns (local overlay stays **private**)
-- **R2** `/memory digest --require-sources mesh,private` — **cite-both or explicit miss** (miss is **named**: `no_mesh_pulse` when `missing=mesh`, etc.)
-- **R2** Short-term: `/memory patterns` — ops **Beta** · empty ≠ invent · never APPLY
-- **R2** Long-term: `/memory facts-as-of --as-of <RFC3339>` — palace · pass `SessionIDs` · **not Memory GA**
-- **R3** `/dashboard` consume — parked · required for E-G1 · `--live` decoded-N is not this
-- **R4** After PULSE: `iomesh memory pull` — dual_write **OFF** · pull ≠ Connected
+Kernel facts a host can rely on:
 
-Cite-both needs a mesh-class receipt **and** a private-class receipt in the
-digest window. Catalog list is not consume. Grant-only is not cite-both. An
-explicit miss is success for this flag; inventing mesh is not.
+- retrieve and facts-as-of take `SessionIDs` (any-of; also matches
+  `conv:<id>` tags)
+- an `IngestTurn` error means partial JSON may remain on disk (parent and
+  earlier facts are kept; not silent success; not rollback)
+- `PersistEmbeddings` defaults to off; hash vectors are never stored
 
-`--unit` wins over `--live` (stay offline). `--live` is a light consume probe
-only: **EMPTY** until decoded broker messages; unreachable/no endpoint stays
-EMPTY and fail-open. Never invent PULSE. dual_write **OFF**. **not** Memory GA.
-This optional host path is **not** E-G1.
-
-### Local-only cite-both miss (`no_mesh_pulse`)
-
-With no mesh receipts (local overlay only), cite-both must miss mesh.
-That transcript is **`no_mesh_pulse`** (`missing=mesh`). Do **not** stamp
-mesh on the local overlay to force cite-both. Catalog / grant /
-`source=external` never satisfy cite-both. The kernel does **not**
-classify miss classes.
-
-```text
-/memory ingest
-# turn 1: PagerDuty page: webhook ingress 5xx
-#         → provenance.source_hint=private  tag=source_hint:private
-# turn 2: HMAC-verified delivery HTTP 200 is not a consume receipt
-#         → provenance.source_hint=private  tag=source_hint:private
-# turn 3: CreateConsumer 500 when consumers.mode is NULL
-#         → provenance.source_hint=private  tag=source_hint:private
-
-/memory digest --require-sources mesh,private
-require-sources: miss · required=mesh,private · cited=private · missing=mesh · miss_class=no_mesh_pulse · receipt window newest-first · n=3 · mesh not in this receipt set · local palace on disk
-```
-
-That miss is **success** for the flag (no mesh-class receipt in a local-only
-palace). `miss_class=` is a **host** digest token (TUI this wave); the
-kernel does not emit it. This page is documentation of the commands, not a
-live mesh session.
-
-### Named miss classes (V2-A)
-
-Digest can already cite-both or miss. V2-A **names** the miss. These are
-host digest tokens (copy, **not** classifiers). The kernel does **not**
-classify miss classes. Not a new kernel SoR.
-
-**Classes:** `no_mesh_pulse` · `no_private_overlay` · `conflict` ·
-`insufficient_signal` · `linked_pr_miss` · `public_vs_internal` ·
-`no_memo` · `crm_only_restatement`.
-
-Mapping already true on the host digest:
-
-- `missing=mesh` → `no_mesh_pulse` (typical local overlay / kit)
-- `missing=private` → `no_private_overlay`
-- empty / rejected patterns → `insufficient_signal` (host hyphenated
-  `insufficient-signal · nothing reliable today`)
-- `conflict` / `linked_pr_miss` / `public_vs_internal` / `no_memo` /
-  `crm_only_restatement` are **vocabulary**, not kernel-computed
-
-Honesty:
-
-- `linked_pr_miss` is a private eval column on the SRE recipe · **not**
-  an MTTR claim
-- `public_vs_internal` only if a public status page exists
-- `crm_only_restatement` is overlay restating CRM without a pulse ·
-  overlay does **not** GET Salesforce/CRM
-- `no_memo` is a missing living memo (RevOps **V2-C** sitting — later
-  subsection)
-- do **not** stamp mesh on overlay
-
-**Not** Memory GA (public MIT ≠ GA). **Not** overlay PULSE. leftover_is_bind
-stays **OPEN**. **Not** V2-B (palace-path host wiring — next subsection).
-**Not** V2-C (RevOps sitting). **not E-G1.** dual_write **OFF**.
-
-### Palace path (V2-B)
-
-V2-B is **host wiring** of fields the kernel already has. Not a new kernel
-SoR. `SessionIDs` already exist (`SearchMemoryOptions` /
-`FactsAsOfOptions`). The kernel still does **not** classify miss classes
-and does **not** emit a digest footer. Not a typed `IngestTurn` receipt.
-
-Host contract:
-
-- retrieve / facts-as-of: pass `SessionIDs` (any-of; also matches
-  `conv:<id>` tags). Host `--department` stays Tag `dept:{id}` — **not**
-  a kernel org filter. Kernel has no org IDs.
-- `IngestTurn` error means leftover JSON on disk (partial persist: parent
-  and earlier facts remain; not silent success; not rollback)
-- provenance footer is **host** formatting of `source_hint` /
-  `source_step` / `parent_ids` / `id` (kernel JSON fields; the kernel
-  does not emit the footer)
-- dated dual values print as **two figures**, not one LME % (unpublished
-  official V1 BGE mixed n=500 on pin `9bee542`: **388/500** vs
-  **384/500**; two runs not identical; INTERNAL unpublished)
-
-Honesty:
-
-- `PersistEmbeddings` default **OFF** · hash never stored
-- dual_write **OFF** · leftover_is_bind stays **OPEN**
-- overlay does **not** GET Salesforce/CRM · do **not** stamp mesh
-- do **not** invent in-repo `examples/dept-rca/ops` or `sales` or
-  `customer_success` (TUI kit paths)
-- public MIT ≠ GA
-- **Not** Memory GA. **Not** V2-C (RevOps sitting — next subsection).
-  **not E-G1.**
-
-### RevOps sitting (V2-C)
-
-V2-C is a **host recipe**, not a new kernel SoR. One Zendesk **OR**
-Salesforce pulse + living memo + cite-both or named miss (`no_memo` /
-`crm_only_restatement` / `no_mesh_pulse`) + ACK. The kernel does **not**
-GET CRM. The kernel does **not** classify miss classes. This page is a
-pointer, not a live sitting.
-
-Host recipe:
-
-- pick **one** pulse: Zendesk **OR** Salesforce (catalog list ≠
-  Connected until a signed event)
-- living memo (private overlay)
-- cite-both or named miss (`no_memo` / `crm_only_restatement` /
-  `no_mesh_pulse`)
-- ACK
-
-Honesty:
-
-- kernel does **not** GET Salesforce/CRM · overlay does **not** GET CRM
-- kernel does **not** classify miss classes · do **not** stamp mesh
-- do **not** invent in-repo `examples/dept-rca/ops` or `sales` or
-  `customer_success` (TUI kit paths)
-- leftover_is_bind stays **OPEN** · dual_write **OFF**
-- **Not** Memory GA. **Not** V2-D (Sev-1 CS packet — next subsection).
-  **not E-G1.**
-
-### Sev-1 CS packet (V2-D)
-
-V2-D is a **host overlay**, not a new kernel SoR. D5d kit + **same
-incident id** + customer-facing snippet. Zendesk is **optional**
-(catalog list ≠ Connected until a signed event). The kernel does **not**
-GET CRM. The kernel does **not** classify miss classes. This page is a
-pointer, not a live sitting.
-
-Host overlay:
-
-- D5d kit (TUI path `examples/dept-rca/customer_success`)
-- **same incident id** (do not invent a new incident)
-- customer-facing snippet (private overlay)
-- Zendesk **optional** (catalog list ≠ Connected until a signed event)
-
-Honesty:
-
-- kernel does **not** GET Salesforce/CRM · overlay does **not** GET CRM
-- kernel does **not** classify miss classes · do **not** stamp mesh
-- do **not** invent in-repo `examples/dept-rca/customer_success` (TUI
-  kit path)
-- leftover_is_bind stays **OPEN** · dual_write **OFF**
-- **Not** overlay PULSE. **Not** Memory GA. **not E-G1.**
-
-Cost-max stays the same on the host path: hash embedder, no Qdrant, no cloud
-palace. Optional Ollama is a TUI pin, not a kernel requirement.
-
-## E-G1 is not this page
-
-**E-G1** is a **real laptop** run: **PULSE + 3 RCA + cite-both-or-miss**.
-
-This page does **not** satisfy E-G1. A unit test does **not** satisfy E-G1.
-`go run ./examples/ttfh_rca` does **not** satisfy E-G1. Optional TUI/MCP
-pins, `iomesh ttfh --unit` / `--live`, and slash-command names do **not**
-satisfy E-G1.
-
-Do not treat a docs PR, a README table row, or CI green as E-G1 closed.
+Cost stays the same on the host path: hash embedder, no Qdrant, no cloud
+palace.
 
 ## Notes
 
-- dual_write **OFF** (host policy, not a kernel product flag)
-- **not** Memory GA
 - inspectable filesystem palace remains the source of truth
 - one process per palace root (multi-process writers unsupported)
-- LongMemEval is a different eval — see [`LONGMEMEVAL.md`](LONGMEMEVAL.md);
-  a methodology card does not move TTFH / cite-both
+- LongMemEval is a different eval — see [`LONGMEMEVAL.md`](LONGMEMEVAL.md)
