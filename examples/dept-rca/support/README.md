@@ -1,12 +1,11 @@
-# Support department RCA overlay kit (V1.6 Wave 1)
+# Support department RCA overlay kit
 
 Private overlay fixture: Zendesk-**shaped** ticket export + unused-seat refund
 policy + agent macro. Temporal ask: **what was the refund rule as-of the
 ticket?**
 
-This is **not** Memory GA. It is **not E-G1**. dual_write **OFF**. Catalog list
-is **not** Connected. Event prefix `dept.support.events.*` is **routing**, not
-Connected.
+This is a local fixture, not a connected Zendesk integration. The event prefix
+`dept.support.events.*` is only a routing name.
 
 Default ingest class: `source_hint=private`. Tags: `dept:support`
 `scenario:support`. Digest cite-both (`mesh,private`): **mesh miss is success**.
@@ -35,5 +34,5 @@ facts-as-of the ticket created time, and prints `source_hint`. Exit 0 on
 success.
 
 A green `go run` and `TestDeptRCASupportKit_WalkingSkeleton` lock this overlay
-path. They are **not** E-G1. They do **not** replace the technical three-turn
+path. They are not an end-to-end run and do **not** replace the technical three-turn
 skeleton in [`examples/ttfh_rca`](../../ttfh_rca).

@@ -1,6 +1,6 @@
 # Zendesk ticket export (fixture)
 
-UTF-8 Zendesk-**shaped** overlay. Not a live API dump. Not Connected.
+UTF-8 Zendesk-**shaped** overlay. Not a live API dump.
 
 ## Ticket
 
