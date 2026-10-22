@@ -70,7 +70,7 @@ Multi-session retrieve and count-query assembly. Not an official LongMemEval V1 
 ### Changed
 - **ONNX download fail-soft:** Hugging Face 401/404 for `KnightsAnalytics/bge-small-en-v1.5` no longer `os.Exit(1)`. Public `BAAI/bge-small-en-v1.5` `onnx/model.onnx` reshapes into hugot layout `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored). MiniLM remains the in-tree fallback. `HF_TOKEN` is optional; 401/403 retry without Authorization; 404 is not retried. TTFH cost-max is still hash.
 - **QA reader uses full retrieve-k:** `LONGMEMEVAL_READER_K=0` feeds all retrieved snippets to the reader (was `memories[:15]` while retrieve k=40).
-- **Temporal kernel roadmap:** [`docs/temporal-memory-kernel-roadmap.md`](docs/temporal-memory-kernel-roadmap.md) — multi-session retrieve met its n=12 target; next n=60, then list-latency work only if needed. Other roadmap items deferred.
+- **Temporal kernel roadmap:** `docs/temporal-memory-kernel-roadmap.md` (since removed) — multi-session retrieve met its n=12 target; next n=60, then list-latency work only if needed. Other roadmap items deferred.
 - **Operator copy / public-docs hygiene:** README, SUPPORT, SECURITY, RELEASING, CONTRIBUTING, operator docs. Maintainer residuals marked; walking skeleton, LongMemEval methodology, single-writer, and inspectable FS facts unchanged.
 
 ## [1.5.11] — 2026-09-12
