@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // Package onnxdownload is the fail-soft helper for scripts/download_onnx_model.go.
 //
 // Hugging Face 401/404 for KnightsAnalytics/bge-small-en-v1.5 is expected
