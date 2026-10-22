@@ -1,26 +1,17 @@
 # LongMemEval methodology card
 
-Kernel-only · **not Memory GA** · dual_write **OFF**.
+This page describes how to run LongMemEval against `github.com/iome-sh/memory`
+and what each kind of run means. It exists so that any figure is always
+reported together with its harness description. **No score is published
+here.** A hash-overlap figure is a local smoke check only; it is not
+official V1 accuracy.
 
-This page is the methodology card for any LongMemEval work on
-`github.com/iome-sh/memory`. It exists so a number cannot ship without a
-harness description. **No official score is published here** / README / site /
-deck. A hash-overlap figure is an internal gate only — it is not official V1
-and must not appear on the README, the site, or a deck.
+The companion walking skeleton is [`examples/ttfh_rca`](../examples/ttfh_rca).
+A LongMemEval number does not change that example's timings.
 
-Companion walking skeleton (consume-clock / TTFH / cite-both) is
-[`examples/ttfh_rca`](../examples/ttfh_rca). A LongMemEval number does not move
-those clocks. **Not Memory GA.**
-
-Locked mixed **n=12** / **n=60** hash vs MiniLM vs BAAI BGE comparison (same
-IDs, same judge): [`docs/LONGMEMEVAL_BASELINE.md`](LONGMEMEVAL_BASELINE.md).
-Those tables are an **improvement baseline**, not official V1 and not a README
-number. Two official V1 BGE mixed n=500 scored runs on pin `9bee542` are in
-**Internal run log** below (run 1 **388/500**, run 2 **384/500**; **INTERNAL
-unpublished**). They are **not identical**. Do not publish a single %.
-`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face
-repo (auth 404). Comparable BGE ONNX is `BAAI/bge-small-en-v1.5` reshaped into
-hugot layout (`make longmemeval-baseline`).
+`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face repo
+(404). The comparable BGE ONNX model is `BAAI/bge-small-en-v1.5`, reshaped
+into hugot layout (`make longmemeval-baseline`).
 
 ## What official means
 
@@ -42,45 +33,32 @@ make longmemeval-qa-generate
 make longmemeval-judge
 ```
 
-Two unpublished runs on pin `9bee542` are **not identical**; do not publish a
-single %. A published V1 figure, if it ever ships, is labelled **“kernel
-retrieve + reader.”**
+A published V1 figure, if one ever ships, is labelled **“kernel retrieve +
+reader”** and comes with the card fields below.
 
 Do not vendor the 7 GB V2 tree. Do not publish judge-free hash-overlap as
 accuracy. Do not claim we beat Mem0, Graphiti, or Letta on a vendor harness.
 
-## Card fields (fill when a scored run exists)
+## Card fields (fill when a scored run is published)
 
-Record these on every official-judge run. Two unpublished official V1 BGE
-mixed-500 runs on pin `9bee542` are in **Internal run log** (388/500 and
-384/500). They are **not identical**. The table below is **run 1** (first).
-**INTERNAL unpublished.** Not a README number. Not Memory GA. Do not publish a
-single %.
+Record these on every official-judge run:
 
 | Field | Value |
 |-------|--------|
-| Date (UTC) | generate 2026-09-13T03:55:05Z → 2026-09-13T07:22:29Z; judge done 2026-09-13T07:27:03Z |
-| Kernel commit SHA | `9bee5428a6ff6d221ae57dca15da4a279ebca0f6` (`v1.5.12-20-g9bee542`) |
-| Kernel tag | v1.5.12-20-g9bee542. `#139` (`e075fdd`) is docs/script only and does not change this score. |
-| Dataset variant | gitignored `data/longmemeval_oracle.json` n=500 |
-| Sample | `--sample mixed` **no `--limit`** (full file) |
-| n (questions) | 500 complete (0 missing) |
-| Type histogram | `temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-preference` 30, `single-session-assistant` 56, `single-session-user` 70 |
+| Date (UTC) | |
+| Kernel commit SHA | |
+| Kernel tag | |
+| Dataset variant | e.g. `data/longmemeval_oracle.json` (gitignored) |
+| Sample | `--sample mixed`, no `--limit` for the full file |
+| n (questions) | |
+| Type histogram | |
 | Session scope | `session_id` = official `conv_id` on `/retrieve` |
-| Embed mode | health `onnx-bge-small-en-v1.5`; all 500 hyp rows `embed_mode=onnx-bge-small-en-v1.5`; `BAAI/bge-small-en-v1.5` hugot layout (not KnightsAnalytics 404). PersistEmbeddings **OFF**. **Not hash.** |
-| Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions`; `OPENAI_MODEL=gpt-4o-mini` |
-| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` (zoo key `gpt-4o`) |
+| Embed mode | ONNX model name (not hash) |
+| Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions` |
+| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` |
 | Judge script | upstream `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
-| Qdrant | off |
-| dual_write | OFF |
-| Palace | isolated; port `:8781`; log `/tmp/lme-v1-official-run.log` |
-| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · two runs on this pin are not identical · do not publish a single %** |
-
-This is the **first** official V1 BGE mixed-500 scored run. Run 2 on the same
-pin is in **Internal run log** (**384/500**; not identical). **INTERNAL
-unpublished.** Not a README number. Not Memory GA. Do not publish a single %.
-Hash overlap unpublished. n=12 / n=60 cards stay improvement baseline ≠ this
-V1 run. TTFH / cite-both is a different clock.
+| Qdrant | on / off |
+| Result | overall and per-type accuracy |
 
 ## How to run (operators)
 
@@ -128,187 +106,10 @@ dominated.
 Haystack dates accept official cleaned `2006/01/02 (Mon) 15:04` as well as
 RFC3339.
 
-## Internal run log
-
-Label: **unpublished · not hash-overlap**. This section is not a README number.
-Two official V1 BGE mixed-500 cards on pin `9bee542` are recorded below
-(**INTERNAL unpublished**; **not identical**; do not publish a single %). MiniLM
-n=12 is **not** official V1. n=12 / n=60 stay improvement baseline ≠ these V1
-runs. **Not Memory GA.** TTFH / cite-both is a different clock.
-
-### 2026-09-14 — official V1 BGE mixed n=500 run 2 (INTERNAL unpublished)
-
-Second official V1 scored run on the **same kernel pin** as run 1 (`9bee542`).
-Isolated palace; port `:8782`. Log `/tmp/lme-v1-run2-official.log`. Hypotheses
-gitignored: `data/v1-run2/hypotheses-bge.jsonl` (+ `.eval-results-gpt-4o`) —
-**do not commit**. This pin is **before** [#143](https://github.com/iome-sh/memory/pull/143)
-/ [#146](https://github.com/iome-sh/memory/pull/146) / [#147](https://github.com/iome-sh/memory/pull/147)
-/ [#150](https://github.com/iome-sh/memory/pull/150). Hash overlap unpublished.
-n=12 / n=60 cards stay improvement baseline ≠ this V1 run. **Not Memory GA.**
-TTFH / cite-both is a different clock. **Not a README number.** Two runs on this
-pin are **not identical**. Do not publish a single %. Do not claim “reproduced
-twice.”
-
-| Field | Value |
-|-------|--------|
-| Date (UTC) | generate 2026-09-14T07:57:01Z → 2026-09-14T11:14:46Z; judge DONE 2026-09-14T11:19:49Z |
-| Kernel commit SHA | `9bee5428a6ff6d221ae57dca15da4a279ebca0f6` (`v1.5.12-20-g9bee542`) |
-| Kernel tag | v1.5.12-20-g9bee542. Same pin as run 1. Later `#143` / `#146` / `#147` / `#150` are **not** this score. |
-| Dataset variant | gitignored `data/longmemeval_oracle.json` n=500 |
-| Sample | `--sample mixed` **no `--limit`** (full file) |
-| n (questions) | 500 complete (0 missing) |
-| Type histogram | `temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-preference` 30, `single-session-assistant` 56, `single-session-user` 70 |
-| Session scope | `session_id` = official `conv_id` |
-| Embed mode | health `onnx-bge-small-en-v1.5`; all 500 hyp rows `embed_mode=onnx-bge-small-en-v1.5`; `BAAI/bge-small-en-v1.5` hugot layout (not KnightsAnalytics 404) |
-| PersistEmbeddings | OFF |
-| Qdrant | off |
-| dual_write | OFF |
-| Reader | `scripts/longmemeval_qa_generate.py` + `SearchMemoryWithOptions`; `OPENAI_MODEL=gpt-4o-mini` |
-| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` (zoo key `gpt-4o`) |
-| Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
-| Palace | isolated; port `:8782` |
-| Log | `/tmp/lme-v1-run2-official.log` |
-| Status | **two runs on pin 9bee542; not identical; still unpublished; not README; not Memory GA; do not publish a single %** |
-
-| Metric | Value |
-|--------|--------|
-| Overall Accuracy | **0.768** = **384/500** |
-| Task-averaged Accuracy | **0.7915** |
-| Abstention Accuracy | **0.6333 (30)** |
-
-By type (judge-true):
-
-| Type | Judge-true | Rate |
-|------|------------|------|
-| single-session-user | **67/70** | 0.9571 |
-| single-session-assistant | **54/56** | 0.9643 |
-| knowledge-update | **63/78** | 0.8077 |
-| multi-session | **96/133** | 0.7218 |
-| single-session-preference | **20/30** | 0.6667 |
-| temporal-reasoning | **84/133** | 0.6316 |
-
-Tracked on this old pin (before #143 / #146 / #147 / #150): `852ce960` FAIL $350k; `6aeb4375` FAIL three; `0a995998` FAIL reader 2; `08f4fc43` FAIL despite hyp 30 days (judge).
-
-n=500 complete (0 missing). Overall **384/500**. **Not a README number.** **Not
-Memory GA.**
-
-### Two runs on pin `9bee542` (INTERNAL unpublished)
-
-Same kernel, same embed, same reader, same judge. Delta vs run 1 is **−4**
-overall (−0.8pp): TR +1, MS −3, pref −1, ss-user −1. Honest: **reader/judge
-variance**, not a kernel change. Do not treat these as a reproduced single
-public figure.
-
-| Metric | Run 1 (2026-09-13) | Run 2 (2026-09-14) | Δ |
-|--------|--------------------|--------------------|---|
-| Overall | **388/500** (0.776) | **384/500** (0.768) | −4 (−0.8pp) |
-| Task-averaged | 0.802 | 0.7915 | — |
-| Abstention | 0.6333 (30) | 0.6333 (30) | 0 |
-| single-session-user | 68/70 | 67/70 | −1 |
-| single-session-assistant | 54/56 | 54/56 | 0 |
-| knowledge-update | 63/78 | 63/78 | 0 |
-| multi-session | 99/133 | 96/133 | −3 |
-| single-session-preference | 21/30 | 20/30 | −1 |
-| temporal-reasoning | 83/133 | 84/133 | +1 |
-
-Status: **two runs on pin 9bee542; not identical; still unpublished; not README; not Memory GA; do not publish a single %**.
-
-### 2026-09-13 — official V1 BGE mixed n=500 (INTERNAL unpublished)
-
-First official V1 scored run. Isolated palace; port `:8781`. Log
-`/tmp/lme-v1-official-run.log`. Hypotheses gitignored:
-`data/v1-official/hypotheses-bge.jsonl` (+ `.eval-results-gpt-4o`) — **do not
-commit**. Hash overlap unpublished. n=12 / n=60 cards stay improvement
-baseline ≠ this V1 run. **Not Memory GA.** TTFH / cite-both is a different
-clock. **Not a README number.** Two runs on this pin are **not identical**. Do
-not publish a single %.
-
-| Field | Value |
-|-------|--------|
-| Date (UTC) | generate 2026-09-13T03:55:05Z → 2026-09-13T07:22:29Z; judge done 2026-09-13T07:27:03Z |
-| Kernel commit SHA | `9bee5428a6ff6d221ae57dca15da4a279ebca0f6` (`v1.5.12-20-g9bee542`) |
-| Kernel tag | v1.5.12-20-g9bee542. `#139` (`e075fdd`) is docs/script only and does not change this score. |
-| Dataset variant | gitignored `data/longmemeval_oracle.json` n=500 |
-| Sample | `--sample mixed` **no `--limit`** (full file) |
-| n (questions) | 500 complete (0 missing) |
-| Type histogram | `temporal-reasoning` 133, `multi-session` 133, `knowledge-update` 78, `single-session-preference` 30, `single-session-assistant` 56, `single-session-user` 70 |
-| Session scope | `session_id` = official `conv_id` |
-| Embed mode | health `onnx-bge-small-en-v1.5`; all 500 hyp rows `embed_mode=onnx-bge-small-en-v1.5`; `BAAI/bge-small-en-v1.5` hugot layout (not KnightsAnalytics 404) |
-| PersistEmbeddings | OFF |
-| Qdrant | off |
-| dual_write | OFF |
-| Reader | `scripts/longmemeval_qa_generate.py` + `SearchMemoryWithOptions`; `OPENAI_MODEL=gpt-4o-mini` |
-| Judge model pin | `gpt-4o-2024-08-06` via `evaluate_qa.py` (zoo key `gpt-4o`) |
-| Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
-| Palace | isolated; port `:8781` |
-| Log | `/tmp/lme-v1-official-run.log` |
-| Status | **FIRST official V1 BGE mixed-500 · INTERNAL unpublished · not README · not Memory GA · two runs on this pin are not identical · do not publish a single %** |
-
-| Metric | Value |
-|--------|--------|
-| Overall Accuracy | **0.776** = **388/500** |
-| Task-averaged Accuracy | **0.802** |
-| Abstention Accuracy | **0.6333 (30)** |
-
-By type (judge-true):
-
-| Type | Judge-true | Rate |
-|------|------------|------|
-| single-session-user | **68/70** | 0.9714 |
-| single-session-assistant | **54/56** | 0.9643 |
-| knowledge-update | **63/78** | 0.8077 |
-| multi-session | **99/133** | 0.7444 |
-| single-session-preference | **21/30** | 0.700 |
-| temporal-reasoning | **83/133** | 0.6241 |
-
-n=500 complete (0 missing). Overall **388/500**. **Not a README number.** **Not
-Memory GA.**
-
-### 2026-09-12 — official BGE-small-en-v1.5 ONNX retry (SKIP)
-
-Retried `go run ./scripts/download_onnx_model.go` (hugot `DownloadModel` of `KnightsAnalytics/bge-small-en-v1.5`). Hugging Face returned **401** (`Invalid username or password`) for hugot and unauthenticated `curl`. Authenticated `curl` / `hf download` returned **404** (`Repository not found` / `Model not found`). Hugging Face model page 404; KnightsAnalytics org listing has MiniLM but no `bge-small-en-v1.5`. No BGE weights were written under `testdata/models/`. In-tree MiniLM was not deleted. Official V1 embed pin remains unmet. **No scored BGE card. No README number. Hash overlap unpublished. MiniLM ≠ BGE pin.**
-
-| Field | Value |
-|-------|--------|
-| Date (UTC) | 2026-09-12T05:21:26Z |
-| Kernel commit SHA | `e70343eab80e71c5157d6e34e3eaab39e98f73cf` (tag **v1.5.11**) |
-| Kernel tag | v1.5.11 |
-| Status | **SKIP** — BGE-small-en-v1.5 ONNX still unavailable (hugot **401**; HF **404**) |
-| Embed mode | **not** official V1 BGE pin (download failed; MiniLM internal card below is a different embedder) |
-| Judge model pin | `gpt-4o-2024-08-06` (not run — no BGE weights) |
-
-### 2026-09-12 — mixed MiniLM ONNX generate+judge (INTERNAL unpublished)
-
-Methodology proof, not a leaderboard. Oracle JSON stayed in gitignored `data/` (not committed). Hypotheses JSONL and eval-results stayed gitignored. LongMemEval-M (~2.7 GB) and V2 (~7 GB) were not vendored. Hash overlap unpublished. **Not BGE official pin. Not a README number.**
-
-| Field | Value |
-|-------|--------|
-| Date (UTC) | 2026-09-12T05:05:50Z |
-| Kernel commit SHA | `471dce551a2b81626f41f23463ad95ed98c755f8` (tag **v1.5.11**) |
-| Kernel tag | v1.5.11 |
-| Dataset variant | `longmemeval_oracle.json` **not committed** (gitignored `data/`, ~15 MB, 500 questions) |
-| Sample | `mixed` (`LONGMEMEVAL_QA_SAMPLE=mixed`, stratified by `question_type`) — **not** prefix-n |
-| n (questions) | 12 |
-| Type histogram | `knowledge-update` 2, `multi-session` 2, `single-session-assistant` 2, `single-session-preference` 2, `single-session-user` 2, `temporal-reasoning` 2 |
-| Session scope | `session_id` = official `conv_id` on `/retrieve` |
-| Embed mode | **ONNX MiniLM-L6-v2** (384-d, in-tree `testdata/models/KnightsAnalytics_all-MiniLM-L6-v2`, hugot GoMLX). **Not hash. Not BGE-small-en-v1.5. Not official V1 embed pin.** BGE still unavailable (Hugging Face hugot download **401**; authenticated lookup **404** as of 2026-09-12 retry). |
-| Reader | `scripts/longmemeval_qa_generate.py` + kernel `SearchMemoryWithOptions` (`cmd/longmemeval-server` `/retrieve`) |
-| Judge model pin | `gpt-4o-2024-08-06` (upstream `evaluate_qa.py` zoo key `gpt-4o`; Makefile default `gpt-4o-mini` is **not** official V1) |
-| Judge script | `scripts/longmemeval_judge.sh` → `third_party/LongMemEval/src/evaluation/evaluate_qa.py` |
-| Qdrant | off |
-| Status | scored official-judge mixed sample completed — **unpublished · not a README number** |
-
-In-repo `testdata/longmemeval_oracle_subset.json` remains **3 `single-session-user` items** — that is **not** this mixed slice and **not** mixed official V1. Oracle JSON stays gitignored (`data/`). No accuracy number is published here or on the README.
-
 ## Notes
 
-- Inspectable filesystem palace remains the source of truth.
+- The inspectable filesystem palace remains the source of truth.
 - Hash embeddings must never be persisted as `QueryVec` / stored vectors.
-- This card is not a fundraising exhibit.
-- Host walking skeleton (TUI `/memory digest --require-sources mesh,private`)
-  is cite-both of mesh pull + private palace — a different clock from this eval.
 - `make longmemeval-v1-card` is optional and is **not** part of `make ci`.
-- Two official V1 BGE mixed n=500 runs on pin `9bee542` are **INTERNAL
-  unpublished** (run 1 388/500, run 2 384/500). Not identical. Not a README
-  number. Not Memory GA. Do not publish a single %. n=12 / n=60 remain
-  improvement baseline ≠ these V1 runs.
+- Hypotheses, eval results and the oracle JSON stay in gitignored `data/`;
+  do not commit them.
