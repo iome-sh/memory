@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // TTFH-shaped walking skeleton for the palace kernel.
 //
 // Ingest three RCA-shaped turns, retrieve in the same process, list facts-as-of,
