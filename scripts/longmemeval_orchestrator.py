@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """
 LongMemEval Orchestrator for github.com/iome-sh/memory
 

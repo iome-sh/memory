@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """LongMemEval slice helpers. Prefix --limit is temporal-heavy; mixed is stratified.
 
 Prefix-n is not overall V1. overlap ≠ gpt-4o ≠ V2 LAFS. Not Memory GA.

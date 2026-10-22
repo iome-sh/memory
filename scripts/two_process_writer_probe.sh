@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # two_process_writer_probe.sh — last-write-wins evidence on one palace root.
 #
 # Two concurrent compiled writers share BaseDir: distinct entry IDs plus one

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Official LongMemEval V1 mixed-run methodology card harness.
 #
 # Optional; not part of make ci. Missing oracle is SKIP (exit 0), not a CI failure.

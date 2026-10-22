@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """stdlib unittest for mixed-type LongMemEval slice (#58)."""
 
 from __future__ import annotations

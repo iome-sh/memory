@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Offline LongMemEval recall benchmark (no OpenAI).
 set -euo pipefail
 
