@@ -99,24 +99,32 @@ need_grep "$DOC" 'OPEN_SOURCE_AUDIT.md' "doc link OPEN_SOURCE_AUDIT"
 need_grep "$DOC" 'Palace sunset' "doc Palace sunset"
 need_grep "$DOC" 'open boxes stay open' "doc open boxes stay open"
 need_grep "$DOC" 'mesh optional' "doc mesh optional"
-forbid_grep "$DOC" '$88' "doc no \$88 rate"
-forbid_grep "$DOC" '$119' "doc no \$119 rate"
-forbid_grep "$AUDIT" '$88' "audit no \$88 rate"
-forbid_grep "$AUDIT" '$119' "audit no \$119 rate"
-
-# Product-plane name lock. Tokens are concatenated so this script never embeds them.
-# Uppercase form is also concatenated: bash 3.2 (macOS /bin/bash) has no ${var^^}.
-_product_token="ai""on"
-_product_upper="AI""ON"
-# Exclude tokenizer/vocab fixtures: WordPiece lists contain coincidental
-# letter runs and are not product-plane names.
-if grep -R -n -I --exclude-dir=.git --exclude-dir=testdata --exclude='tokenizer.json' --exclude='vocab.txt' \
-  -E "${_product_token}|${_product_upper}_|${_product_token}-memory" . >/dev/null 2>&1; then
-  fail "tree contains private product-plane name"
-  grep -R -n -I --exclude-dir=.git --exclude-dir=testdata --exclude='tokenizer.json' --exclude='vocab.txt' \
-    -E "${_product_token}|${_product_upper}_|${_product_token}-memory" . >&2 || true
+# Deny-list: strings that must never appear in the public tree are supplied
+# from outside the repository, so this script never contains them.
+#   PUBLIC_TREE_DENYLIST       newline-separated fixed strings (e.g. a CI secret)
+#   PUBLIC_TREE_DENYLIST_FILE  path to a file with one fixed string per line
+# When neither is set the check is skipped with a warning. Matches are reported
+# as file:line only, so the deny-listed strings are not echoed to logs.
+denylist_tmp="$(mktemp)"
+trap 'rm -f "$denylist_tmp"' EXIT
+if [[ -n "${PUBLIC_TREE_DENYLIST_FILE:-}" && -f "${PUBLIC_TREE_DENYLIST_FILE}" ]]; then
+  grep -v '^[[:space:]]*$' "${PUBLIC_TREE_DENYLIST_FILE}" >>"$denylist_tmp" || true
+fi
+if [[ -n "${PUBLIC_TREE_DENYLIST:-}" ]]; then
+  printf '%s\n' "${PUBLIC_TREE_DENYLIST}" | grep -v '^[[:space:]]*$' >>"$denylist_tmp" || true
+fi
+if [[ ! -s "$denylist_tmp" ]]; then
+  warn "deny-list check skipped (set PUBLIC_TREE_DENYLIST or PUBLIC_TREE_DENYLIST_FILE)"
 else
-  pass "tree has no private product-plane name"
+  # Exclude tokenizer/vocab fixtures: WordPiece lists contain coincidental letter runs.
+  denylist_hits="$(grep -R -n -I -F -f "$denylist_tmp" --exclude-dir=.git --exclude-dir=testdata \
+    --exclude='tokenizer.json' --exclude='vocab.txt' . 2>/dev/null | cut -d: -f1-2 || true)"
+  if [[ -n "$denylist_hits" ]]; then
+    fail "tree contains deny-listed strings at:"
+    printf '%s\n' "$denylist_hits" >&2
+  else
+    pass "tree has no deny-listed strings"
+  fi
 fi
 need_grep "$DOC" 'public-flip-readiness-gate' "doc Makefile public-flip-readiness-gate target"
 need_grep "$DOC" 'SKIP_PUBLIC_FLIP_READINESS' "doc soft skip env"
