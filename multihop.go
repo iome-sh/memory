@@ -26,7 +26,7 @@ type MultiHopOptions struct {
 	MaxHops int
 	// Limit default 20; applied AFTER expansion + entry collect + filters.
 	Limit int
-	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags (T1).
+	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags.
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
 	SessionIDs []string

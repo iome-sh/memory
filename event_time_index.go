@@ -20,7 +20,7 @@ const (
 )
 
 // durableEventTimeIndex is a best-effort on-disk snapshot of entryMeta
-// (K2 / #44). FS Palace JSON remains source of truth. A stamp of tier
+// (#44). FS Palace JSON remains source of truth. A stamp of tier
 // JSON count + max mtime detects staleness without parsing every file.
 type durableEventTimeIndex struct {
 	Version    int                `json:"version"`

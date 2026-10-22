@@ -9,7 +9,7 @@ import (
 // ListMemoryOptions configures event-time ordered listing with optional filters (K2 / s611).
 //
 // Filters are applied before Limit so windowed/session timelines do not underfill
-// when many out-of-scope entries exist (same underfill class as SearchMemoryWithOptions K1).
+// when many out-of-scope entries exist (same underfill class as SearchMemoryWithOptions).
 //
 // Complexity: FS Palace is source of truth. When the best-effort meta index is enabled
 // (default), ListMemoryWithOptions filters on lightweight entryMeta and loads full JSON
@@ -20,7 +20,7 @@ import (
 type ListMemoryOptions struct {
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
-	// conv:<id> tags match the same way as SearchMemoryWithOptions (T1).
+	// conv:<id> tags match the same way as SearchMemoryWithOptions.
 	SessionIDs []string
 	// TimeFrom / TimeTo filter by entry event time (see entryEventTime). Both inclusive when set.
 	TimeFrom *time.Time

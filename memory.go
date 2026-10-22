@@ -148,8 +148,8 @@ type PalaceConfig struct {
 	// Default false keeps the laptop contract (partial persist: a child
 	// Write error does not roll back the parent). Recover-on-open of leftover
 	// wal/pending runs even when this flag is false (cloud crash leftover).
-	// Intent log, not flock, not a multi-process lock. Not Memory GA.
-	// dual_write OFF. PersistEmbeddings default remains off.
+	// Intent log, not flock, not a multi-process lock.
+	// PersistEmbeddings default remains off.
 	TransactionalIngest bool
 }
 
@@ -668,7 +668,7 @@ func mergeKeywordHitsBeforeVector(scored []scoredMemoryEntry, keywordHits []Memo
 // time-window, as-of validity, and temporal re-ranking filters.
 type SearchMemoryOptions struct {
 	// SessionID, when non-empty, keeps entries whose SessionID matches or that
-	// carry tag conv:<SessionID> (T1: inner haystack sessions under one conv).
+	// carry tag conv:<SessionID> (inner haystack sessions under one conversation).
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
 	SessionIDs []string
@@ -680,7 +680,7 @@ type SearchMemoryOptions struct {
 	TimeFrom *time.Time
 	TimeTo   *time.Time
 	// AsOf, when non-nil, drops candidates where !EntryValidAt(e, *AsOf) before Limit
-	// (K4 facts-as-of / validity window; see EntryValidAt).
+	// (facts-as-of validity window; see EntryValidAt).
 	AsOf *time.Time
 	// Limit caps the result set (default 10 when <= 0).
 	Limit int
@@ -898,7 +898,7 @@ func (ps *PalaceStore) SearchMemoryWithOptions(query string, opts SearchMemoryOp
 		results = promoteTemporalEventEntries(results, query)
 	}
 	// Limit. Diversify distinct SessionIDs so one haystack session cannot
-	// fill every slot (T1). Single-session sets prefix Limit as before.
+	// fill every slot. Single-session sets prefix Limit as before.
 	if len(results) > limit {
 		results = diversifyBySession(results, limit)
 	}
@@ -1319,7 +1319,7 @@ func extractKeyphrases(text string) []string {
 // parent or earlier facts already written. A non-nil error does not mean nothing persisted.
 // When PalaceConfig.TransactionalIngest is true, parent and turn_fact children commit via
 // wal/pending (intent log + fsynced *.tmp-<turnID> + rename). Not all-or-nothing unless that
-// flag is on. Not flock. Not Memory GA. dual_write OFF.
+// flag is on. Not flock.
 func (ps *PalaceStore) IngestTurn(turn MemoryEntry) error {
 	if err := ps.ensureDirs(); err != nil {
 		return fmt.Errorf("ensure dirs failed: %w", err)
@@ -1422,7 +1422,7 @@ func collectTurnFacts(turn MemoryEntry) []MemoryEntry {
 				UsageCount:  1,
 			},
 		}
-		// K4 leftover: fact children participate in EntryValidAt without host tags.
+		// Fact children participate in EntryValidAt without host tags.
 		if !hasValidFromTag(factEntry) {
 			factEntry.TemporalTags = append(factEntry.TemporalTags, validFromTagPrefix+now.Format(time.RFC3339))
 		}
