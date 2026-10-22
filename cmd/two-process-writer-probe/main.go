@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // Two-process writer probe child: one PalaceStore process against a shared root.
 //
 // Multi-process writers remain unsupported. This binary is evidence collection
