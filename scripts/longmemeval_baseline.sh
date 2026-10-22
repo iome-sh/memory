@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Locked mixed n=12 LongMemEval baseline: hash vs MiniLM vs BAAI BGE-small-en-v1.5.
 #
 # Same question IDs, same reader (gpt-4o-mini), same judge (gpt-4o-2024-08-06),

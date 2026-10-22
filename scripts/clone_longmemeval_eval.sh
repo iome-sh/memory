@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Shallow clone LongMemEval evaluation scripts into third_party/LongMemEval.
 set -euo pipefail
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Run official LongMemEval evaluate_qa.py against generated hypotheses.
 # Usage: scripts/longmemeval_judge.sh gpt-4o-mini hypotheses.jsonl data/longmemeval_oracle.json
 #
