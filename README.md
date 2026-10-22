@@ -158,7 +158,7 @@ go run ./scripts/download_onnx_model.go
 export MEMORY_ONNX_MODEL_PATH="$(go run ./scripts/download_onnx_model.go)"
 ```
 
-`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face repo (404). The helper downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) with no login required. Layout: `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored). MiniLM is the in-tree 384-d fallback. Details: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md).
+`KnightsAnalytics/bge-small-en-v1.5` is not a published Hugging Face repo (404). The helper downloads public `BAAI/bge-small-en-v1.5` (`onnx/model.onnx`) with no login required. Layout: `testdata/models/BAAI_bge-small-en-v1.5/` (gitignored). MiniLM is the in-tree 384-d fallback. Details: [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md).
 
 ## Optional Qdrant
 
@@ -257,8 +257,6 @@ Methodology: [`docs/LONGMEMEVAL.md`](docs/LONGMEMEVAL.md). **No official number 
 make longmemeval-smoke
 make longmemeval-v1-card    # SKIP (exit 0) if the oracle file is missing; not part of make ci
 ```
-
-Locked mixed slices and auth notes: [`docs/LONGMEMEVAL_BASELINE.md`](docs/LONGMEMEVAL_BASELINE.md).
 
 ## Documentation
 
