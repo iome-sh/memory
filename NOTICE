@@ -5,8 +5,7 @@ This product is licensed under the MIT License — see LICENSE.
 Website: https://iome.sh
 
 This repository is the **local-primary hierarchical agent memory kernel**
-(`github.com/iome-sh/memory`). It is **not** product Memory GA, not a hosted
-Palace service, and not the mesh broker / control plane.
+(`github.com/iome-sh/memory`). It is a library, not a hosted service.
 
 Third-party acknowledgements
 ---------------------------
