@@ -1,5 +1,5 @@
 # CI for github.com/iome-sh/memory (Palace kernel).
-# Required gate: lint · test · build · govulncheck · ci-success.
+# Required gate: lint · test · build (incl. longmemeval-server boot smoke) · govulncheck · ci-success.
 # Heavy LongMemEval/ONNX remain optional (workflow_dispatch only).
 name: ci
 
@@ -115,6 +115,11 @@ jobs:
           go build ./...
           go build -o /tmp/longmemeval-bench ./cmd/longmemeval-bench
           go build -o /tmp/longmemeval-server ./cmd/longmemeval-server
+
+      # Boot smoke: hash embeddings, no Qdrant. Red if the binary exits or
+      # GET /health is not 200 within 30s.
+      - name: longmemeval-server boot smoke
+        run: bash scripts/longmemeval_server_boot_smoke.sh /tmp/longmemeval-server
 
   govulncheck:
     name: govulncheck
