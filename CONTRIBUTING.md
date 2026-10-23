@@ -6,8 +6,8 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality and 
 
 - **Local-primary memory kernel** — hierarchical Palace FS, hybrid search, temporal lite, optional Qdrant, optional ONNX embeddings  
 - **Library kernel** — inspectable local filesystem palace, not a hosted Memory product  
-- Hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
-- Public MCP host: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
+- No hosted Palace service; mesh integration is optional and lives in host tools  
+- Public MCP host: **`iomesh-memory-mcp`**  
 
 This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. The maintainer process residual ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md)) is **not** an operator how-to — the visibility flip is already complete.
 
@@ -73,9 +73,8 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 ## Scope (do not regress)
 
 - Library kernel on a local filesystem palace  
-- Hosted Palace sunset · mesh optional  
-- Residual PASS ≠ live dogfood  
-- Residual PASS ≠ public flip  
+- No hosted Palace service · mesh optional  
+- A passing test or check is not a claim of production readiness  
 - Public MCP host: **iomesh-memory-mcp**  
 
 ## Issues & discussions
@@ -86,7 +85,7 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 
 ## Public repository policy
 
-This policy is **in force** for this **public** MIT repository (flip complete). Keep private program material out of the tree and PR surface:
+This policy applies to this **public** MIT repository. Keep internal material out of the tree and PR surface:
 
 - Do **not** put internal tracking identifiers in PR titles, commit subjects, or CHANGELOG  
 - Do **not** reference private monorepos (control-plane / broker), internal pending-todos paths, or unpublished stage URLs  
