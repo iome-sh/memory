@@ -3,7 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -69,106 +69,128 @@ func TestVectorStore_EnabledFalsePaths(t *testing.T) {
 	_ = vs.CreateBatchSparseCollections([]string{"c1", "c2"})
 }
 
-// startTemporaryQdrant starts a temporary Qdrant instance using Podman.
-// It returns the connection URL (gRPC preferred) and a cleanup function.
-// The test is skipped if Podman is not available or the container fails to start.
-// This enables real integration tests for VectorStore when the environment supports it.
-func startTemporaryQdrant(t *testing.T) (url string, cleanup func()) {
+// envQdrantTestURL points the Qdrant integration test at an already running
+// Qdrant (gRPC, e.g. http://localhost:6334), such as a CI service container.
+// When it is set, an unreachable or unready Qdrant fails the test instead of
+// skipping it.
+const envQdrantTestURL = "MEMORY_QDRANT_TEST_URL"
+
+// qdrantUnavailable skips the test, or fails it when envQdrantTestURL is set.
+func qdrantUnavailable(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if os.Getenv(envQdrantTestURL) != "" {
+		t.Fatalf(format+" (%s is set, so this is a failure, not a skip)", append(args, envQdrantTestURL)...)
+	}
+	t.Skipf(format, args...)
+}
+
+// waitQdrantReady polls the gRPC health check until it answers or the timeout passes.
+func waitQdrantReady(rawURL string, timeout time.Duration) error {
+	vs := NewVectorStore(rawURL, "readiness")
+	if !vs.Enabled {
+		return fmt.Errorf("could not create Qdrant client for %s", rawURL)
+	}
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_, lastErr = vs.Client.HealthCheck(ctx)
+		cancel()
+		if lastErr == nil {
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return fmt.Errorf("qdrant at %s not ready after %s: %v", rawURL, timeout, lastErr)
+}
+
+// startTemporaryQdrant returns a gRPC URL for a Qdrant instance. It uses
+// envQdrantTestURL when set; otherwise it starts a temporary Podman container
+// (REST on 6333, gRPC on 6334) and skips if Podman is unavailable.
+func startTemporaryQdrant(t *testing.T) string {
 	t.Helper()
 
+	if external := os.Getenv(envQdrantTestURL); external != "" {
+		if err := waitQdrantReady(external, 45*time.Second); err != nil {
+			qdrantUnavailable(t, "%v", err)
+		}
+		return external
+	}
+
 	if _, err := exec.LookPath("podman"); err != nil {
-		t.Skip("podman not found in PATH - skipping temporary Qdrant integration test")
+		qdrantUnavailable(t, "podman not found in PATH and %s unset - skipping Qdrant integration test", envQdrantTestURL)
 	}
 
 	containerName := fmt.Sprintf("test-qdrant-%d", time.Now().UnixNano())
-
-	// Start Qdrant container (REST on 6333, gRPC on 6334)
 	cmd := exec.Command("podman", "run", "-d", "--rm",
 		"--name", containerName,
 		"-p", "6333:6333",
 		"-p", "6334:6334",
-		"qdrant/qdrant")
-
+		"qdrant/qdrant:v1.19.2")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Skipf("failed to start temporary Qdrant container (environment issue, e.g. overlay mount): %v\n%s\nSkipping integration test.", err, output)
-		return "", nil
+		qdrantUnavailable(t, "failed to start temporary Qdrant container: %v\n%s", err, output)
 	}
+	t.Cleanup(func() { _ = exec.Command("podman", "rm", "-f", containerName).Run() })
 
-	url = "http://localhost:6334" // gRPC endpoint (Qdrant client uses this)
-
-	// Wait for Qdrant to become ready (poll REST health)
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	restURL := "http://localhost:6333/collections"
-	ready := false
-	for {
-		select {
-		case <-ctx.Done():
-			t.Skip("timed out waiting for temporary Qdrant to become ready - skipping")
-			return "", nil
-		default:
-		}
-
-		resp, err := http.Get(restURL)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				ready = true
-				break
-			}
-		}
-
-		time.Sleep(500 * time.Millisecond)
+	url := "http://localhost:6334"
+	if err := waitQdrantReady(url, 45*time.Second); err != nil {
+		qdrantUnavailable(t, "%v", err)
 	}
-
-	if !ready {
-		t.Skip("Qdrant container started but never became ready - skipping")
-		return "", nil
-	}
-
-	cleanup = func() {
-		exec.Command("podman", "rm", "-f", containerName).Run()
-	}
-
-	t.Cleanup(cleanup)
-	return url, cleanup
+	return url
 }
 
 // TestVectorStore_WithTemporaryQdrant runs integration tests against a real
-// temporary Qdrant instance started via Podman (when available).
+// Qdrant: the one named by MEMORY_QDRANT_TEST_URL, or a temporary Podman container.
 func TestVectorStore_WithTemporaryQdrant(t *testing.T) {
-	qdrantURL, cleanup := startTemporaryQdrant(t)
-	if qdrantURL == "" || cleanup == nil {
-		return // skipped inside startTemporaryQdrant
-	}
-	defer cleanup()
+	qdrantURL := startTemporaryQdrant(t)
 
-	vs := NewVectorStore(qdrantURL, "test_integration_collection")
+	collection := fmt.Sprintf("test_integration_%d", time.Now().UnixNano())
+	vs := NewVectorStore(qdrantURL, collection)
 	if !vs.Enabled {
-		t.Fatal("expected VectorStore to be enabled when connecting to temporary Qdrant")
+		t.Fatal("expected VectorStore to be enabled when connecting to Qdrant")
 	}
-
-	// Basic smoke test
 	if err := vs.CreateCollection(768); err != nil {
-		t.Fatalf("CreateCollection failed against temporary Qdrant: %v", err)
+		t.Fatalf("CreateCollection failed: %v", err)
+	}
+	t.Cleanup(func() { _ = vs.Client.DeleteCollection(context.Background(), collection) })
+
+	// Qdrant point IDs must be UUIDs.
+	seeds := []struct{ id, text string }{
+		{"550e8400-e29b-41d4-a716-446655440000", "integration test vector for qdrant"},
+		{"550e8400-e29b-41d4-a716-446655440001", "the user moved to Lisbon in March"},
+		{"550e8400-e29b-41d4-a716-446655440002", "favourite colour is green"},
+	}
+	for _, s := range seeds {
+		vec := GenerateSimpleEmbedding(s.text, 768)
+		if err := vs.StoreVector(s.id, vec, map[string]interface{}{"text": s.text}); err != nil {
+			t.Fatalf("StoreVector(%s) failed: %v", s.id, err)
+		}
 	}
 
-	// Use a valid UUID because the Qdrant client expects UUID-formatted point IDs
-	id := "550e8400-e29b-41d4-a716-446655440000"
-
-	// Use GenerateSimpleEmbedding to get a proper 768-dimensional vector
-	vec := GenerateSimpleEmbedding("integration test vector for qdrant", 768)
-
-	if err := vs.StoreVector(id, vec, map[string]interface{}{"type": "test"}); err != nil {
-		t.Fatalf("StoreVector failed: %v", err)
-	}
-
-	results, err := vs.SearchSimilar(vec, 5, nil, true)
-	if err != nil {
-		t.Fatalf("SearchSimilar failed: %v", err)
-	}
-	if len(results) == 0 {
-		t.Error("expected at least one result from SearchSimilar")
+	// Each seed's own vector must come back as the top hit with its payload.
+	for _, want := range seeds {
+		query := GenerateSimpleEmbedding(want.text, 768)
+		var results []SearchResult
+		var err error
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			results, err = vs.SearchSimilar(query, len(seeds), nil, true)
+			if err != nil {
+				t.Fatalf("SearchSimilar failed: %v", err)
+			}
+			if len(results) == len(seeds) || time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		if len(results) != len(seeds) {
+			t.Fatalf("SearchSimilar returned %d results, want %d", len(results), len(seeds))
+		}
+		if results[0].ID != want.id {
+			t.Errorf("top hit for %q = %s, want %s", want.text, results[0].ID, want.id)
+		}
+		if got := results[0].Payload["text"]; got != want.text {
+			t.Errorf("top hit payload text = %v, want %q", got, want.text)
+		}
 	}
 }

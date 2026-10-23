@@ -1,5 +1,5 @@
 # CI for github.com/iome-sh/memory (Palace kernel).
-# Required gate: lint · test · build · govulncheck · ci-success.
+# Required gate: lint · test · qdrant-integration · build · govulncheck · ci-success.
 # Heavy LongMemEval/ONNX remain optional (workflow_dispatch only).
 name: ci
 
@@ -96,6 +96,43 @@ jobs:
       - name: go test -race
         run: go test ./... -race -count=1 -timeout=15m
 
+  # Qdrant integration test against a pinned service container. Red if the
+  # test fails, is skipped, or does not run.
+  qdrant-integration:
+    name: qdrant-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.2 # matches github.com/qdrant/go-client v1.19.x
+        ports:
+          - 6333:6333
+          - 6334:6334
+    env:
+      MEMORY_QDRANT_TEST_URL: http://localhost:6334
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go test (Qdrant integration)
+        run: |
+          set -o pipefail
+          go test . -run '^TestVectorStore_WithTemporaryQdrant$' -v -count=1 -timeout=5m 2>&1 | tee /tmp/qdrant-test.log
+          if grep -q -- '--- SKIP' /tmp/qdrant-test.log; then
+            echo "::error::Qdrant integration test was skipped in CI"
+            exit 1
+          fi
+          if ! grep -q -- '--- PASS: TestVectorStore_WithTemporaryQdrant' /tmp/qdrant-test.log; then
+            echo "::error::Qdrant integration test did not run"
+            exit 1
+          fi
+
   build:
     name: build
     runs-on: ubuntu-latest
@@ -140,18 +177,20 @@ jobs:
   ci-success:
     name: ci-success
     if: always()
-    needs: [lint, test, build, govulncheck]
+    needs: [lint, test, qdrant-integration, build, govulncheck]
     runs-on: ubuntu-latest
     steps:
       - name: Check job results
         run: |
           echo "lint=${{ needs.lint.result }}"
           echo "test=${{ needs.test.result }}"
+          echo "qdrant-integration=${{ needs.qdrant-integration.result }}"
           echo "build=${{ needs.build.result }}"
           echo "govulncheck=${{ needs.govulncheck.result }}"
           for r in \
             "${{ needs.lint.result }}" \
             "${{ needs.test.result }}" \
+            "${{ needs.qdrant-integration.result }}" \
             "${{ needs.build.result }}" \
             "${{ needs.govulncheck.result }}"
           do
