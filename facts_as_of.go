@@ -99,7 +99,7 @@ type FactsAsOfOptions struct {
 	AsOf time.Time
 	// Query optional case-insensitive substring on Summary / Full / OriginalText.
 	Query string
-	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags (T1).
+	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags.
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
 	SessionIDs []string
@@ -235,7 +235,7 @@ func (ps *PalaceStore) listFactsAsOfViaIndex(opts FactsAsOfOptions, asOf time.Ti
 }
 
 // ListFactsAsOf lists entries valid at AsOf with optional filters.
-// Filters apply before Limit (underfill class, same as K1/K2).
+// Filters apply before Limit so filtered-out entries do not underfill results.
 //
 // Order of operations: collect candidates → session → tag → entity → query →
 // EntryValidAt(asOf) → sort (Semantic first, then event time desc) → limit.
@@ -247,7 +247,7 @@ func (ps *PalaceStore) listFactsAsOfViaIndex(opts FactsAsOfOptions, asOf time.Ti
 // temporal entity match run on entryMeta before load (no Limit). Entity and
 // EntryValidAt still run after load. DisableMetaIndex keeps the O(n)
 // ListEntriesInTier walk. Bi-temporal lite (validity window tags). Not full
-// Graphiti dual clocks + graph. Not Memory GA.
+// Graphiti dual clocks + graph.
 func (ps *PalaceStore) ListFactsAsOf(opts FactsAsOfOptions) []MemoryEntry {
 	limit := opts.Limit
 	if limit <= 0 {

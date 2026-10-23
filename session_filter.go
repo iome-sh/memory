@@ -9,7 +9,7 @@ import (
 )
 
 // ConvTagPrefix groups haystack sessions that belong to one conversation/palace
-// retrieve key (T1). Retrieve with SessionID=conv_id matches entries tagged
+// retrieve key. Retrieve with SessionID=conv_id matches entries tagged
 // conv:<conv_id> even when MemoryEntry.SessionID is the inner haystack session.
 const ConvTagPrefix = "conv:"
 
@@ -112,7 +112,7 @@ func isFactEntry(e MemoryEntry) bool {
 }
 
 // promoteFactEntries puts turn_fact / fact_augmented children first so count
-// questions see extracted facts before haystack chatter (T1 assembly).
+// questions see extracted facts before haystack chatter.
 func promoteFactEntries(results []MemoryEntry) []MemoryEntry {
 	return promoteFactEntriesForQuery(results, "")
 }
@@ -1540,7 +1540,7 @@ func clauseMatchesAction(clause, action string) bool {
 }
 
 // diversifyBySession round-robins distinct SessionID groups before Limit so
-// filler from one haystack session cannot occupy every slot (T1).
+// filler from one haystack session cannot occupy every slot.
 // Single-session result sets are unchanged (prefix Limit).
 func diversifyBySession(entries []MemoryEntry, limit int) []MemoryEntry {
 	if limit <= 0 || len(entries) <= limit {

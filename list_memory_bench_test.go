@@ -7,7 +7,7 @@ import (
 )
 
 // listBenchN is large enough to see meta-index vs O(n) scan, small enough
-// for a local `go test -bench` run. T2 btree / tag secondaries stay gated
+// for a local `go test -bench` run. B-tree / tag secondary indexes wait
 // until this bench shows list rebuild cost.
 const listBenchN = 200
 
@@ -158,7 +158,7 @@ func BenchmarkSearchMemoryWithOptions_CountQuery(b *testing.B) {
 }
 
 // BenchmarkListMemoryWithOptions_RebuildAndN2000 is optional scale/rebuild
-// evidence for the T2 btree gate. go test without -bench does not run it.
+// evidence for a future B-tree index. go test without -bench does not run it.
 func BenchmarkListMemoryWithOptions_RebuildAndN2000(b *testing.B) {
 	opts := listBenchSessionTimeOpts()
 	b.Run("N200_RebuildEach", func(b *testing.B) {

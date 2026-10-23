@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// No mesh bind, no dual-write path. These tests stamp local ingest provenance only.
+// No mesh bind, no remote write path. These tests stamp local ingest provenance only.
 
 func TestClassifyIngestSourceHint(t *testing.T) {
 	t.Parallel()

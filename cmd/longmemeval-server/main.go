@@ -533,7 +533,7 @@ func classifyTemporalIntent(query string) (bool, time.Time, time.Time) {
 	q := strings.ToLower(query)
 	now := time.Now()
 
-	// Count / how-many questions are not calendar windows (T1).
+	// Count / how-many questions are not calendar windows.
 	if strings.Contains(q, "how many") || strings.Contains(q, "how much") {
 		return false, time.Time{}, time.Time{}
 	}
