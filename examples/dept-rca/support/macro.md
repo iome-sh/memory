@@ -2,7 +2,7 @@
 
 Title: Unused-seat refund — 14-day policy
 
-Private overlay fixture. Do not invent Connected.
+Private overlay fixture. Not a live integration.
 
 ## Agent reply
 
