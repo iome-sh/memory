@@ -2,7 +2,6 @@
 	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-v2-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
 	longmemeval-v1-card longmemeval-baseline two-process-writer-probe \
-	public-flip-readiness-gate \
 	clean
 
 COVER ?= coverage.out
@@ -47,12 +46,6 @@ check: fmt-check vet test
 # Mirrors GitHub Actions required gate (fmt + vet + test + vuln + build).
 # Race/cover are optional locally (CGO/Qdrant soft paths); CI may run race on pure packages later.
 ci: fmt-check vet test vuln build
-
-# Optional offline readiness script (not part of make ci).
-# Soft skip: SKIP_PUBLIC_FLIP_READINESS=1
-# Pin: public MIT · residual PASS ≠ public flip · kernel first · private control-plane / broker stays private.
-public-flip-readiness-gate:
-	bash scripts/public_flip_readiness_gate.sh
 
 test-onnx:
 	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
