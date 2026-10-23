@@ -1,0 +1,92 @@
+# Scans the tree and pull request text for strings that must not be published,
+# and validates the issue templates.
+#
+# The pattern list comes from the LEAK_SCAN_PATTERNS repository secret, so it
+# never appears in the tree. When the secret is not available (not configured,
+# or a pull request from a fork), the pattern-scan job is skipped and reported
+# as not run. It is never reported as a pass.
+name: leak-scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+    branches: [main]
+  push:
+    branches: [main]
+  merge_group:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leak-scan-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  issue-templates:
+    name: issue-templates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PyYAML (hash-pinned)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet --require-hashes --only-binary=:all: \
+            -r .github/scripts/requirements-ci.txt
+
+      - name: Validate issue templates
+        run: '"$RUNNER_TEMP/venv/bin/python" .github/scripts/check_issue_templates.py'
+
+  pattern-config:
+    name: pattern-config
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check for the pattern secret
+        id: check
+        env:
+          HAS_PATTERNS: ${{ secrets.LEAK_SCAN_PATTERNS != '' }}
+        run: |
+          if [ "$HAS_PATTERNS" = "true" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Pattern secret LEAK_SCAN_PATTERNS is configured; pattern-scan will run." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            msg="Pattern scan NOT RUN: the LEAK_SCAN_PATTERNS secret is not configured or not available to this run (for example a pull request from a fork). This is not a pass."
+            echo "::notice title=leak-scan skipped::${msg}"
+            {
+              echo "### leak-scan: pattern scan not run"
+              echo ""
+              echo "${msg}"
+              echo ""
+              echo "A repository admin must add the \`LEAK_SCAN_PATTERNS\` Actions secret for the scan to run."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  pattern-scan:
+    name: pattern-scan
+    needs: pattern-config
+    if: needs.pattern-config.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Scan tree and pull request text
+        env:
+          LEAK_SCAN_PATTERNS: ${{ secrets.LEAK_SCAN_PATTERNS }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: bash .github/scripts/leak_scan.sh
