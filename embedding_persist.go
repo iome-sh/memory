@@ -6,7 +6,7 @@ import (
 
 // isHashEmbeddingModel reports whether model is the hash/default embedder.
 // Empty and "hash" (any case, trimmed) are hash. Detection is by this string
-// only — EmbeddingFunc pointer identity is not compared (kernel #45).
+// only — EmbeddingFunc pointer identity is not compared.
 func isHashEmbeddingModel(model string) bool {
 	m := strings.TrimSpace(model)
 	return m == "" || strings.EqualFold(m, "hash")

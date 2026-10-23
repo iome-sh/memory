@@ -8,8 +8,7 @@ import (
 )
 
 // MultiHopOptions configures associative / multi-hop lite retrieval over the
-// EntityGraph plus entry entity tags (A2 first slice / s619; hop ranking s1067;
-// residual pin s1278).
+// EntityGraph plus entry entity tags, with hop-distance ranking.
 //
 // BFS over GetRelatedEntities and entry collect via TemporalTags / Content.Tags /
 // RelatedConcepts. Not a full Zep / Graphiti knowledge graph. Hop-distance ranking
@@ -26,7 +25,7 @@ type MultiHopOptions struct {
 	MaxHops int
 	// Limit default 20; applied AFTER expansion + entry collect + filters.
 	Limit int
-	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags (T1).
+	// SessionID, when non-empty, keeps matching SessionID or conv:<SessionID> tags.
 	SessionID string
 	// SessionIDs, when non-empty, is an any-of filter (union with SessionID).
 	SessionIDs []string
@@ -279,7 +278,7 @@ func entryMinHop(e MemoryEntry, entityHops map[string]int) int {
 //
 // Default MaxHops=2 (clamped 1..4), Limit=20. Default tiers: Working +
 // Contextual + Semantic (+ Archival if IncludeArchival).
-// PreferShorterHops defaults true (path-aware ranking lite / s1067).
+// PreferShorterHops defaults true (path-aware ranking).
 func (ps *PalaceStore) MultiHopRetrieve(opts MultiHopOptions) []MemoryEntry {
 	maxHops := opts.MaxHops
 	if maxHops <= 0 {

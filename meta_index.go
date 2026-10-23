@@ -9,7 +9,7 @@ import (
 )
 
 // entryMeta is a lightweight in-memory record for ListMemoryWithOptions filtering
-// without re-loading full MemoryEntry JSON for every candidate (K2 / s1066).
+// without re-loading full MemoryEntry JSON for every candidate.
 //
 // FS Palace remains the source of truth. Write/unlink patches a clean index in
 // place; a dirty/missing index rebuilds lazily. Correctness must match the

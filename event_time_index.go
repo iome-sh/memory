@@ -20,7 +20,7 @@ const (
 )
 
 // durableEventTimeIndex is a best-effort on-disk snapshot of entryMeta
-// (K2 / #44). FS Palace JSON remains source of truth. A stamp of tier
+// for faster listing. FS Palace JSON remains source of truth. A stamp of tier
 // JSON count + max mtime detects staleness without parsing every file.
 type durableEventTimeIndex struct {
 	Version    int                `json:"version"`
@@ -183,7 +183,7 @@ func (ps *PalaceStore) persistDurableMetaLocked() {
 	if err != nil {
 		return
 	}
-	// Caller holds metaMu. writeMu serializes with entity-graph rewrites (#86).
+	// Caller holds metaMu. writeMu serializes with entity-graph rewrites.
 	ps.writeMu.Lock()
 	defer ps.writeMu.Unlock()
 	_ = palaceWriteFileAtomic(dir, ps.eventTimeIndexPath(), ".tmp-event-time-*.json", data)

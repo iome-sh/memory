@@ -28,7 +28,7 @@ type CompactionConfig struct {
 	// H-Mem inspired
 	TemporalWindowSize  int     `json:"temporal_window_size"` // beta-like (e.g. cycles or months)
 	SimilarityThreshold float64 `json:"similarity_threshold"` // alpha
-	// RecMem phase-transition (Phase 1)
+	// RecMem phase-transition
 	DataSim   float64 `json:"data_sim"`   // geometric similarity radius (default 0.7)
 	DataCount int     `json:"data_count"` // critical recurrence count (default 5)
 	// LongMemEval production hardening
