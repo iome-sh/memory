@@ -9,7 +9,7 @@ Thanks for helping improve **memory** (Palace kernel). Please treat quality and 
 - Hosted Palace **sunset** until scale; mesh optional via public TUI / ops packs  
 - Public MCP host: **`iomesh-memory-mcp`**; private control-plane / broker stays private  
 
-This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module. The maintainer process residual ([docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md)) is **not** an operator how-to — the visibility flip is already complete.
+This repository is **public** (MIT). Use normal public GitHub workflows. Do **not** set `GOPRIVATE=github.com/iome-sh/*` for this module.
 
 ## Development setup
 
