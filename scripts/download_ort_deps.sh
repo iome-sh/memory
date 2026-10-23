@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Download hugot ORT + libtokenizers.a for the current OS/arch (dev/prod prefetch).
 # Pins ONNXRUNTIME_VERSION to hugot v0.7.3 (1.25.1).
 #

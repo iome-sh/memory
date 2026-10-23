@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Download official LongMemEval cleaned datasets into data/.
 set -euo pipefail
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // Download the default KnightsAnalytics bge-small-en-v1.5 ONNX model for local Palace recall.
 //
 // Hugging Face KnightsAnalytics/bge-small-en-v1.5 401/404 is expected (repo

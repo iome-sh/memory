@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Full LongMemEval pipeline: dataset download, offline recall bench, optional QA+judge.
 set -euo pipefail
 
