@@ -87,10 +87,10 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md). **Do not op
 
 This policy applies to this **public** MIT repository. Keep internal material out of the tree and PR surface:
 
-- Do **not** put private SR&ED / program ledger serials (`s###`) in PR titles, commit subjects, or CHANGELOG  
+- Do **not** put internal tracking identifiers in PR titles, commit subjects, or CHANGELOG  
 - Do **not** reference private monorepos (control-plane / broker), internal pending-todos paths, or unpublished stage URLs  
 - Prefer public names: **`github.com/iome-sh/memory`** and product host **`iomesh-memory-mcp`**  
-- Continuum serials in historical residual docs may remain; strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
+- Internal identifiers in historical docs may remain; strip them from the **forward** PR surface (titles, commit subjects, CHANGELOG). Do not rewrite published history lightly.  
 - Do **not** invent a freemium hosted Palace SLA  
 - Binary/package names operators actually run (e.g. **iomesh-memory-mcp**) may appear when documenting install/wire-up; do **not** document “clone the private monorepo” build paths  
 
@@ -101,7 +101,7 @@ This policy applies to this **public** MIT repository. Keep internal material ou
 - Ensure CI is green — aggregate status check **`ci-success`**  
 - Do not commit palace data, API keys, `.env`, secrets, or real user memory  
 - Update [CHANGELOG.md](CHANGELOG.md) **Unreleased** for user-visible API changes  
-- Follow **Public repository policy** above (no private ledger serials or monorepo paths on the forward PR surface)  
+- Follow **Public repository policy** above (no internal tracking identifiers or monorepo paths on the forward PR surface)  
 
 ### CI on PR and merge
 
