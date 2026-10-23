@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 # Print shell exports for CGO ORT builds. Usage: eval "$(./scripts/ort_cgo_env.sh)"
 set -euo pipefail
 
