@@ -44,8 +44,8 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 - **Local FS palace is user data** — encryption at rest, backup, and access control are operator responsibilities. New palace dirs are created `0700` and kernel-written files `0600`; pre-existing trees are not retroactively chmod'd. Mode bits are not encryption at rest.  
 - **Shared palace root ≠ multi-tenant security** — do not assume file layout isolates customers. Supported topology is **one host process per palace root**. In-process `writeMu` serializes `entity-graph.json` / `event-time.json` rewrites; multi-process writers to the same root remain unsupported (not flock, not cloud isolation). Probe script exists; flock is not shipped. `PalaceConfig.TransactionalIngest` is a crash-safety intent log for one writer (`wal/pending`), not a multi-process lock.  
 - **Optional embeddings load models** — model supply chain and native ORT/CUDA stacks are out of band of the pure-Go default path. Stored vectors are optional (`PersistEmbeddings` default off); hash embeddings are never persisted as `QueryVec` / stored vectors.  
-- **Library kernel** — hosted Palace remains sunset until deliberate scale; mesh is optional via TUI/ops packs.  
-- **No mesh org header** — organization isolation for the I/O Mesh broker is a separate HTTP header (`X-IOMesh-Org`) on mesh clients; this library does not implement that. The public MCP host is **`iomesh-memory-mcp`**.  
+- **Library kernel** — this module is a library, not a hosted service; mesh integration is optional and lives in host tools.  
+- **No mesh org header** — organization isolation for I/O Mesh is a separate HTTP header (`X-IOMesh-Org`) on mesh clients; this library does not implement that. The public MCP host is **`iomesh-memory-mcp`**.  
 
 ### What this is *not*
 
@@ -61,7 +61,7 @@ We aim to acknowledge reports within **72 hours** and provide a remediation time
 3. Download models only from sources you trust; pin paths via `MEMORY_ONNX_MODEL_PATH`  
 4. Do not commit palace contents, `.env`, or API keys  
 5. Scope Qdrant endpoints to private networks when used  
-6. Judge shipped-vs-residual claims from the library API and this file  
+6. Judge what is shipped from the library API and this file  
 
 ## Dependency security
 

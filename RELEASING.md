@@ -13,7 +13,7 @@ Consumers: `go get github.com/iome-sh/memory@vX.Y.Z` (module proxy). This is a *
 |---------|------|----------|
 | New exported API surface (search/list/multihop/supersession/…) | **minor** or **patch** within `v1.5.x` as appropriate | `ListFactsAsOf`, `MultiHopRetrieve` options |
 | Breaking exported API (document clearly) | **minor** (pre-stability policy) or **major** | Rename/remove public funcs |
-| Docs-only / residual pins | usually **no** tag | Ops residual gates, OSS process docs |
+| Docs-only changes | usually **no** tag | README, guides, process docs |
 | Security fix on latest line | **patch** (`v1.5.y`) | CVE follow-up |
 
 Checklist items that must move with the tag:
@@ -115,7 +115,6 @@ Reporting: private Security Advisory or **security@iome.sh** — see [SECURITY.m
 | Non-claim | Meaning |
 |-----------|---------|
 | docs ≠ invent **forever-green signed releases** | Tags + `go get` / `go.sum` / proxy; no invent cosign-on-library or always-green peer GoReleaser |
-| docs ≠ invent **live dogfood** | No invent operator dogfood green from docs |
 | Docs-only change | **No release tag invented** by documentation |
 
 ## Artifacts
@@ -150,7 +149,7 @@ How library consumers verify releases, and how this module peers with binary hos
 | Primary artifact | Annotated semver **git tag** (`vX.Y.Z`) on `main` | GitHub Release archives from **GoReleaser** on `v*` tags |
 | Consumer install | `go get github.com/iome-sh/memory@vX.Y.Z` (or `@main`) | `go install …@vX.Y.Z` and/or downloaded release binaries |
 | Integrity / “signing” | Go module graph: **`go.sum`** + public module **proxy checksum database** (sum.golang.org) when fetching via the default proxy | **checksums.txt** + per-archive **SPDX SBOM** + **keyless cosign** (`cosign sign-blob` via GitHub OIDC / Fulcio) on tag releases |
-| Cosign on this package | **N/A** — no library binary to sign; do **not** invent cosign green here | Documented in each peer’s `RELEASING.md` (do **not** invent those releases forever-green from this residual) |
+| Cosign on this package | **N/A** — no library binary to sign; do **not** invent cosign green here | Documented in each peer’s `RELEASING.md` (this document makes no claim about those releases) |
 | SBOM / GoReleaser | **N/A** for the module surface | Peer GoReleaser + syft SBOM (peers own greenness) |
 | Optional notes-only release | `gh release create` from CHANGELOG (no binary assets required) | GoReleaser publishes assets; notes optional |
 | Visibility / license | **Public** MIT | Peers public MIT |
@@ -187,4 +186,4 @@ Binary edge hosts that *consume* this library ship their **own** release packagi
 | docs ≠ invent **signed forever-green releases** | Neither this module’s tags nor peer GoReleaser runs are invented green |
 | Public MIT | Visibility already **public**; docs ≠ re-flip |
 
-Tags describe the **kernel library**. This is a local filesystem library. Hosted Palace sunset lives outside this module. **Public MIT** · open boxes stay open · docs invent **no** release tag.
+Tags describe the **kernel library**. This is a local filesystem library. **Public MIT** · documentation changes do not create a release tag.

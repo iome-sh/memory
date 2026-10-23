@@ -20,9 +20,9 @@ This repository supports the **Go module** surface:
 
 - Package API: store, search, temporal helpers, multi-hop, optional embeddings/vectors  
 - Install via `go get github.com/iome-sh/memory@vX.Y.Z`  
-- Docs and residual pins under `docs/`
+- Docs under `docs/`
 
-It does **not** support hosted multitenant Memory or private control-plane brokers from this tracker alone.
+It does **not** support hosted multitenant Memory or other hosted services from this tracker.
 
 ## Related host — iomesh-memory-mcp
 
@@ -47,14 +47,13 @@ Production consumers should **pin semver tags** in `go.mod` (not only `@main`). 
 - Hosted Palace / multitenant cloud Memory onboarding or uptime guarantees  
 - Forever-green signed binary release guarantees (this is a library; binary peers own their packaging)  
 - Guarantees about third-party Qdrant, ONNX Runtime, or model-hub availability  
-- Private monorepo broker / control-plane support via this package  
 
 ## Before filing an issue
 
 1. Run `make check` or note CI failures  
 2. Redact API keys, palace contents, and private paths from logs  
 3. Include module version (`go list -m github.com/iome-sh/memory`) or commit SHA and OS  
-4. Confirm the report is about the **kernel API** — not hosted Memory or a private control-plane  
+4. Confirm the report is about the **kernel API** — not hosted Memory or another service  
 5. Prefer a **pinned tag** in the report when the bug is version-specific  
 
 Full version window: [RELEASING.md](RELEASING.md) · security matrix: [SECURITY.md](SECURITY.md).
