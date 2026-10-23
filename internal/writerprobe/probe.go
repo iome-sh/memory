@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // Package writerprobe is last-write-wins evidence for two OS processes on one
 // palace root. Multi-process writers remain unsupported. Not a lock, not flock,
 // not tenancy.
