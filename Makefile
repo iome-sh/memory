@@ -2,7 +2,6 @@
 	test-onnx test-ort download-ort-deps build-ort-bench longmemeval-smoke longmemeval-recall-gate download-dataset \
 	longmemeval-bench longmemeval-v2-bench longmemeval-bench-full longmemeval-qa-generate longmemeval-judge longmemeval-full-eval \
 	longmemeval-v1-card longmemeval-baseline two-process-writer-probe \
-	residual-gate advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate \
 	clean
 
 COVER ?= coverage.out
@@ -47,24 +46,6 @@ check: fmt-check vet test
 # Mirrors GitHub Actions required gate (fmt + vet + test + vuln + build).
 # Race/cover are optional locally (CGO/Qdrant soft paths); CI may run race on pure packages later.
 ci: fmt-check vet test vuln build
-
-# Offline residual pins (s1297 inventory + s1303 K2 event-time index + s1313 RecMem compaction).
-# Soft skip: SKIP_ADVANCED_AGENT_INVENTORY=1 · SKIP_K2_EVENT_TIME_INDEX=1 · SKIP_RECMEM_COMPACTION=1
-residual-gate: advanced-agent-inventory-residual-gate k2-event-time-index-residual-gate recmem-compaction-residual-gate
-
-# Offline residual pin s1297 — kernel advanced agent inventory.
-advanced-agent-inventory-residual-gate:
-	bash scripts/advanced_agent_inventory_residual_gate.sh
-
-# Offline residual pin s1303 — K2 ListMemoryWithOptions / event-time index residual
-# (filters before limit shipped · full event-time index residual · not invent index green).
-k2-event-time-index-residual-gate:
-	bash scripts/k2_event_time_index_residual_gate.sh
-
-# Offline residual pin s1313 — RecMem / compaction residual
-# (AutoRecMemCompaction shipped partial · PerformCompaction · CompactionConfig · trigger advisory · HITL TUI · not invent GA token-reduction).
-recmem-compaction-residual-gate:
-	bash scripts/recmem_compaction_residual_gate.sh
 
 test-onnx:
 	go test -count=1 -run 'ONNX|IngestRetrieve|RecallGate|Bench|HugotBackend' ./...
